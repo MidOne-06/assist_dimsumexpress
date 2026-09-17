@@ -19,6 +19,9 @@
         <div class="icono">⚠️</div>
         <h1>No se pudo registrar tu marcación</h1>
         <p>{{ $mensaje }}</p>
+
+        @include('marcacion.partials.escaner')
+
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" style="all: unset; cursor: pointer;" class="salir">Cerrar sesión</button>

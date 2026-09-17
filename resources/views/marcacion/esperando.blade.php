@@ -11,14 +11,17 @@
         .icono { font-size: 2.75rem; margin-bottom: 0.75rem; }
         h1 { font-size: 1.1rem; margin: 0 0 0.5rem; color: #111827; }
         p { color: #6b7280; font-size: 0.875rem; line-height: 1.5; margin: 0 0 1.5rem; }
-        a.salir { color: #2563eb; font-size: 0.85rem; text-decoration: none; font-weight: 600; }
+        a.salir { color: #6b7280; font-size: 0.8rem; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="card">
         <div class="icono">📷</div>
         <h1>Hola, {{ $colaborador->nombre_completo }}</h1>
-        <p>Sesión iniciada correctamente. Ahora abre la cámara de tu celular y escanea el código QR de la pantalla de tu tienda para registrar tu entrada, salida o refrigerio.</p>
+        <p>Sesión iniciada correctamente. Escanea el código QR de la pantalla de tu tienda para registrar tu entrada, salida o refrigerio.</p>
+
+        @include('marcacion.partials.escaner')
+
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" style="all: unset; cursor: pointer;" class="salir">Cerrar sesión</button>
