@@ -30,6 +30,8 @@ class PuntoVentaResource extends Resource
 
     protected static ?string $pluralModelLabel = 'puntos de venta';
 
+    protected static ?string $navigationLabel = 'Puntos de venta';
+
     public static function form(Schema $schema): Schema
     {
         return PuntoVentaForm::configure($schema);

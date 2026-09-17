@@ -26,9 +26,9 @@ class AsignarTurnos extends Page
 
     protected static string|\UnitEnum|null $navigationGroup = 'Personal';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
 
-    protected static ?string $navigationLabel = 'Calendario de turnos';
+    protected static ?string $navigationLabel = 'Asignación masiva';
 
     protected static ?string $title = 'Asignación masiva de turnos';
 
