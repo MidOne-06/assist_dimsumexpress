@@ -23,7 +23,17 @@ class MarcacionController extends Controller
         }
 
         $token = $request->query('token');
-        $qrToken = $token ? QrToken::where('token', $token)->first() : null;
+
+        // Sin token: no es un intento de marcación fallido, es el estado
+        // normal justo después de iniciar sesión (aún no escaneó nada).
+        // Antes se mostraba el mismo mensaje de "no se pudo registrar tu
+        // marcación" que un QR realmente vencido, lo cual confundía al
+        // colaborador que recién se loguea.
+        if (! $token) {
+            return view('marcacion.esperando', ['colaborador' => $colaborador]);
+        }
+
+        $qrToken = QrToken::where('token', $token)->first();
 
         if (! $qrToken || ! $qrToken->vigente()) {
             return view('marcacion.error', [
@@ -100,9 +110,15 @@ class MarcacionController extends Controller
 
     private function ultimaMarcacionDeHoy(Colaborador $colaborador): ?Marcacion
     {
+        // Desempate por "id" además de "fecha_hora": dos marcaciones seguidas
+        // (ej. salida_refrigerio inmediatamente después de entrada) pueden
+        // caer en el mismo segundo -- la columna no guarda microsegundos --
+        // y ordenar solo por fecha_hora no es determinista en ese empate,
+        // pudiendo devolver la marcación equivocada como "la más reciente".
         return $colaborador->marcaciones()
             ->whereDate('fecha_hora', now()->toDateString())
-            ->latest('fecha_hora')
+            ->orderByDesc('fecha_hora')
+            ->orderByDesc('id')
             ->first();
     }
 
