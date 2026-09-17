@@ -2,7 +2,7 @@
      Usa la API nativa BarcodeDetector del navegador; si no está disponible,
      cae de vuelta a la instrucción de usar la cámara del celular. --}}
 <style>
-    button.mp-escanear { width: 100%; padding: 0.85rem; border: none; border-radius: 0.6rem; font-size: 1rem; font-weight: 600; color: #fff; background: #2563eb; cursor: pointer; margin-bottom: 0.75rem; }
+    button.mp-escanear { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.85rem; border: none; border-radius: 0.6rem; font-size: 1rem; font-weight: 600; color: #fff; background: #2563eb; cursor: pointer; margin-bottom: 0.75rem; }
     button.mp-escanear:hover { background: #1d4ed8; }
     .mp-aviso { display: none; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 0.65rem 0.85rem; border-radius: 0.5rem; font-size: 0.8rem; margin-bottom: 1rem; text-align: left; }
 
@@ -21,7 +21,10 @@
     No se pudo acceder a la cámara. Revisa que le hayas dado permiso de cámara a este sitio en la configuración de tu navegador.
 </div>
 
-<button type="button" class="mp-escanear" id="mp-btn-escanear">Escanear código QR</button>
+<button type="button" class="mp-escanear" id="mp-btn-escanear">
+    <x-heroicon-o-qr-code style="width: 1.25rem; height: 1.25rem;" />
+    Escanear código QR
+</button>
 
 <div class="mp-overlay" id="mp-overlay-camara">
     <div style="position: relative;">
@@ -29,7 +32,10 @@
         <div class="mp-marco"></div>
     </div>
     <div class="mp-estado" id="mp-estado-camara">Apunta la cámara al código QR de la pantalla</div>
-    <button type="button" class="mp-cancelar" id="mp-btn-cancelar">Cancelar</button>
+    <button type="button" class="mp-cancelar" id="mp-btn-cancelar" style="display: flex; align-items: center; gap: 0.35rem;">
+        <x-heroicon-o-x-mark style="width: 1rem; height: 1rem;" />
+        Cancelar
+    </button>
 </div>
 
 <script>

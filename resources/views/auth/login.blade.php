@@ -13,7 +13,7 @@
         label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.35rem; }
         input[type=email], input[type=password] { width: 100%; padding: 0.65rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem; margin-bottom: 1rem; }
         input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-        button { width: 100%; padding: 0.75rem; background: #2563eb; color: #fff; border: none; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        button { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.75rem; background: #2563eb; color: #fff; border: none; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; }
         button:hover { background: #1d4ed8; }
         .errores { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 0.65rem 0.85rem; border-radius: 0.5rem; font-size: 0.8rem; margin-bottom: 1rem; }
         .check { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 1.25rem; font-size: 0.8rem; color: #4b5563; }
@@ -21,6 +21,7 @@
 </head>
 <body>
     <div class="card">
+        <x-heroicon-o-finger-print style="width: 2.25rem; height: 2.25rem; color: #2563eb; margin-bottom: 0.5rem;" />
         <h1>{{ config('app.name') }}</h1>
         <p class="sub">Ingresa con tu correo y contraseña para marcar tu asistencia.</p>
 
@@ -45,7 +46,10 @@
                 <label for="recordar" style="margin:0;font-weight:400;">Recordarme en este dispositivo</label>
             </div>
 
-            <button type="submit">Ingresar</button>
+            <button type="submit">
+                <x-heroicon-o-arrow-right-on-rectangle style="width: 1.1rem; height: 1.1rem;" />
+                Ingresar
+            </button>
         </form>
     </div>
 </body>
