@@ -176,7 +176,7 @@ class DemoDataSeeder extends Seeder
     /**
      * Marcaciones reales de los últimos 6 días (sin incluir hoy, para dejar
      * el día de hoy "libre" y que el usuario pueda probar el marcado en
-     * vivo desde el kiosko/celular). Solo marca los días en que el
+     * vivo desde la estación de marcado o su celular). Solo marca los días en que el
      * colaborador tenía un turno asignado, con pequeñas variaciones
      * aleatorias de minutos para simular tardanzas reales, y refrigerio en
      * la mitad de los casos.

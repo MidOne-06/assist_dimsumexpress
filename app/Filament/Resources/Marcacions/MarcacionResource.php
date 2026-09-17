@@ -29,7 +29,7 @@ class MarcacionResource extends Resource
     protected static ?string $pluralModelLabel = 'marcaciones';
 
     // Solo lectura: las marcaciones se generan desde el flujo real de QR
-    // (kiosko + celular del colaborador), no deben crearse ni editarse a
+    // (estación de marcado + celular del colaborador), no deben crearse ni editarse a
     // mano desde el panel para no falsear el registro de asistencia.
     public static function canCreate(): bool
     {

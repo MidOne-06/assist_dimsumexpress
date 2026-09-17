@@ -35,7 +35,7 @@
     </p>
 
     <script>
-        const urlToken = @json(route('kiosko.token', array_filter(['sucursal' => $sucursal->id, 'puntoVenta' => $puntoVenta?->id])));
+        const urlToken = @json(route('estacion-marcado.token', array_filter(['sucursal' => $sucursal->id, 'puntoVenta' => $puntoVenta?->id])));
         const vigenciaSegundos = @json($vigenciaSegundos);
         const imgQr = document.getElementById('qr-imagen');
         const barraFill = document.getElementById('barra-fill');

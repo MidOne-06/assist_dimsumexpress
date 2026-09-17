@@ -10,7 +10,7 @@ use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
-class KioskoController extends Controller
+class EstacionMarcadoController extends Controller
 {
     /**
      * Segundos de vigencia de cada código QR. Coincide con el rango
@@ -22,7 +22,7 @@ class KioskoController extends Controller
     {
         $this->validarPuntoVenta($sucursal, $puntoVenta);
 
-        return view('kiosko.show', [
+        return view('estacion-marcado.show', [
             'sucursal' => $sucursal,
             'puntoVenta' => $puntoVenta,
             'vigenciaSegundos' => self::VIGENCIA_SEGUNDOS,
