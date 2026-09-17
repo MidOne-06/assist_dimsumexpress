@@ -93,7 +93,7 @@ class CalendarioTurnos extends Page
     }
 
     /**
-     * @return array<int, array<string, Turno>>
+     * @return array<int, array<string, AsignacionTurno>>
      */
     public function getMapaAsignacionesProperty(): array
     {
@@ -114,7 +114,7 @@ class CalendarioTurnos extends Page
             ->with('turno')
             ->get()
             ->each(function (AsignacionTurno $asignacion) use (&$mapa) {
-                $mapa[$asignacion->colaborador_id][$asignacion->fecha->toDateString()] = $asignacion->turno;
+                $mapa[$asignacion->colaborador_id][$asignacion->fecha->toDateString()] = $asignacion;
             });
 
         return $mapa;
@@ -129,19 +129,25 @@ class CalendarioTurnos extends Page
      * Color determinístico por turno para que el mismo turno siempre pinte
      * igual en toda la grilla, sin necesitar que el usuario elija un color.
      *
+     * Se usan valores hexadecimales reales (no clases Tailwind) porque el
+     * CSS que Filament v5 distribuye es un build propio (Tailwind v4) que
+     * solo contiene las clases que sus propios componentes usan -- clases
+     * utilitarias arbitrarias como "bg-emerald-100" no existen en ese
+     * bundle y no pintarían nada en el navegador.
+     *
      * @return array{bg: string, text: string}
      */
     public static function colorParaTurno(int $turnoId): array
     {
         $paleta = [
-            ['bg' => 'bg-blue-100 dark:bg-blue-500/20', 'text' => 'text-blue-800 dark:text-blue-300'],
-            ['bg' => 'bg-emerald-100 dark:bg-emerald-500/20', 'text' => 'text-emerald-800 dark:text-emerald-300'],
-            ['bg' => 'bg-amber-100 dark:bg-amber-500/20', 'text' => 'text-amber-800 dark:text-amber-300'],
-            ['bg' => 'bg-purple-100 dark:bg-purple-500/20', 'text' => 'text-purple-800 dark:text-purple-300'],
-            ['bg' => 'bg-rose-100 dark:bg-rose-500/20', 'text' => 'text-rose-800 dark:text-rose-300'],
-            ['bg' => 'bg-cyan-100 dark:bg-cyan-500/20', 'text' => 'text-cyan-800 dark:text-cyan-300'],
-            ['bg' => 'bg-orange-100 dark:bg-orange-500/20', 'text' => 'text-orange-800 dark:text-orange-300'],
-            ['bg' => 'bg-lime-100 dark:bg-lime-500/20', 'text' => 'text-lime-800 dark:text-lime-300'],
+            ['bg' => '#22c55e', 'text' => '#ffffff'], // verde
+            ['bg' => '#3b82f6', 'text' => '#ffffff'], // azul
+            ['bg' => '#f97316', 'text' => '#ffffff'], // naranja
+            ['bg' => '#a855f7', 'text' => '#ffffff'], // púrpura
+            ['bg' => '#ef4444', 'text' => '#ffffff'], // rojo
+            ['bg' => '#06b6d4', 'text' => '#ffffff'], // cian
+            ['bg' => '#eab308', 'text' => '#1f2937'], // amarillo (texto oscuro por contraste)
+            ['bg' => '#84cc16', 'text' => '#1f2937'], // lima (texto oscuro por contraste)
         ];
 
         return $paleta[$turnoId % count($paleta)];

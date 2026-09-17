@@ -2,7 +2,7 @@
     <form wire:submit="asignar">
         {{ $this->form }}
 
-        <div class="mt-6 flex justify-end">
+        <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
             <x-filament::button type="submit" icon="heroicon-o-calendar-days">
                 Asignar turno
             </x-filament::button>
