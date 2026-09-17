@@ -27,7 +27,7 @@
             ];
         @endphp
         <h1>{{ $etiquetas[$marcacion->tipo] }}</h1>
-        <div class="hora">{{ $marcacion->fecha_hora->format('H:i') }}</div>
+        <div class="hora">{{ $marcacion->fecha_hora->format('H:i:s') }}</div>
         <p class="sub">{{ $marcacion->fecha_hora->translatedFormat('l d \d\e F') }}</p>
         <p style="color:#9ca3af;font-size:0.75rem;">Ya puedes cerrar esta pantalla.</p>
         <form method="POST" action="{{ route('logout') }}">

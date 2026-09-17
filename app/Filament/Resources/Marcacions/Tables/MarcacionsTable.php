@@ -17,7 +17,7 @@ class MarcacionsTable
             ->columns([
                 TextColumn::make('fecha_hora')
                     ->label('Fecha y hora')
-                    ->dateTime('d/m/Y H:i')
+                    ->dateTime('d/m/Y H:i:s')
                     ->sortable(),
                 TextColumn::make('colaborador.nombre_completo')
                     ->label('Colaborador')

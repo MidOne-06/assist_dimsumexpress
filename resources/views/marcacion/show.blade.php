@@ -45,7 +45,7 @@
             @endphp
             <div class="ultima" style="display: flex; align-items: center; gap: 0.5rem;">
                 <x-heroicon-o-clock style="width: 1.1rem; height: 1.1rem; color: #6b7280; flex-shrink: 0;" />
-                <span>Última marcación hoy: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> a las {{ $ultimaMarcacion->fecha_hora->format('H:i') }}</span>
+                <span>Última marcación hoy: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> a las {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</span>
             </div>
         @endif
 
