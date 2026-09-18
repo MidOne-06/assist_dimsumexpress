@@ -14,12 +14,21 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
+use Filament\Support\Enums\Width;
 
 class CalendarioTurnos extends Page
 {
     // Ver bitácora de AsignarTurnos.php -- mismo hallazgo: sin este trait,
     // `View:CalendarioTurnos` nunca se llegaba a evaluar.
     use HasPageShield;
+
+    // Sin esto, Filament limita cualquier página a 7xl (1280px) por defecto
+    // (ver vendor/filament/filament/resources/views/components/layout/index.blade.php)
+    // -- dejaba una franja de espacio en blanco real a la derecha en
+    // pantallas anchas, justo donde más falta hace el ancho en una tabla
+    // con hasta 31 columnas de días. Pedido explícito del usuario
+    // (2026-09-18): usar todo el ancho disponible de la vista.
+    protected Width|string|null $maxContentWidth = Width::Full;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 

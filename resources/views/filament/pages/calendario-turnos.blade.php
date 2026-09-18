@@ -25,7 +25,7 @@
         .cal-swatch { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 999px; flex-shrink: 0; }
 
         .cal-day-head {
-            min-width: 4rem; max-width: 4rem;
+            min-width: 5rem; max-width: 5rem;
             text-align: center; padding: 0.6rem 0.1rem;
             background: #f9fafb; border-bottom: 1px solid #f3f4f6;
             border-left: 1px solid #fff;
@@ -36,11 +36,11 @@
         .cal-day-num.cal-hoy { font-weight: 700; color: #2563eb; }
 
         .cal-cell {
-            min-width: 4rem; max-width: 4rem;
+            min-width: 5rem; max-width: 5rem;
             min-height: 3.75rem;
             border-left: 1px solid #fff;
             border-bottom: 1px solid #fff;
-            padding: 0.25rem;
+            padding: 0.35rem;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem;
         }
         .cal-cell.cal-hoy { background: #fbfdff; }
@@ -93,7 +93,7 @@
             // max-content en la primera columna: se ajusta exactamente al
             // ancho real del nombre de turno más largo + su horario, en vez
             // de un ancho fijo sobrado.
-            $columnas = 'max-content repeat(' . count($dias) . ', 4rem)';
+            $columnas = 'max-content repeat(' . count($dias) . ', 5rem)';
         @endphp
 
         @if ($colaboradores->isEmpty())
