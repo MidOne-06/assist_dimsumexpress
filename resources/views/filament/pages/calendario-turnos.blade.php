@@ -60,9 +60,6 @@
         <x-slot name="heading">
             Calendario de turnos
         </x-slot>
-        <x-slot name="description">
-            Colaboradores asignados a cada turno, día por día. Pasa el cursor sobre un nombre para ver más detalle.
-        </x-slot>
 
         <div class="cal-toolbar">
             <div class="cal-toolbar-nav">
@@ -98,11 +95,11 @@
 
         @if ($colaboradores->isEmpty())
             <div class="cal-empty" style="margin-top: 1.5rem;">
-                No hay colaboradores activos en esta sucursal. Registra colaboradores o cambia el filtro.
+                No hay colaboradores activos en esta sucursal.
             </div>
         @elseif ($turnos->isEmpty())
             <div class="cal-empty" style="margin-top: 1.5rem;">
-                No hay turnos activos configurados todavía.
+                No hay turnos activos configurados.
             </div>
         @else
             <div class="cal-scroll">
@@ -204,7 +201,6 @@
                     <x-heroicon-s-x-circle style="width: 0.85rem; height: 0.85rem; color: #dc2626;" />
                     Falta
                 </span>
-                <span style="color: #9ca3af;">Sin ícono = turno todavía pendiente (fecha futura o dentro de la tolerancia de hoy)</span>
             </div>
         @endif
     </x-filament::section>
