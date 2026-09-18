@@ -12,21 +12,21 @@
         .cal-head-turno, .cal-row-turno {
             position: sticky; left: 0; z-index: 2;
             display: flex; flex-direction: column; justify-content: center;
-            min-width: 12rem; max-width: 12rem;
-            padding: 0.6rem 1rem;
+            white-space: nowrap;
+            padding: 0.5rem 0.65rem;
             font-size: 0.8rem;
             background: #fff;
             border-right: 2px solid #e5e7eb;
             border-bottom: 1px solid #f3f4f6;
         }
         .cal-head-turno { z-index: 3; background: #f9fafb; font-weight: 600; color: #374151; }
-        .cal-row-turno-nombre { font-weight: 600; color: #111827; display: flex; align-items: center; gap: 0.4rem; }
+        .cal-row-turno-nombre { font-weight: 600; color: #111827; display: flex; align-items: center; gap: 0.35rem; }
         .cal-row-turno-horario { font-size: 0.7rem; color: #9ca3af; margin-top: 0.1rem; }
         .cal-swatch { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 999px; flex-shrink: 0; }
 
         .cal-day-head {
-            min-width: 5rem; max-width: 5rem;
-            text-align: center; padding: 0.6rem 0.15rem;
+            min-width: 4rem; max-width: 4rem;
+            text-align: center; padding: 0.6rem 0.1rem;
             background: #f9fafb; border-bottom: 1px solid #f3f4f6;
             border-left: 1px solid #fff;
         }
@@ -36,11 +36,11 @@
         .cal-day-num.cal-hoy { font-weight: 700; color: #2563eb; }
 
         .cal-cell {
-            min-width: 5rem; max-width: 5rem;
+            min-width: 4rem; max-width: 4rem;
             min-height: 3.75rem;
             border-left: 1px solid #fff;
             border-bottom: 1px solid #fff;
-            padding: 0.35rem;
+            padding: 0.25rem;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem;
         }
         .cal-cell.cal-hoy { background: #fbfdff; }
@@ -90,7 +90,10 @@
             $dias = $this->dias;
             $mapa = $this->mapaPorTurno;
             $hoy = now()->toDateString();
-            $columnas = '12rem repeat(' . count($dias) . ', 5rem)';
+            // max-content en la primera columna: se ajusta exactamente al
+            // ancho real del nombre de turno más largo + su horario, en vez
+            // de un ancho fijo sobrado.
+            $columnas = 'max-content repeat(' . count($dias) . ', 4rem)';
         @endphp
 
         @if ($colaboradores->isEmpty())
