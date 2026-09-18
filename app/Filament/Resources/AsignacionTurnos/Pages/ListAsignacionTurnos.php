@@ -18,6 +18,12 @@ class ListAsignacionTurnos extends ListRecords
                 ->label('Asignación masiva')
                 ->icon('heroicon-o-calendar-days')
                 ->color('gray')
+                // Es solo un enlace de navegación (sin ->action(), no escribe
+                // nada) -- la propia página de destino ya se protege con
+                // View:AsignarTurnos (HasPageShield) y AsignarMasivo:AsignarTurnos
+                // para el envío real. Esto solo evita mostrar un atajo a una
+                // pantalla a la que el usuario no podría entrar de todas formas.
+                ->visible(fn () => \App\Filament\Pages\AsignarTurnos::canAccess())
                 ->url(fn () => \App\Filament\Pages\AsignarTurnos::getUrl()),
             CreateAction::make()
                 ->label('Asignar a un colaborador'),

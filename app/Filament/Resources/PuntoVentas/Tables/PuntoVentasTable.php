@@ -51,6 +51,11 @@ class PuntoVentasTable
                     ->label('Ver enlace')
                     ->icon(Heroicon::OutlinedLink)
                     ->color('gray')
+                    // Ver SucursalsTable.php: mismo permiso propio, distinto
+                    // de ViewAny/View:PuntoVenta, con ->authorize() (revisado
+                    // siempre) además de ->visible() (solo oculta el botón).
+                    ->visible(fn () => auth()->user()->can('VerEnlace:PuntoVenta'))
+                    ->authorize(fn () => auth()->user()->can('VerEnlace:PuntoVenta'))
                     ->modalHeading('Enlace de la estación')
                     ->modalContent(fn (PuntoVenta $record) => view('filament.actions.enlace-estacion', ['url' => $record->enlaceEstacion()]))
                     ->modalSubmitAction(false)

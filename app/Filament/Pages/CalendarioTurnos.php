@@ -8,6 +8,7 @@ use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use BackedEnum;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
@@ -16,6 +17,10 @@ use Filament\Support\Icons\Heroicon;
 
 class CalendarioTurnos extends Page
 {
+    // Ver bitácora de AsignarTurnos.php -- mismo hallazgo: sin este trait,
+    // `View:CalendarioTurnos` nunca se llegaba a evaluar.
+    use HasPageShield;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Personal';

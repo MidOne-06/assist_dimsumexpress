@@ -6,6 +6,7 @@ use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Turno;
 use BackedEnum;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Carbon\CarbonPeriod;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
@@ -22,6 +23,13 @@ use Illuminate\Support\Facades\DB;
  */
 class AsignarTurnos extends Page
 {
+    // Shield -- sin esto, `View:AsignarTurnos` (generado por shield:generate)
+    // nunca se llegaba a evaluar de verdad: quedaba como fila huérfana en
+    // `permissions`, y cualquier usuario con algún rol podía entrar a esta
+    // página sin importar sus permisos reales (hallazgo de la auditoría de
+    // "toda acción como permiso", 2026-09-18).
+    use HasPageShield;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Personal';
@@ -100,6 +108,13 @@ class AsignarTurnos extends Page
 
     public function asignar(): void
     {
+        // Permiso propio, distinto de "ver la página" (View:AsignarTurnos):
+        // esto crea/sobreescribe asignaciones reales para hasta 90 días y
+        // múltiples colaboradores a la vez -- un proceso mucho más sensible
+        // que asignar un turno individual (Create:AsignacionTurno), así que
+        // un rol podría necesitar lo uno sin lo otro.
+        abort_unless(auth()->user()->can('AsignarMasivo:AsignarTurnos'), 403);
+
         $data = $this->form->getState();
 
         $fechaInicio = \Illuminate\Support\Carbon::parse($data['fecha_inicio'])->startOfDay();
