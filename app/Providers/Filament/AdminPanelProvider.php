@@ -11,6 +11,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
@@ -35,6 +36,13 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->sidebarCollapsibleOnDesktop()
+            // Pedido explícito del usuario (2026-09-18): el ancho completo
+            // que se validó en Calendario de turnos debe aplicar a TODOS
+            // los módulos, no solo a esa página -- Filament limita
+            // cualquier página a 7xl (1280px) por defecto si nada lo
+            // indica distinto (index.blade.php del layout base). Puesto acá,
+            // a nivel de panel, en vez de repetirlo en cada Resource/Page.
+            ->maxContentWidth(Width::Full)
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 // Filament recuerda el estado del sidebar en localStorage. El usuario
