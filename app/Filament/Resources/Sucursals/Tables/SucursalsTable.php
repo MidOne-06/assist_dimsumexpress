@@ -2,9 +2,12 @@
 
 namespace App\Filament\Resources\Sucursals\Tables;
 
+use App\Models\Sucursal;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -55,6 +58,14 @@ class SucursalsTable
                     ->label('Activa'),
             ])
             ->recordActions([
+                Action::make('enlace')
+                    ->label('Ver enlace')
+                    ->icon(Heroicon::OutlinedLink)
+                    ->color('gray')
+                    ->modalHeading('Enlace de la estación')
+                    ->modalContent(fn (Sucursal $record) => view('filament.actions.enlace-estacion', ['url' => $record->enlaceEstacion()]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
                 EditAction::make(),
             ])
             ->toolbarActions([

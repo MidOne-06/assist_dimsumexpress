@@ -39,4 +39,19 @@ class PuntoVenta extends Model
     {
         return $this->hasMany(Colaborador::class);
     }
+
+    /**
+     * Enlace estable de la estación física para este punto de venta (incluye
+     * la clave real). No hay otra forma de recuperarlo desde el panel -- sin
+     * esto, configurar una pantalla física obligaba a leer la base de datos
+     * a mano (hallazgo de la auditoría, 2026-09-18).
+     */
+    public function enlaceEstacion(): string
+    {
+        return route('estacion-marcado.show', [
+            'sucursal' => $this->sucursal_id,
+            'puntoVenta' => $this->id,
+            'clave' => $this->token_pantalla,
+        ]);
+    }
 }

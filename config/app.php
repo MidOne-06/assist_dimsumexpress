@@ -65,7 +65,13 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Laravel 11+ ya no lee APP_TIMEZONE del .env por defecto en este archivo
+    // -- este proyecto SÍ lo necesita porque toda la lógica de tolerancias de
+    // entrada/salida compara horas reales de Lima contra la hora configurada
+    // de cada turno; con 'UTC' fijo, cualquier marcación puntual se veía
+    // marcada como "tardanza" de ~5 horas (bug real encontrado en auditoría,
+    // 2026-09-18).
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

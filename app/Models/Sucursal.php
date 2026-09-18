@@ -49,4 +49,15 @@ class Sucursal extends Model
     {
         return $this->hasMany(QrToken::class);
     }
+
+    /**
+     * Enlace estable de la estación física para esta sucursal (incluye la
+     * clave real). No hay otra forma de recuperarlo desde el panel -- sin
+     * esto, configurar una pantalla física obligaba a leer la base de datos
+     * a mano (hallazgo de la auditoría, 2026-09-18).
+     */
+    public function enlaceEstacion(): string
+    {
+        return route('estacion-marcado.show', ['sucursal' => $this->id, 'clave' => $this->token_pantalla]);
+    }
 }
