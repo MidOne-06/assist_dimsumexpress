@@ -36,17 +36,16 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
-                // Filament recuerda el estado del sidebar en localStorage (abierto por
-                // defecto la primera vez). Este script solo fija el valor inicial a
-                // "contraído" cuando todavía no existe ninguna preferencia guardada --
-                // en cuanto el usuario lo abre/cierra una vez, esa elección manda y este
-                // script deja de tener efecto.
+                // Filament recuerda el estado del sidebar en localStorage. El usuario
+                // pidió explícitamente que el menú arranque SIEMPRE contraído (no solo
+                // la primera vez) -- por eso se fuerza en cada carga de página, antes de
+                // que Alpine inicialice el store, en vez de solo fijar un valor inicial
+                // condicional. Sigue siendo expandible con un clic durante la sesión;
+                // solo no se "recuerda" abierto entre recargas.
                 fn (): HtmlString => new HtmlString(<<<'HTML'
                     <script>
-                        if (localStorage.getItem('isOpenDesktop') === null) {
-                            localStorage.setItem('isOpenDesktop', 'false');
-                            localStorage.setItem('isOpen', 'false');
-                        }
+                        localStorage.setItem('isOpenDesktop', 'false');
+                        localStorage.setItem('isOpen', 'false');
                     </script>
                     HTML),
             )

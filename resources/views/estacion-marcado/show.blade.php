@@ -34,8 +34,12 @@
         salida o refrigerio. El código cambia cada pocos segundos por seguridad.
     </p>
 
+    @php
+        $urlTokenConClave = route('estacion-marcado.token', array_filter(['sucursal' => $sucursal->id, 'puntoVenta' => $puntoVenta?->id]))
+            . '?clave=' . urlencode($clave);
+    @endphp
     <script>
-        const urlToken = @json(route('estacion-marcado.token', array_filter(['sucursal' => $sucursal->id, 'puntoVenta' => $puntoVenta?->id])));
+        const urlToken = @json($urlTokenConClave);
         const vigenciaSegundos = @json($vigenciaSegundos);
         const imgQr = document.getElementById('qr-imagen');
         const barraFill = document.getElementById('barra-fill');

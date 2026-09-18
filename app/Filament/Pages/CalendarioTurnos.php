@@ -4,11 +4,13 @@ namespace App\Filament\Pages;
 
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
+use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 
@@ -92,10 +94,55 @@ class CalendarioTurnos extends Page
             ->get();
     }
 
+    public function getTurnosActivosProperty(): Collection
+    {
+        return Turno::query()->where('activo', true)->orderBy('hora_inicio')->get();
+    }
+
     /**
-     * @return array<int, array<string, AsignacionTurno>>
+     * Filas = turnos (identidad fija) en vez de colaboradores, porque un
+     * colaborador puede rotar de turno día a día -- anclar las filas por
+     * colaborador hacía que la tabla se viera "inestable" de un mes a otro.
+     * Cada celda agrupa los colaboradores que trabajan ese turno ese día.
+     *
+     * @return array<int, array<string, Collection<int, AsignacionTurno>>>
      */
-    public function getMapaAsignacionesProperty(): array
+    public function getMapaPorTurnoProperty(): array
+    {
+        $colaboradores = $this->colaboradores;
+
+        if ($colaboradores->isEmpty()) {
+            return [];
+        }
+
+        $inicio = Carbon::parse("{$this->mes}-01")->toDateString();
+        $fin = Carbon::parse("{$this->mes}-01")->endOfMonth()->toDateString();
+
+        $asignaciones = AsignacionTurno::query()
+            ->whereIn('colaborador_id', $colaboradores->pluck('id'))
+            ->whereBetween('fecha', [$inicio, $fin])
+            ->with(['colaborador', 'turno'])
+            ->get();
+
+        $mapa = [];
+
+        foreach ($asignaciones as $asignacion) {
+            $fecha = $asignacion->fecha->toDateString();
+            $mapa[$asignacion->turno_id][$fecha] ??= new Collection();
+            $mapa[$asignacion->turno_id][$fecha]->push($asignacion);
+        }
+
+        return $mapa;
+    }
+
+    /**
+     * Marcaciones reales de tipo "entrada" del mes, indexadas por
+     * colaborador+fecha, para no hacer una consulta por celda al calcular si
+     * cada asignación se cumplió a tiempo.
+     *
+     * @return array<int, array<string, Marcacion>>
+     */
+    public function getEntradasProperty(): array
     {
         $colaboradores = $this->colaboradores;
 
@@ -108,21 +155,128 @@ class CalendarioTurnos extends Page
 
         $mapa = [];
 
-        AsignacionTurno::query()
+        Marcacion::query()
             ->whereIn('colaborador_id', $colaboradores->pluck('id'))
-            ->whereBetween('fecha', [$inicio, $fin])
-            ->with('turno')
+            ->where('tipo', Marcacion::TIPO_ENTRADA)
+            ->whereBetween('fecha_hora', ["{$inicio} 00:00:00", "{$fin} 23:59:59"])
+            ->orderBy('fecha_hora')
             ->get()
-            ->each(function (AsignacionTurno $asignacion) use (&$mapa) {
-                $mapa[$asignacion->colaborador_id][$asignacion->fecha->toDateString()] = $asignacion;
+            ->each(function (Marcacion $marcacion) use (&$mapa) {
+                // Si por algún motivo hay más de una "entrada" el mismo día,
+                // se queda con la primera (orderBy fecha_hora asc arriba).
+                $mapa[$marcacion->colaborador_id][$marcacion->fecha_hora->toDateString()] ??= $marcacion;
             });
 
         return $mapa;
     }
 
-    public function getTurnosActivosProperty(): Collection
+    /**
+     * Cruza lo planificado (AsignacionTurno) con lo realmente marcado
+     * (Marcacion tipo entrada) usando la tolerancia de entrada configurada
+     * en el turno, para saber si el turno se cumplió, llegó tarde, o faltó.
+     *
+     * @return array{estado: string, label: string, hora: ?string}
+     */
+    public function estadoAsignacion(AsignacionTurno $asignacion): array
     {
-        return Turno::query()->where('activo', true)->orderBy('hora_inicio')->get();
+        $entrada = $this->entradas[$asignacion->colaborador_id][$asignacion->fecha->toDateString()] ?? null;
+        $turno = $asignacion->turno;
+
+        $limite = Carbon::parse($asignacion->fecha->toDateString() . ' ' . $turno->hora_inicio)
+            ->addMinutes($turno->tolerancia_entrada_minutos);
+
+        if ($entrada) {
+            if ($entrada->fecha_hora->lte($limite)) {
+                return ['estado' => 'a_tiempo', 'label' => 'A tiempo', 'hora' => $entrada->fecha_hora->format('H:i')];
+            }
+
+            $minutosTarde = $limite->diffInMinutes($entrada->fecha_hora);
+
+            return ['estado' => 'tardanza', 'label' => "Tardanza de {$minutosTarde} min", 'hora' => $entrada->fecha_hora->format('H:i')];
+        }
+
+        // Sin marcación todavía: si el límite de tolerancia de hoy aún no
+        // pasó (o la fecha es futura), no es una falta, solo está pendiente.
+        $aunNoVence = $asignacion->fecha->isFuture()
+            || ($asignacion->fecha->isToday() && now()->lt($limite));
+
+        if ($aunNoVence) {
+            return ['estado' => 'pendiente', 'label' => 'Pendiente', 'hora' => null];
+        }
+
+        return ['estado' => 'falta', 'label' => 'Falta (sin marcar entrada)', 'hora' => null];
+    }
+
+    /**
+     * "Ana Torres Quispe" -> "Ana T." -- para que quepa en una celda angosta;
+     * el nombre completo siempre está disponible en el tooltip.
+     */
+    public static function abreviarNombre(string $nombreCompleto): string
+    {
+        $partes = preg_split('/\s+/', trim($nombreCompleto));
+
+        if (count($partes) < 2) {
+            return $nombreCompleto;
+        }
+
+        return "{$partes[0]} " . mb_substr($partes[1], 0, 1) . '.';
+    }
+
+    public function tooltipNombres(\Illuminate\Support\Collection $asignaciones): HtmlString
+    {
+        return new HtmlString(
+            $asignaciones
+                ->map(function (AsignacionTurno $asignacion) {
+                    $estado = $this->estadoAsignacion($asignacion);
+                    $nombre = e($asignacion->colaborador->nombre_completo);
+                    $detalle = $estado['hora']
+                        ? "{$estado['label']} ({$estado['hora']})"
+                        : $estado['label'];
+
+                    return "{$nombre} — " . e($detalle);
+                })
+                ->join('<br>')
+        );
+    }
+
+    /**
+     * Ícono y color del estado de asistencia, para pintar un indicador
+     * pequeño sobre el nombre del colaborador en la celda.
+     */
+    public static function iconoEstado(string $estado): ?string
+    {
+        return match ($estado) {
+            'a_tiempo' => 'heroicon-s-check-circle',
+            'tardanza' => 'heroicon-s-exclamation-triangle',
+            'falta' => 'heroicon-s-x-circle',
+            default => null, // pendiente: aún no corresponde marcar, sin ícono
+        };
+    }
+
+    public static function colorEstado(string $estado): string
+    {
+        return match ($estado) {
+            'a_tiempo' => '#16a34a',
+            'tardanza' => '#f59e0b',
+            'falta' => '#dc2626',
+            default => '#9ca3af',
+        };
+    }
+
+    /**
+     * El peor estado entre varios colaboradores del mismo turno/día, para
+     * decidir si el badge resumen (">2 colaboradores") debe avisar de algo.
+     *
+     * @param  Collection<int, AsignacionTurno>  $asignaciones
+     */
+    public function peorEstado(\Illuminate\Support\Collection $asignaciones): string
+    {
+        $prioridad = ['falta' => 3, 'tardanza' => 2, 'pendiente' => 1, 'a_tiempo' => 0];
+
+        return $asignaciones
+            ->map(fn (AsignacionTurno $a) => $this->estadoAsignacion($a)['estado'])
+            ->sortByDesc(fn (string $estado) => $prioridad[$estado] ?? 0)
+            ->first() ?? 'pendiente';
     }
 
     /**

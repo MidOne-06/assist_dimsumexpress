@@ -6,11 +6,22 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
+// token_pantalla NO está en Fillable a propósito: es el secreto de la
+// estación física, se genera solo (ver booted()) y nunca debe poder
+// llegar por un formulario ni por mass-assignment.
 #[Fillable(['nombre', 'tipo', 'direccion', 'activo'])]
 class Sucursal extends Model
 {
     protected $table = 'sucursales';
+
+    protected static function booted(): void
+    {
+        static::creating(function (Sucursal $sucursal) {
+            $sucursal->token_pantalla ??= Str::random(40);
+        });
+    }
 
     protected function casts(): array
     {

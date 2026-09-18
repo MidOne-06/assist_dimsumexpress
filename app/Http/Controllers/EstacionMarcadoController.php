@@ -8,6 +8,7 @@ use App\Models\Sucursal;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class EstacionMarcadoController extends Controller
@@ -18,20 +19,21 @@ class EstacionMarcadoController extends Controller
      */
     private const VIGENCIA_SEGUNDOS = 20;
 
-    public function show(Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): View
+    public function show(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): View
     {
-        $this->validarPuntoVenta($sucursal, $puntoVenta);
+        $this->validarEstacion($request, $sucursal, $puntoVenta);
 
         return view('estacion-marcado.show', [
             'sucursal' => $sucursal,
             'puntoVenta' => $puntoVenta,
+            'clave' => $request->query('clave'),
             'vigenciaSegundos' => self::VIGENCIA_SEGUNDOS,
         ]);
     }
 
-    public function token(Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): JsonResponse
+    public function token(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): JsonResponse
     {
-        $this->validarPuntoVenta($sucursal, $puntoVenta);
+        $this->validarEstacion($request, $sucursal, $puntoVenta);
 
         $qrToken = QrToken::generarPara($sucursal, $puntoVenta, self::VIGENCIA_SEGUNDOS);
 
@@ -52,8 +54,24 @@ class EstacionMarcadoController extends Controller
         ]);
     }
 
-    private function validarPuntoVenta(Sucursal $sucursal, ?PuntoVenta $puntoVenta): void
+    /**
+     * Sin esta validación, cualquiera que conociera o enumerara un ID
+     * numérico de sucursal/punto de venta (1, 2, 3...) podía generar un QR
+     * válido y marcar asistencia sin estar físicamente en la tienda. La
+     * "clave" es un secreto largo y aleatorio (token_pantalla) que solo debe
+     * conocer la pantalla física de esa estación -- se compara con
+     * hash_equals para evitar timing attacks.
+     */
+    private function validarEstacion(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta): void
     {
         abort_if($puntoVenta && $puntoVenta->sucursal_id !== $sucursal->id, 404);
+
+        $claveEsperada = $puntoVenta?->token_pantalla ?? $sucursal->token_pantalla;
+        $claveRecibida = (string) $request->query('clave');
+
+        abort_unless(
+            $claveEsperada && $claveRecibida !== '' && hash_equals($claveEsperada, $claveRecibida),
+            404
+        );
     }
 }
