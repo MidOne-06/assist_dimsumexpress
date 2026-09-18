@@ -82,6 +82,11 @@
             @endforeach
         @endif
 
+        <a href="{{ route('horario.show') }}" class="salir">
+            <x-heroicon-o-calendar-days style="width: 1rem; height: 1rem;" />
+            Ver mi horario
+        </a>
+
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" style="all: unset; cursor: pointer;" class="salir">

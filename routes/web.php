@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\ColaboradorLoginController;
 use App\Http\Controllers\EstacionMarcadoController;
+use App\Http\Controllers\HorarioColaboradorController;
 use App\Http\Controllers\MarcacionController;
 use Illuminate\Support\Facades\Route;
 
@@ -45,4 +46,10 @@ Route::middleware(['auth', 'throttle:30,1'])->group(function () {
     Route::get('/marcar/{marcacion}/confirmacion', [MarcacionController::class, 'confirmacion'])
         ->name('marcacion.confirmacion')
         ->where('marcacion', '[0-9]+');
+
+    // El colaborador ve su propio horario asignado (AsignacionTurno), el
+    // mismo que carga el encargado desde el Calendario de turnos / Asignación
+    // masiva del panel admin -- de solo lectura, siempre derivado del usuario
+    // autenticado (nunca de un id en la URL), igual que /marcar.
+    Route::get('/mi-horario', [HorarioColaboradorController::class, 'show'])->name('horario.show');
 });
