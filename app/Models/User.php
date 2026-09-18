@@ -11,13 +11,14 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * Get the attributes that should be cast.
@@ -39,16 +40,12 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // Mientras solo exista el panel "admin" (gestión), el acceso se limita a
-        // los correos de administradores listados en FILAMENT_ADMIN_EMAILS. Cuando
-        // se construya el flujo de marcado para colaboradores, este método deberá
-        // ampliarse (o crearse un panel/guard separado) para permitirles solo esa
-        // vista, sin darles acceso a los recursos administrativos.
-        $correosAdmin = array_filter(array_map(
-            'trim',
-            explode(',', (string) config('services.filament_admin_emails', ''))
-        ));
-
-        return in_array($this->email, $correosAdmin, true);
+        // Roles y permisos nativos de Filament (Shield + spatie/laravel-permission,
+        // 2026-09-18), en reemplazo de la lista fija FILAMENT_ADMIN_EMAILS -- un
+        // colaborador raso (solo usa /marcar, nunca se le asigna un rol) nunca
+        // tiene ningún rol, así que esto lo sigue bloqueando igual que antes.
+        // Qué puede HACER cada rol dentro del panel lo deciden los permisos
+        // generados por Shield sobre cada Resource/Page, no este método.
+        return $this->roles()->exists();
     }
 }

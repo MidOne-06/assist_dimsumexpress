@@ -6,11 +6,12 @@ use App\Filament\Resources\Marcacions\Pages\ListMarcacions;
 use App\Filament\Resources\Marcacions\Tables\MarcacionsTable;
 use App\Models\Marcacion;
 use BackedEnum;
+use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 
-class MarcacionResource extends Resource
+class MarcacionResource extends Resource implements HasShieldPermissions
 {
     protected static ?string $model = Marcacion::class;
 
@@ -44,6 +45,21 @@ class MarcacionResource extends Resource
     public static function canDelete($record): bool
     {
         return false;
+    }
+
+    /**
+     * Solo generar permisos "Ver todo"/"Ver" -- Shield genera por defecto
+     * 12 permisos tipo CRUD para cada Resource, pero canCreate/canEdit/
+     * canDelete de esta clase siempre devuelven false sin importar el
+     * permiso real: dejar esos permisos disponibles en "Roles" confundiría
+     * a un administrador haciéndole creer que puede otorgarlos (hallazgo de
+     * la implementación de roles y permisos, 2026-09-18).
+     *
+     * @return array<int, string>
+     */
+    public static function getPermissionPrefixes(): array
+    {
+        return ['ViewAny', 'View'];
     }
 
     public static function table(Table $table): Table

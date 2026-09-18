@@ -35,7 +35,4 @@ return [
         ],
     ],
 
-    // Correos con acceso al panel Filament "admin" (ver App\Models\User::canAccessPanel).
-    'filament_admin_emails' => env('FILAMENT_ADMIN_EMAILS', ''),
-
 ];
