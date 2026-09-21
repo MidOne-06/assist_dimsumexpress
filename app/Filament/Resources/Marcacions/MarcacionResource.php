@@ -19,9 +19,9 @@ class MarcacionResource extends Resource implements HasShieldPermissions
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedFingerPrint;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Personal';
+    protected static string|\UnitEnum|null $navigationGroup = 'Asistencia';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $navigationLabel = 'Marcaciones';
 

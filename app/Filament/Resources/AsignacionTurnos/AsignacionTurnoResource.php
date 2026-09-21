@@ -22,7 +22,7 @@ class AsignacionTurnoResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Personal';
+    protected static string|\UnitEnum|null $navigationGroup = 'Gestión de personal';
 
     protected static ?int $navigationSort = 4;
 

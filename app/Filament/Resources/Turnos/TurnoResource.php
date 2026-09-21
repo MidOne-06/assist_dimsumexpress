@@ -22,7 +22,7 @@ class TurnoResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Configuración';
+    protected static string|\UnitEnum|null $navigationGroup = 'Organización';
 
     protected static ?int $navigationSort = 3;
 

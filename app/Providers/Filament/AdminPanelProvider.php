@@ -8,6 +8,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
+use Filament\Navigation\NavigationGroup;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -36,6 +37,12 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->sidebarCollapsibleOnDesktop()
+            ->navigationGroups([
+                NavigationGroup::make('Asistencia'),
+                NavigationGroup::make('Gestión de personal'),
+                NavigationGroup::make('Organización'),
+                NavigationGroup::make('Seguridad'),
+            ])
             // Pedido explícito del usuario (2026-09-18): el ancho completo
             // que se validó en Calendario de turnos debe aplicar a TODOS
             // los módulos, no solo a esa página -- Filament limita
@@ -53,8 +60,17 @@ class AdminPanelProvider extends PanelProvider
                 // solo no se "recuerda" abierto entre recargas.
                 fn (): HtmlString => new HtmlString(<<<'HTML'
                     <script>
-                        localStorage.setItem('isOpenDesktop', 'false');
-                        localStorage.setItem('isOpen', 'false');
+                        (() => {
+                            const comprimirMenu = () => {
+                                localStorage.setItem('isOpenDesktop', 'false');
+                                localStorage.setItem('isOpen', 'false');
+                                window.Alpine?.store('sidebar')?.close();
+                            };
+
+                            comprimirMenu();
+                            document.addEventListener('alpine:init', () => queueMicrotask(comprimirMenu), { once: true });
+                            document.addEventListener('livewire:navigated', comprimirMenu);
+                        })();
                     </script>
                     HTML),
             )
@@ -80,7 +96,9 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->plugins([
-                FilamentShieldPlugin::make(),
+                FilamentShieldPlugin::make()
+                    ->navigationGroup('Seguridad')
+                    ->navigationSort(2),
             ])
             ->authMiddleware([
                 Authenticate::class,

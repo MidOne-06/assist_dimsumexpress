@@ -22,7 +22,7 @@ class PuntoVentaResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMapPin;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Configuración';
+    protected static string|\UnitEnum|null $navigationGroup = 'Organización';
 
     protected static ?int $navigationSort = 2;
 
