@@ -6,6 +6,8 @@ namespace App\Policies;
 
 use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\AsignacionTurno;
+use App\Models\User;
+use App\Support\AlcanceSupervisor;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class AsignacionTurnoPolicy
@@ -19,7 +21,8 @@ class AsignacionTurnoPolicy
 
     public function view(AuthUser $authUser, AsignacionTurno $asignacionTurno): bool
     {
-        return $authUser->can('View:AsignacionTurno');
+        return $authUser->can('View:AsignacionTurno')
+            && $this->puedeGestionarAsignacion($authUser, $asignacionTurno);
     }
 
     public function create(AuthUser $authUser): bool
@@ -29,12 +32,14 @@ class AsignacionTurnoPolicy
 
     public function update(AuthUser $authUser, AsignacionTurno $asignacionTurno): bool
     {
-        return $authUser->can('Update:AsignacionTurno');
+        return $authUser->can('Update:AsignacionTurno')
+            && $this->puedeGestionarAsignacion($authUser, $asignacionTurno);
     }
 
     public function delete(AuthUser $authUser, AsignacionTurno $asignacionTurno): bool
     {
-        return $authUser->can('Delete:AsignacionTurno');
+        return $authUser->can('Delete:AsignacionTurno')
+            && $this->puedeGestionarAsignacion($authUser, $asignacionTurno);
     }
 
     public function deleteAny(AuthUser $authUser): bool
@@ -70,6 +75,18 @@ class AsignacionTurnoPolicy
     public function reorder(AuthUser $authUser): bool
     {
         return $authUser->can('Reorder:AsignacionTurno');
+    }
+
+    private function puedeGestionarAsignacion(AuthUser $authUser, AsignacionTurno $asignacionTurno): bool
+    {
+        if (! $authUser instanceof User) {
+            return false;
+        }
+
+        return AlcanceSupervisor::puedeGestionarSucursal(
+            $authUser,
+            $asignacionTurno->colaborador->sucursal_id,
+        );
     }
 
 }

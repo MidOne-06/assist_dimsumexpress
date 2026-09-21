@@ -7,6 +7,7 @@ use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Illuminate\Database\Eloquent\Collection;
@@ -44,10 +45,7 @@ class CalendarioTurnos extends Page
     public function mount(): void
     {
         $this->mes = now()->format('Y-m');
-        $this->sucursalId = Sucursal::query()
-            ->where('activo', true)
-            ->orderBy('nombre')
-            ->value('id');
+        $this->sucursalId = $this->sucursalesPermitidas()->value('id');
     }
 
     public function mesAnterior(): void
@@ -65,12 +63,18 @@ class CalendarioTurnos extends Page
         $this->mes = now()->format('Y-m');
     }
 
+    public function updatedSucursalId(?int $sucursalId): void
+    {
+        if ($sucursalId && $this->sucursalesPermitidas()->whereKey($sucursalId)->exists()) {
+            return;
+        }
+
+        $this->sucursalId = $this->sucursalesPermitidas()->value('id');
+    }
+
     public function getSucursalesProperty(): Collection
     {
-        return Sucursal::query()
-            ->where('activo', true)
-            ->orderBy('nombre')
-            ->get();
+        return $this->sucursalesPermitidas()->get();
     }
 
     /**
@@ -97,6 +101,7 @@ class CalendarioTurnos extends Page
         }
 
         return Colaborador::query()
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
             ->where('sucursal_id', $this->sucursalId)
             ->where('activo', true)
             ->orderBy('nombre_completo')
@@ -106,6 +111,11 @@ class CalendarioTurnos extends Page
     public function getTurnosActivosProperty(): Collection
     {
         return Turno::query()->where('activo', true)->orderBy('hora_inicio')->get();
+    }
+
+    private function sucursalesPermitidas(): \Illuminate\Database\Eloquent\Builder
+    {
+        return AlcanceSupervisor::sucursalesQuery(auth()->user());
     }
 
     /**

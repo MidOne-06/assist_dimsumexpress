@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AsignacionTurnos\Schemas;
 
 use App\Models\Colaborador;
 use App\Models\Turno;
+use App\Support\AlcanceSupervisor;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -20,6 +21,7 @@ class AsignacionTurnoForm
                 Select::make('colaborador_id')
                     ->label('Colaborador')
                     ->options(fn () => Colaborador::query()
+                        ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
                         ->where('activo', true)
                         ->orderBy('nombre_completo')
                         ->pluck('nombre_completo', 'id'))

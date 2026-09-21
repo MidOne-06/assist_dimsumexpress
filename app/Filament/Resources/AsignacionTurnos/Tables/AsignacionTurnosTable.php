@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AsignacionTurnos\Tables;
 
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Support\AlcanceSupervisor;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -64,7 +65,10 @@ class AsignacionTurnosTable
                     ->options(fn () => Turno::query()->orderBy('nombre')->pluck('nombre', 'id')),
                 SelectFilter::make('sucursal')
                     ->label('Sucursal')
-                    ->options(fn () => Sucursal::query()->orderBy('nombre')->pluck('nombre', 'id'))
+                    ->options(fn () => Sucursal::query()
+                        ->whereIn('id', AlcanceSupervisor::sucursalIds(auth()->user()))
+                        ->orderBy('nombre')
+                        ->pluck('nombre', 'id'))
                     ->query(function (Builder $query, array $data): Builder {
                         return $query->when(
                             $data['value'] ?? null,

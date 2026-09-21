@@ -35,21 +35,23 @@ class RolesYPermisosSeeder extends Seeder
                 || str_ends_with($permiso->name, ':User')
         ));
 
-        // Supervisor: consulta de personal, marcaciones y calendario. Las
-        // altas, bajas, enlaces QR y asignación masiva quedan en administración.
+        // Supervisor: gestiona turnos únicamente de los locales enlazados a
+        // su usuario. El alcance se aplica en las páginas, recursos y políticas.
         $supervisor->syncPermissions($permisos->whereIn('name', [
             'Access:AdminPanel',
             'ViewAny:Colaborador',
             'View:Colaborador',
-            'ViewAny:Marcacion',
-            'View:Marcacion',
             'ViewAny:AsignacionTurno',
             'View:AsignacionTurno',
+            'Create:AsignacionTurno',
+            'Update:AsignacionTurno',
+            'Delete:AsignacionTurno',
+            'DeleteAny:AsignacionTurno',
             'ViewAny:Turno',
             'View:Turno',
-            'ViewAny:Sucursal',
-            'View:Sucursal',
             'View:CalendarioTurnos',
+            'View:AsignarTurnos',
+            'AsignarMasivo:AsignarTurnos',
         ]));
 
         // El operario marca asistencia mediante /marcar. No recibe acceso al

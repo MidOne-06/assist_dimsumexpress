@@ -6,6 +6,7 @@ use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\User;
+use App\Models\Sucursal;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
@@ -68,6 +69,19 @@ class UserResource extends Resource
                             ->preload()
                             ->searchable()
                             ->disabled(fn (?User $record): bool => $record?->is(auth()->user()) ?? false)
+                            ->columnSpanFull(),
+                        Select::make('sucursalesSupervisadas')
+                            ->label('Locales supervisados')
+                            ->relationship('sucursalesSupervisadas', 'nombre')
+                            ->multiple()
+                            ->options(fn (): array => Sucursal::query()
+                                ->where('activo', true)
+                                ->orderBy('nombre')
+                                ->pluck('nombre', 'id')
+                                ->all())
+                            ->preload()
+                            ->searchable()
+                            ->helperText('Aplica a usuarios con rol supervisor.' )
                             ->columnSpanFull(),
                     ]),
             ]);

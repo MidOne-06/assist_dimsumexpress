@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Turno;
+use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Carbon\CarbonPeriod;
@@ -64,6 +65,7 @@ class AsignarTurnos extends Page
                 Select::make('colaborador_ids')
                     ->label('Colaboradores')
                     ->options(fn () => Colaborador::query()
+                        ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
                         ->where('activo', true)
                         ->with('sucursal')
                         ->orderBy('nombre_completo')
@@ -142,6 +144,14 @@ class AsignarTurnos extends Page
 
         $diasSemana = array_map('intval', $data['dias_semana']);
         $colaboradorIds = $data['colaborador_ids'];
+
+        $colaboradoresPermitidos = Colaborador::query()
+            ->whereIn('id', $colaboradorIds)
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
+            ->where('activo', true)
+            ->count();
+
+        abort_unless($colaboradoresPermitidos === count($colaboradorIds), 403);
 
         $creadas = 0;
         $actualizadas = 0;

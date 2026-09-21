@@ -8,11 +8,13 @@ use App\Filament\Resources\AsignacionTurnos\Pages\ListAsignacionTurnos;
 use App\Filament\Resources\AsignacionTurnos\Schemas\AsignacionTurnoForm;
 use App\Filament\Resources\AsignacionTurnos\Tables\AsignacionTurnosTable;
 use App\Models\AsignacionTurno;
+use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class AsignacionTurnoResource extends Resource
 {
@@ -40,6 +42,15 @@ class AsignacionTurnoResource extends Resource
     public static function table(Table $table): Table
     {
         return AsignacionTurnosTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereHas('colaborador', fn (Builder $query): Builder => $query->whereIn(
+                'sucursal_id',
+                AlcanceSupervisor::sucursalIds(auth()->user()),
+            ));
     }
 
     public static function getRelations(): array
