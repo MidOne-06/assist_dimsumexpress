@@ -1,13 +1,11 @@
 <x-filament-panels::page>
-    <div class="w-full">
-        <form wire:submit="asignar">
-            {{ $this->form }}
+    <form wire:submit="asignar">
+        {{ $this->form }}
 
-            <div class="mt-6 flex justify-end">
-                <x-filament::button type="submit" icon="heroicon-o-calendar-days">
-                    Asignar turno
-                </x-filament::button>
-            </div>
-        </form>
-    </div>
+        <div class="mt-6 flex justify-end">
+            <x-filament::button type="submit" icon="heroicon-o-calendar-days">
+                Asignar turno
+            </x-filament::button>
+        </div>
+    </form>
 </x-filament-panels::page>
