@@ -36,6 +36,11 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            // Selector claro / oscuro nativo de Filament. Se declara de
+            // forma explícita para que no dependa de los valores por defecto
+            // del panel al actualizar Filament.
+            ->darkMode()
+            ->themeSwitcher()
             ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
                 NavigationGroup::make('Asistencia'),

@@ -53,7 +53,29 @@
 
         .cal-legend { margin-top: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.25rem; font-size: 0.8rem; color: rgb(75 85 99); }
         .cal-legend-swatch { display: inline-block; height: 0.85rem; width: 0.85rem; border-radius: 0.25rem; margin-right: 0.4rem; vertical-align: middle; }
+        .cal-legend-empty { background-color: #fafafa; background-image: repeating-linear-gradient(45deg, #e5e7eb 0, #e5e7eb 1px, transparent 1px, transparent 4px); }
         .cal-actions { margin-top: 1.5rem; }
+
+        /* Filament agrega .dark al elemento html cuando se elige el tema
+           oscuro. Estos estilos cubren solo la grilla personalizada; los
+           controles y secciones continúan usando componentes nativos. */
+        .dark .cal-empty { border-color: rgb(75 85 99); color: rgb(156 163 175); }
+        .dark .cal-scroll { border-color: rgb(55 65 81); }
+        .dark .cal-head-turno,
+        .dark .cal-row-turno { background: #111827; border-right-color: #374151; border-bottom-color: #1f2937; }
+        .dark .cal-head-turno { background: #1f2937; color: #e5e7eb; }
+        .dark .cal-row-turno-nombre { color: #f3f4f6; }
+        .dark .cal-row-turno-horario,
+        .dark .cal-day-dow { color: #9ca3af; }
+        .dark .cal-day-head { background: #1f2937; border-bottom-color: #374151; border-left-color: #111827; }
+        .dark .cal-day-num { color: #d1d5db; }
+        .dark .cal-day-head.cal-hoy { background: #172554; }
+        .dark .cal-day-num.cal-hoy { color: #93c5fd; }
+        .dark .cal-cell { border-left-color: #1f2937; border-bottom-color: #1f2937; }
+        .dark .cal-cell.cal-hoy { background: #111c35; }
+        .dark .cal-cell-vacia { background-color: #111827; background-image: repeating-linear-gradient(45deg, #374151 0, #374151 1px, transparent 1px, transparent 8px); }
+        .dark .cal-legend { color: rgb(209 213 219); }
+        .dark .cal-legend-empty { background-color: #111827; background-image: repeating-linear-gradient(45deg, #374151 0, #374151 1px, transparent 1px, transparent 4px); }
     </style>
 
     <x-filament::section>
@@ -186,7 +208,7 @@
                     </span>
                 @endforeach
                 <span>
-                    <span class="cal-legend-swatch" style="background-color: #fafafa; background-image: repeating-linear-gradient(45deg, #e5e7eb 0, #e5e7eb 1px, transparent 1px, transparent 4px);"></span>
+                    <span class="cal-legend-swatch cal-legend-empty"></span>
                     Nadie asignado
                 </span>
             </div>
