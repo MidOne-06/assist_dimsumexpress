@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    <div class="mx-auto w-full max-w-5xl">
+    <div class="w-full" style="max-width: 56rem; margin-inline: auto;">
         <form wire:submit="asignar">
             {{ $this->form }}
 

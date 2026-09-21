@@ -17,6 +17,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\DB;
 
@@ -65,6 +66,8 @@ class AsignarTurnos extends Page
             ->components([
                 Section::make()
                     ->columns(12)
+                    ->maxWidth(Width::FourExtraLarge)
+                    ->extraAttributes(['style' => 'margin-inline: auto;'])
                     ->schema([
                         Select::make('colaborador_ids')
                             ->label('Colaboradores')
@@ -77,13 +80,14 @@ class AsignarTurnos extends Page
                                 ->mapWithKeys(fn (Colaborador $c) => [$c->id => "{$c->nombre_completo} ({$c->sucursal->nombre})"]))
                             ->multiple()
                             ->searchable()
+                            ->optionsLimit(8)
                             ->required()
-                            ->columnSpanFull(),
+                            ->columnSpan(['default' => 'full', 'lg' => 7]),
                         Select::make('turno_id')
                             ->label('Turno')
                             ->options(fn () => Turno::query()->where('activo', true)->orderBy('hora_inicio')->pluck('nombre', 'id'))
                             ->required()
-                            ->columnSpan(6),
+                            ->columnSpan(['default' => 'full', 'lg' => 5]),
                         DatePicker::make('fecha_inicio')
                             ->label('Desde')
                             ->required()
