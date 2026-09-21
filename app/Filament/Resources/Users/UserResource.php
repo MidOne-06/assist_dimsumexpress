@@ -2,12 +2,12 @@
 
 namespace App\Filament\Resources\Users;
 
-use App\Filament\Resources\Users\Pages\CreateUser;
-use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\User;
 use App\Models\Sucursal;
 use BackedEnum;
+use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -15,6 +15,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -60,7 +61,7 @@ class UserResource extends Resource
                             ->revealable()
                             ->minLength(8)
                             ->required(fn (string $operation): bool => $operation === 'create')
-                            ->dehydrated(fn (?string $state): bool => filled($state))
+                            ->visible(fn (string $operation): bool => $operation === 'create')
                             ->columnSpanFull(),
                         Select::make('roles')
                             ->label('Roles')
@@ -116,7 +117,40 @@ class UserResource extends Resource
                     ->preload(),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->modal()
+                    ->modalHeading('Actualizar usuario')
+                    ->modalWidth(Width::TwoExtraLarge),
+                Action::make('restablecerContrasena')
+                    ->label('Restablecer contraseña')
+                    ->icon(Heroicon::OutlinedKey)
+                    ->color('warning')
+                    ->authorize(fn (): bool => auth()->user()->can('ResetPassword:User'))
+                    ->modal()
+                    ->modalHeading(fn (User $record): string => "Restablecer contraseña: {$record->email}")
+                    ->modalWidth(Width::Medium)
+                    ->modalSubmitActionLabel('Actualizar contraseña')
+                    ->schema([
+                        TextInput::make('password')
+                            ->label('Nueva contraseña')
+                            ->password()
+                            ->revealable()
+                            ->required()
+                            ->minLength(8)
+                            ->confirmed(),
+                        TextInput::make('password_confirmation')
+                            ->label('Confirmar contraseña')
+                            ->password()
+                            ->revealable()
+                            ->required(),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        // El cast "hashed" del modelo convierte la clave a hash
+                        // antes de persistirla; nunca se almacena en texto plano.
+                        $record->update(['password' => $data['password']]);
+                    }),
+                DeleteAction::make()
+                    ->visible(fn (User $record): bool => $record->id !== auth()->id()),
             ])
             ->defaultSort('name');
     }
@@ -125,8 +159,6 @@ class UserResource extends Resource
     {
         return [
             'index' => ListUsers::route('/'),
-            'create' => CreateUser::route('/create'),
-            'edit' => EditUser::route('/{record}/edit'),
         ];
     }
 }

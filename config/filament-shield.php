@@ -267,6 +267,7 @@ return [
 
         // Acción de negocio dentro del módulo de asignación de turnos.
         'AsignarMasivo:AsignarTurnos',
+        'ResetPassword:User',
     ],
 
     /*

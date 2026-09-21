@@ -23,6 +23,7 @@ class RolesYPermisosSeeder extends Seeder
             'VerEnlace:Sucursal',
             'VerEnlace:PuntoVenta',
             'AsignarMasivo:AsignarTurnos',
+            'ResetPassword:User',
         ] as $permiso) {
             Permission::findOrCreate($permiso, 'web');
         }
