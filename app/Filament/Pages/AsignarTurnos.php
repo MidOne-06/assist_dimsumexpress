@@ -15,6 +15,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\DB;
@@ -62,49 +63,56 @@ class AsignarTurnos extends Page
         return $schema
             ->statePath('data')
             ->components([
-                Select::make('colaborador_ids')
-                    ->label('Colaboradores')
-                    ->options(fn () => Colaborador::query()
-                        ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
-                        ->where('activo', true)
-                        ->with('sucursal')
-                        ->orderBy('nombre_completo')
-                        ->get()
-                        ->mapWithKeys(fn (Colaborador $c) => [$c->id => "{$c->nombre_completo} ({$c->sucursal->nombre})"]))
-                    ->multiple()
-                    ->searchable()
-                    ->required()
-                    ->helperText('Selecciona uno o varios colaboradores.'),
-                Select::make('turno_id')
-                    ->label('Turno a asignar')
-                    ->options(fn () => Turno::query()->where('activo', true)->orderBy('hora_inicio')->pluck('nombre', 'id'))
-                    ->required(),
-                DatePicker::make('fecha_inicio')
-                    ->label('Desde')
-                    ->required()
-                    ->native(false),
-                DatePicker::make('fecha_fin')
-                    ->label('Hasta')
-                    ->required()
-                    ->native(false),
-                CheckboxList::make('dias_semana')
-                    ->label('Días de la semana a incluir')
-                    ->options([
-                        '1' => 'Lunes',
-                        '2' => 'Martes',
-                        '3' => 'Miércoles',
-                        '4' => 'Jueves',
-                        '5' => 'Viernes',
-                        '6' => 'Sábado',
-                        '7' => 'Domingo',
-                    ])
-                    ->columns(4)
-                    ->required()
-                    ->helperText('Solo se crearán asignaciones en las fechas del rango que caigan en estos días.'),
-                Textarea::make('observacion')
-                    ->label('Observación (opcional)')
-                    ->rows(2)
-                    ->columnSpanFull(),
+                Section::make()
+                    ->columns(12)
+                    ->schema([
+                        Select::make('colaborador_ids')
+                            ->label('Colaboradores')
+                            ->options(fn () => Colaborador::query()
+                                ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
+                                ->where('activo', true)
+                                ->with('sucursal')
+                                ->orderBy('nombre_completo')
+                                ->get()
+                                ->mapWithKeys(fn (Colaborador $c) => [$c->id => "{$c->nombre_completo} ({$c->sucursal->nombre})"]))
+                            ->multiple()
+                            ->searchable()
+                            ->required()
+                            ->columnSpanFull(),
+                        Select::make('turno_id')
+                            ->label('Turno')
+                            ->options(fn () => Turno::query()->where('activo', true)->orderBy('hora_inicio')->pluck('nombre', 'id'))
+                            ->required()
+                            ->columnSpan(6),
+                        DatePicker::make('fecha_inicio')
+                            ->label('Desde')
+                            ->required()
+                            ->native(false)
+                            ->columnSpan(3),
+                        DatePicker::make('fecha_fin')
+                            ->label('Hasta')
+                            ->required()
+                            ->native(false)
+                            ->columnSpan(3),
+                        CheckboxList::make('dias_semana')
+                            ->label('Días')
+                            ->options([
+                                '1' => 'Lunes',
+                                '2' => 'Martes',
+                                '3' => 'Miércoles',
+                                '4' => 'Jueves',
+                                '5' => 'Viernes',
+                                '6' => 'Sábado',
+                                '7' => 'Domingo',
+                            ])
+                            ->columns(['default' => 2, 'md' => 4, 'xl' => 7])
+                            ->required()
+                            ->columnSpanFull(),
+                        Textarea::make('observacion')
+                            ->label('Observación')
+                            ->rows(2)
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 
