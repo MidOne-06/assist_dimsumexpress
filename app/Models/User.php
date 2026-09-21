@@ -40,12 +40,6 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // Roles y permisos nativos de Filament (Shield + spatie/laravel-permission,
-        // 2026-09-18), en reemplazo de la lista fija FILAMENT_ADMIN_EMAILS -- un
-        // colaborador raso (solo usa /marcar, nunca se le asigna un rol) nunca
-        // tiene ningún rol, así que esto lo sigue bloqueando igual que antes.
-        // Qué puede HACER cada rol dentro del panel lo deciden los permisos
-        // generados por Shield sobre cada Resource/Page, no este método.
-        return $this->roles()->exists();
+        return $panel->getId() === 'admin' && $this->can('Access:AdminPanel');
     }
 }
