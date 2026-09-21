@@ -35,8 +35,13 @@
     </p>
 
     @php
-        $urlTokenConClave = route('estacion-marcado.token', array_filter(['sucursal' => $sucursal->id, 'puntoVenta' => $puntoVenta?->id]))
-            . '?clave=' . urlencode($clave);
+        $rutaToken = "/estacion-marcado/{$sucursal->id}";
+
+        if ($puntoVenta) {
+            $rutaToken .= "/{$puntoVenta->id}";
+        }
+
+        $urlTokenConClave = url("{$rutaToken}/token") . '?clave=' . urlencode($clave);
     @endphp
     <script>
         const urlToken = @json($urlTokenConClave);
