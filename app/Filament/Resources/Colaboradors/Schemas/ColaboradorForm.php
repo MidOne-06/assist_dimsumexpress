@@ -60,6 +60,7 @@ class ColaboradorForm
                             ->label('Sucursal')
                             ->options(fn () => Sucursal::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id'))
                             ->searchable()
+                            ->optionsLimit(8)
                             ->required()
                             ->live()
                             ->afterStateUpdated(fn (Set $set) => $set('punto_venta_id', null)),
@@ -77,6 +78,7 @@ class ColaboradorForm
                                     ->pluck('nombre', 'id');
                             })
                             ->searchable()
+                            ->optionsLimit(8)
                             ->visible(fn (Get $get) => static::sucursalEsTienda($get('sucursal_id')))
                             ->required(fn (Get $get) => static::sucursalEsTienda($get('sucursal_id')))
                             ->dehydrated(fn (Get $get) => static::sucursalEsTienda($get('sucursal_id'))),

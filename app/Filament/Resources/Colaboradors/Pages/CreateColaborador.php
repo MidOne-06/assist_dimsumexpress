@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Colaboradors\Pages;
 
+use App\Filament\Concerns\HasCompactFormWidth;
 use App\Filament\Resources\Colaboradors\ColaboradorResource;
 use App\Models\Colaborador;
 use App\Models\User;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class CreateColaborador extends CreateRecord
 {
+    use HasCompactFormWidth;
+
     protected static string $resource = ColaboradorResource::class;
 
     protected function handleRecordCreation(array $data): Model

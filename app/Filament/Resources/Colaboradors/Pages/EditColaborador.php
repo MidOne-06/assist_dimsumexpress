@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Colaboradors\Pages;
 
+use App\Filament\Concerns\HasCompactFormWidth;
 use App\Filament\Resources\Colaboradors\ColaboradorResource;
 use Filament\Actions\DeleteAction;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditColaborador extends EditRecord
 {
+    use HasCompactFormWidth;
+
     protected static string $resource = ColaboradorResource::class;
 
     protected function getHeaderActions(): array

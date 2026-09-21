@@ -13,6 +13,7 @@ class SucursalForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'md' => 2])
             ->components([
                 TextInput::make('nombre')
                     ->label('Nombre')
@@ -34,7 +35,8 @@ class SucursalForm
                 Toggle::make('activo')
                     ->label('Activa')
                     ->default(true)
-                    ->required(),
+                    ->required()
+                    ->columnSpanFull(),
             ]);
     }
 }

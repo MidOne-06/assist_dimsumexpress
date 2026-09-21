@@ -69,6 +69,7 @@ class UserResource extends Resource
                             ->multiple()
                             ->preload()
                             ->searchable()
+                            ->optionsLimit(8)
                             ->disabled(fn (?User $record): bool => $record?->is(auth()->user()) ?? false)
                             ->columnSpanFull(),
                         Select::make('sucursalesSupervisadas')
@@ -82,6 +83,7 @@ class UserResource extends Resource
                                 ->all())
                             ->preload()
                             ->searchable()
+                            ->optionsLimit(8)
                             ->helperText('Aplica a usuarios con rol supervisor.' )
                             ->columnSpanFull(),
                     ]),

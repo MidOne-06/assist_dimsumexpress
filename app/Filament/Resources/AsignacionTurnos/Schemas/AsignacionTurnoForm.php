@@ -17,6 +17,7 @@ class AsignacionTurnoForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'md' => 2, 'xl' => 3])
             ->components([
                 Select::make('colaborador_id')
                     ->label('Colaborador')
@@ -26,12 +27,14 @@ class AsignacionTurnoForm
                         ->orderBy('nombre_completo')
                         ->pluck('nombre_completo', 'id'))
                     ->searchable()
+                    ->optionsLimit(8)
                     ->required()
-                    ->live(),
+                    ->live()
+                    ->columnSpan(['default' => 'full', 'xl' => 2]),
                 Select::make('turno_id')
                     ->label('Turno')
                     ->options(fn () => Turno::query()
-                        ->where('activo', true)
+                    ->where('activo', true)
                         ->orderBy('hora_inicio')
                         ->pluck('nombre', 'id'))
                     ->required(),

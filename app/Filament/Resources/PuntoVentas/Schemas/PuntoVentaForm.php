@@ -13,6 +13,7 @@ class PuntoVentaForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'md' => 2])
             ->components([
                 Select::make('sucursal_id')
                     ->label('Sucursal')
@@ -21,6 +22,7 @@ class PuntoVentaForm
                         ->orderBy('nombre')
                         ->pluck('nombre', 'id'))
                     ->searchable()
+                    ->optionsLimit(8)
                     ->required()
                     ->helperText('Solo se listan sucursales tipo "Tienda"; una planta no tiene puntos de venta.'),
                 TextInput::make('nombre')
@@ -30,7 +32,8 @@ class PuntoVentaForm
                 Toggle::make('activo')
                     ->label('Activo')
                     ->default(true)
-                    ->required(),
+                    ->required()
+                    ->columnSpanFull(),
             ]);
     }
 }

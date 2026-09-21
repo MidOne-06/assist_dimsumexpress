@@ -12,11 +12,13 @@ class TurnoForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'md' => 2])
             ->components([
                 TextInput::make('nombre')
                     ->label('Nombre')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->columnSpanFull(),
                 TimePicker::make('hora_inicio')
                     ->label('Hora de inicio')
                     ->seconds(false)
