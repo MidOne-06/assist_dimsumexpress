@@ -14,6 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+        // Sin esta ruta explícita, Laravel usa "/" para sesiones activas.
+        // Como la raíz redirige a /login, un colaborador autenticado entraba
+        // en un bucle infinito entre ambas URLs.
+        $middleware->redirectUsersTo(fn (Request $request): string => $request->user()?->can('Access:AdminPanel')
+            ? route('filament.admin.pages.dashboard')
+            : route('marcacion.show'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

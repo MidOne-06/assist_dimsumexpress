@@ -125,6 +125,24 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame('5 min tarde', $retorno->resumenRetornoRefrigerio()['etiqueta']);
     }
 
+    public function test_authenticated_users_are_redirected_without_the_login_loop(): void
+    {
+        [$colaborador] = $this->crearJornada('08:00:00', '17:00:00');
+        $operador = $colaborador->user;
+        $operador->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+
+        $this->actingAs($operador)
+            ->get(route('login'))
+            ->assertRedirect(route('marcacion.show'));
+
+        $administrador = User::factory()->create();
+        $administrador->givePermissionTo(Permission::findOrCreate('Access:AdminPanel', 'web'));
+
+        $this->actingAs($administrador)
+            ->get(route('login'))
+            ->assertRedirect(route('filament.admin.pages.dashboard'));
+    }
+
     /** @return array{Colaborador, AsignacionTurno} */
     private function crearJornada(string $inicio, string $fin, bool $nocturno = false, ?string $fecha = null): array
     {
