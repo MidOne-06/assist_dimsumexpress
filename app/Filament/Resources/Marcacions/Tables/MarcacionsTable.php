@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Marcacions\Tables;
 
+use App\Models\Marcacion;
 use App\Models\Sucursal;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -39,6 +40,23 @@ class MarcacionsTable
                         'salida_refrigerio' => 'warning',
                         'regreso_refrigerio' => 'info',
                         default => 'gray',
+                    }),
+                TextColumn::make('retorno_refrigerio')
+                    ->label('Retorno de refrigerio')
+                    ->getStateUsing(fn (Marcacion $record): string => $record->resumenRetornoRefrigerio()['etiqueta'] ?? '—')
+                    ->badge()
+                    ->color(function (Marcacion $record): string {
+                        return match ($record->resumenRetornoRefrigerio()['estado'] ?? null) {
+                            'puntual' => 'success',
+                            'temprano' => 'warning',
+                            'tarde' => 'danger',
+                            default => 'gray',
+                        };
+                    })
+                    ->tooltip(function (Marcacion $record): ?string {
+                        $resumen = $record->resumenRetornoRefrigerio();
+
+                        return $resumen ? 'Retorno esperado: ' . $resumen['esperado']->format('d/m/Y H:i:s') : null;
                     }),
                 TextColumn::make('sucursal.nombre')
                     ->label('Sucursal')

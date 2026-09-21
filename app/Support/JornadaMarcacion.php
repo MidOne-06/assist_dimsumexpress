@@ -11,6 +11,8 @@ use Illuminate\Support\Collection;
 /** Define la jornada por turno asignado, incluso cuando cruza medianoche. */
 final class JornadaMarcacion
 {
+    public const DURACION_REFRIGERIO_MINUTOS = 60;
+
     /** @return array{inicio: Carbon, fin: Carbon, ventana_inicio: Carbon, ventana_fin: Carbon} */
     public static function limites(AsignacionTurno $asignacion): array
     {
@@ -68,6 +70,29 @@ final class JornadaMarcacion
     public static function ultimaMarcacion(Colaborador $colaborador, AsignacionTurno $asignacion): ?Marcacion
     {
         return static::marcaciones($colaborador, $asignacion)->last();
+    }
+
+    /** La salida pendiente determina la hora comprometida para el retorno. */
+    public static function retornoRefrigerioEsperado(Colaborador $colaborador, AsignacionTurno $asignacion): ?Carbon
+    {
+        $ultimaMarcacion = static::ultimaMarcacion($colaborador, $asignacion);
+
+        if ($ultimaMarcacion?->tipo !== Marcacion::TIPO_SALIDA_REFRIGERIO) {
+            return null;
+        }
+
+        return $ultimaMarcacion->fecha_hora->copy()->addMinutes(static::DURACION_REFRIGERIO_MINUTOS);
+    }
+
+    /** @return array{esperado: Carbon, diferencia_segundos: int} */
+    public static function controlRetornoRefrigerio(Marcacion $salidaRefrigerio, Carbon $retorno): array
+    {
+        $esperado = $salidaRefrigerio->fecha_hora->copy()->addMinutes(static::DURACION_REFRIGERIO_MINUTOS);
+
+        return [
+            'esperado' => $esperado,
+            'diferencia_segundos' => $retorno->getTimestamp() - $esperado->getTimestamp(),
+        ];
     }
 
     /** @return array<int, string> */

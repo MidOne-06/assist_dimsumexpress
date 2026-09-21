@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
+use App\Models\QrToken;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Models\User;
 use App\Support\JornadaMarcacion;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class JornadaMarcacionTest extends TestCase
@@ -63,6 +65,66 @@ class JornadaMarcacionTest extends TestCase
         $this->assertNull(JornadaMarcacion::asignacionVigente($colaborador));
     }
 
+    public function test_refrigerio_is_one_hour_and_early_or_late_returns_are_classified(): void
+    {
+        Carbon::setTestNow('2026-09-21 12:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $salida = $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
+
+        $temprano = JornadaMarcacion::controlRetornoRefrigerio($salida, Carbon::parse('2026-09-21 12:55:00'));
+        $this->assertSame('2026-09-21 13:00:00', $temprano['esperado']->toDateTimeString());
+        $this->assertSame(-300, $temprano['diferencia_segundos']);
+
+        $retorno = Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $asignacion->turno_id,
+            'sucursal_id' => $colaborador->sucursal_id,
+            'tipo' => Marcacion::TIPO_REGRESO_REFRIGERIO,
+            'fecha_hora' => '2026-09-21 13:07:00',
+            'refrigerio_retorno_esperado_en' => $temprano['esperado'],
+            'refrigerio_diferencia_segundos' => 420,
+        ]);
+
+        $this->assertSame('7 min tarde', $retorno->resumenRetornoRefrigerio()['etiqueta']);
+        $this->assertSame('tarde', $retorno->resumenRetornoRefrigerio()['estado']);
+    }
+
+    public function test_qr_return_persists_the_one_hour_refrigerio_audit(): void
+    {
+        $this->withoutMiddleware();
+        Carbon::setTestNow('2026-09-21 12:00:00');
+        [$colaborador] = $this->crearJornada('08:00:00', '17:00:00');
+        $usuario = $colaborador->user;
+        $usuario->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $qr = QrToken::create([
+            'sucursal_id' => $colaborador->sucursal_id,
+            'token' => 'token-de-prueba-' . uniqid(),
+            'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
+        ]);
+
+        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_ENTRADA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        Carbon::setTestNow('2026-09-21 12:10:00');
+        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_SALIDA_REFRIGERIO])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        Carbon::setTestNow('2026-09-21 13:15:00');
+        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_REGRESO_REFRIGERIO])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $retorno = Marcacion::where('colaborador_id', $colaborador->id)
+            ->where('tipo', Marcacion::TIPO_REGRESO_REFRIGERIO)
+            ->sole();
+
+        $this->assertSame('2026-09-21 13:10:00', $retorno->refrigerio_retorno_esperado_en->toDateTimeString());
+        $this->assertSame(300, $retorno->refrigerio_diferencia_segundos);
+        $this->assertSame('5 min tarde', $retorno->resumenRetornoRefrigerio()['etiqueta']);
+    }
+
     /** @return array{Colaborador, AsignacionTurno} */
     private function crearJornada(string $inicio, string $fin, bool $nocturno = false, ?string $fecha = null): array
     {
@@ -74,8 +136,8 @@ class JornadaMarcacionTest extends TestCase
         return [$colaborador, AsignacionTurno::create(['colaborador_id' => $colaborador->id, 'turno_id' => $turno->id, 'fecha' => $fecha ?? now()->toDateString()])];
     }
 
-    private function marcar(Colaborador $colaborador, AsignacionTurno $asignacion, string $tipo): void
+    private function marcar(Colaborador $colaborador, AsignacionTurno $asignacion, string $tipo): Marcacion
     {
-        Marcacion::create(['colaborador_id' => $colaborador->id, 'turno_id' => $asignacion->turno_id, 'sucursal_id' => $colaborador->sucursal_id, 'tipo' => $tipo, 'fecha_hora' => now()]);
+        return Marcacion::create(['colaborador_id' => $colaborador->id, 'turno_id' => $asignacion->turno_id, 'sucursal_id' => $colaborador->sucursal_id, 'tipo' => $tipo, 'fecha_hora' => now()]);
     }
 }

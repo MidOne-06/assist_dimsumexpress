@@ -72,6 +72,7 @@ class MarcacionController extends Controller
             'asignacion' => $asignacion,
             'siguientesTipos' => JornadaMarcacion::siguientesTipos($colaborador, $asignacion),
             'ultimaMarcacion' => JornadaMarcacion::ultimaMarcacion($colaborador, $asignacion),
+            'retornoEsperado' => JornadaMarcacion::retornoRefrigerioEsperado($colaborador, $asignacion),
         ]);
     }
 
@@ -120,10 +121,25 @@ class MarcacionController extends Controller
                 throw ValidationException::withMessages(['tipo' => 'Esa marcación ya no corresponde al siguiente paso de tu jornada. Actualiza la página.']);
             }
 
+            $fechaHora = now();
+            $controlRefrigerio = null;
+
+            if ($data['tipo'] === Marcacion::TIPO_REGRESO_REFRIGERIO) {
+                $salidaRefrigerio = JornadaMarcacion::ultimaMarcacion($colaboradorBloqueado, $asignacion);
+
+                if ($salidaRefrigerio?->tipo !== Marcacion::TIPO_SALIDA_REFRIGERIO) {
+                    throw ValidationException::withMessages(['tipo' => 'No se encontró la salida a refrigerio de esta jornada. Actualiza la página.']);
+                }
+
+                $controlRefrigerio = JornadaMarcacion::controlRetornoRefrigerio($salidaRefrigerio, $fechaHora);
+            }
+
             return Marcacion::create([
                 'colaborador_id' => $colaboradorBloqueado->id,
                 'tipo' => $data['tipo'],
-                'fecha_hora' => now(),
+                'fecha_hora' => $fechaHora,
+                'refrigerio_retorno_esperado_en' => $controlRefrigerio['esperado'] ?? null,
+                'refrigerio_diferencia_segundos' => $controlRefrigerio['diferencia_segundos'] ?? null,
                 'turno_id' => $asignacion->turno_id,
                 'qr_token_id' => $qrToken->id,
                 'sucursal_id' => $qrToken->sucursal_id,

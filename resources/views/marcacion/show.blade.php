@@ -28,6 +28,11 @@
         <div class="ultima" style="margin-top: -0.5rem;">
             Turno: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }}–{{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}
         </div>
+        @if ($retornoEsperado)
+            <div class="ultima" style="margin-top: -0.75rem;">
+                Refrigerio: <strong>1 hora</strong> · retorno previsto a las <strong>{{ $retornoEsperado->format('H:i') }}</strong>
+            </div>
+        @endif
 
         @if ($errors->any())
             <div class="errores">
@@ -48,7 +53,7 @@
             @endphp
             <div class="ultima" style="display: flex; align-items: center; gap: 0.5rem;">
                 <x-heroicon-o-clock style="width: 1.1rem; height: 1.1rem; color: #6b7280; flex-shrink: 0;" />
-                <span>Última marcación hoy: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> a las {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</span>
+                <span>Última marcación de la jornada: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> a las {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</span>
             </div>
         @endif
 
