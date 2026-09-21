@@ -154,7 +154,7 @@ class EstacionesQr extends Page implements HasTable
     }
 
     /**
-     * @return Collection<int, array{key: string, tipo: string, tipo_label: string, nombre: string, sucursal: string, sucursal_id: int, ubicacion: string, url: string}>
+     * @return Collection<int, array{__key: string, tipo: string, tipo_label: string, nombre: string, sucursal: string, sucursal_id: int, ubicacion: string, url: string}>
      */
     private function estacionesBase(): Collection
     {
@@ -166,7 +166,7 @@ class EstacionesQr extends Page implements HasTable
             Sucursal::query()->where('activo', true)->orderBy('nombre')->get()
                 ->each(function (Sucursal $sucursal) use ($estaciones): void {
                     $estaciones->push([
-                        'key' => "sucursal-{$sucursal->id}",
+                        '__key' => "sucursal-{$sucursal->id}",
                         'tipo' => 'sucursal',
                         'tipo_label' => 'Sucursal',
                         'nombre' => $sucursal->nombre,
@@ -187,7 +187,7 @@ class EstacionesQr extends Page implements HasTable
                 ->get()
                 ->each(function (PuntoVenta $puntoVenta) use ($estaciones): void {
                     $estaciones->push([
-                        'key' => "punto-venta-{$puntoVenta->id}",
+                        '__key' => "punto-venta-{$puntoVenta->id}",
                         'tipo' => 'punto_venta',
                         'tipo_label' => 'Punto de venta',
                         'nombre' => $puntoVenta->nombre,
