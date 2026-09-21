@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Spatie\Permission\Models\Permission;
@@ -14,7 +15,17 @@ class RolesYPermisosSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        Permission::findOrCreate('Access:AdminPanel', 'web');
+        foreach ([
+            'Access:AdminPanel',
+            'Registrar:Marcacion',
+            'View:MiHorario',
+            'View:EstacionesQr',
+            'VerEnlace:Sucursal',
+            'VerEnlace:PuntoVenta',
+            'AsignarMasivo:AsignarTurnos',
+        ] as $permiso) {
+            Permission::findOrCreate($permiso, 'web');
+        }
 
         /** @var Collection<int, Permission> $permisos */
         $permisos = Permission::query()
@@ -52,11 +63,25 @@ class RolesYPermisosSeeder extends Seeder
             'View:CalendarioTurnos',
             'View:AsignarTurnos',
             'AsignarMasivo:AsignarTurnos',
+            'Registrar:Marcacion',
+            'View:MiHorario',
         ]));
 
         // El operario marca asistencia mediante /marcar. No recibe acceso al
         // panel administrativo ni privilegios de gestión.
-        $operador->syncPermissions([]);
+        $operador->syncPermissions($permisos->whereIn('name', [
+            'Registrar:Marcacion',
+            'View:MiHorario',
+        ]));
+
+        // Los colaboradores que existían antes de introducir roles mantienen
+        // el acceso operativo mínimo. No se les otorga acceso al panel.
+        User::query()
+            ->whereHas('colaborador')
+            ->doesntHave('roles')
+            ->chunkById(100, fn ($usuarios) => $usuarios->each(
+                fn (User $usuario) => $usuario->assignRole($operador)
+            ));
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

@@ -14,6 +14,8 @@ class MarcacionController extends Controller
 {
     public function show(Request $request): View
     {
+        abort_unless($request->user()?->can('Registrar:Marcacion'), 403);
+
         $colaborador = $request->user()->colaborador;
 
         if (! $colaborador) {
@@ -57,6 +59,8 @@ class MarcacionController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->can('Registrar:Marcacion'), 403);
+
         $data = $request->validate([
             'token' => ['required', 'string'],
             'tipo' => ['required', Rule::in([
@@ -103,6 +107,7 @@ class MarcacionController extends Controller
 
     public function confirmacion(Request $request, Marcacion $marcacion): View
     {
+        abort_unless($request->user()?->can('Registrar:Marcacion'), 403);
         abort_unless($marcacion->colaborador->user_id === $request->user()->id, 403);
 
         return view('marcacion.confirmacion', ['marcacion' => $marcacion]);

@@ -41,8 +41,9 @@ class EstacionesQr extends Page implements HasTable
      */
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('VerEnlace:Sucursal')
-            || auth()->user()?->can('VerEnlace:PuntoVenta');
+        return auth()->user()?->can('View:EstacionesQr')
+            && (auth()->user()?->can('VerEnlace:Sucursal')
+                || auth()->user()?->can('VerEnlace:PuntoVenta'));
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -90,6 +91,9 @@ class EstacionesQr extends Page implements HasTable
                 Action::make('verQr')
                     ->label('Ver QR')
                     ->icon(Heroicon::OutlinedQrCode)
+                    ->authorize(fn (array $record): bool => $record['tipo'] === 'sucursal'
+                        ? auth()->user()->can('VerEnlace:Sucursal')
+                        : auth()->user()->can('VerEnlace:PuntoVenta'))
                     ->modalHeading(fn (array $record): string => "Estación: {$record['nombre']}")
                     ->modalContent(fn (array $record) => view('filament.actions.estacion-qr', [
                         'estacion' => $record,

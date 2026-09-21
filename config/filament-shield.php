@@ -27,7 +27,9 @@ return [
             'pages' => true,
             'widgets' => true,
             'resources' => true,
-            'custom_permissions' => false,
+            // Las acciones que no pertenecen a un CRUD también deben poder
+            // asignarse desde la ficha de cada rol.
+            'custom_permissions' => true,
         ],
     ],
 
@@ -253,7 +255,18 @@ return [
     */
 
     'custom_permissions' => [
+        // Accesos funcionales fuera de los Resources y Pages de Filament.
         'Access:AdminPanel',
+        'Registrar:Marcacion',
+        'View:MiHorario',
+        'View:EstacionesQr',
+
+        // Acciones sensibles que revelan el enlace privado de una estación.
+        'VerEnlace:Sucursal',
+        'VerEnlace:PuntoVenta',
+
+        // Acción de negocio dentro del módulo de asignación de turnos.
+        'AsignarMasivo:AsignarTurnos',
     ],
 
     /*

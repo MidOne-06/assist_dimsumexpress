@@ -16,6 +16,8 @@ class HorarioColaboradorController extends Controller
      */
     public function show(Request $request): View
     {
+        abort_unless($request->user()?->can('View:MiHorario'), 403);
+
         $colaborador = $request->user()->colaborador;
 
         if (! $colaborador) {
