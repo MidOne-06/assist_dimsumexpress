@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\QrToken;
+use App\Support\JornadaMarcacion;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class MarcacionController extends Controller
@@ -21,6 +24,12 @@ class MarcacionController extends Controller
         if (! $colaborador) {
             return view('marcacion.error', [
                 'mensaje' => 'Tu usuario no está vinculado a ningún colaborador. Contacta a tu administrador.',
+            ]);
+        }
+
+        if (! $colaborador->activo) {
+            return view('marcacion.error', [
+                'mensaje' => 'Tu cuenta de colaborador está inactiva. Contacta a tu administrador.',
             ]);
         }
 
@@ -43,17 +52,26 @@ class MarcacionController extends Controller
             ]);
         }
 
-        if ($qrToken->sucursal_id !== $colaborador->sucursal_id) {
+        if (! $this->estacionPermitida($colaborador, $qrToken)) {
             return view('marcacion.error', [
-                'mensaje' => 'Este código QR pertenece a otra sucursal distinta a la tuya.',
+                'mensaje' => 'Este código QR no corresponde a tu centro de trabajo.',
+            ]);
+        }
+
+        $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
+
+        if (! $asignacion) {
+            return view('marcacion.error', [
+                'mensaje' => 'No tienes un turno activo para marcar en este momento. Revisa tu horario o contacta a tu supervisor.',
             ]);
         }
 
         return view('marcacion.show', [
             'colaborador' => $colaborador,
             'token' => $qrToken->token,
-            'siguientesTipos' => $this->siguientesTiposPermitidos($colaborador),
-            'ultimaMarcacion' => $this->ultimaMarcacionDeHoy($colaborador),
+            'asignacion' => $asignacion,
+            'siguientesTipos' => JornadaMarcacion::siguientesTipos($colaborador, $asignacion),
+            'ultimaMarcacion' => JornadaMarcacion::ultimaMarcacion($colaborador, $asignacion),
         ]);
     }
 
@@ -80,27 +98,40 @@ class MarcacionController extends Controller
             return back()->withErrors(['tipo' => 'El código QR expiró. Vuelve a escanearlo desde la pantalla.']);
         }
 
-        if ($qrToken->sucursal_id !== $colaborador->sucursal_id) {
-            return back()->withErrors(['tipo' => 'Este código QR pertenece a otra sucursal distinta a la tuya.']);
+        if (! $this->estacionPermitida($colaborador, $qrToken)) {
+            return back()->withErrors(['tipo' => 'Este código QR no corresponde a tu centro de trabajo.']);
         }
 
-        $siguientesTipos = $this->siguientesTiposPermitidos($colaborador);
+        $marcacion = DB::transaction(function () use ($colaborador, $data, $qrToken, $request): Marcacion {
+            // El bloqueo evita doble marcación por doble toque en el celular.
+            $colaboradorBloqueado = Colaborador::query()->lockForUpdate()->findOrFail($colaborador->id);
 
-        if (! in_array($data['tipo'], $siguientesTipos, true)) {
-            return back()->withErrors(['tipo' => 'Esa marcación ya no corresponde al siguiente paso de tu jornada. Actualiza la página.']);
-        }
+            if (! $colaboradorBloqueado->activo) {
+                throw ValidationException::withMessages(['tipo' => 'Tu cuenta de colaborador está inactiva. Contacta a tu administrador.']);
+            }
 
-        $marcacion = Marcacion::create([
-            'colaborador_id' => $colaborador->id,
-            'tipo' => $data['tipo'],
-            'fecha_hora' => now(),
-            'turno_id' => $colaborador->turnoDelDia()?->id,
-            'qr_token_id' => $qrToken->id,
-            'sucursal_id' => $qrToken->sucursal_id,
-            'punto_venta_id' => $qrToken->punto_venta_id,
-            'ip_origen' => $request->ip(),
-            'user_agent' => (string) $request->userAgent(),
-        ]);
+            $asignacion = JornadaMarcacion::asignacionVigente($colaboradorBloqueado);
+
+            if (! $asignacion) {
+                throw ValidationException::withMessages(['tipo' => 'No tienes un turno activo para marcar en este momento.']);
+            }
+
+            if (! in_array($data['tipo'], JornadaMarcacion::siguientesTipos($colaboradorBloqueado, $asignacion), true)) {
+                throw ValidationException::withMessages(['tipo' => 'Esa marcación ya no corresponde al siguiente paso de tu jornada. Actualiza la página.']);
+            }
+
+            return Marcacion::create([
+                'colaborador_id' => $colaboradorBloqueado->id,
+                'tipo' => $data['tipo'],
+                'fecha_hora' => now(),
+                'turno_id' => $asignacion->turno_id,
+                'qr_token_id' => $qrToken->id,
+                'sucursal_id' => $qrToken->sucursal_id,
+                'punto_venta_id' => $qrToken->punto_venta_id,
+                'ip_origen' => $request->ip(),
+                'user_agent' => (string) $request->userAgent(),
+            ]);
+        });
 
         return redirect()->route('marcacion.confirmacion', $marcacion);
     }
@@ -113,40 +144,12 @@ class MarcacionController extends Controller
         return view('marcacion.confirmacion', ['marcacion' => $marcacion]);
     }
 
-    private function ultimaMarcacionDeHoy(Colaborador $colaborador): ?Marcacion
+    private function estacionPermitida(Colaborador $colaborador, QrToken $qrToken): bool
     {
-        // Desempate por "id" además de "fecha_hora": dos marcaciones seguidas
-        // (ej. salida_refrigerio inmediatamente después de entrada) pueden
-        // caer en el mismo segundo -- la columna no guarda microsegundos --
-        // y ordenar solo por fecha_hora no es determinista en ese empate,
-        // pudiendo devolver la marcación equivocada como "la más reciente".
-        return $colaborador->marcaciones()
-            ->whereDate('fecha_hora', now()->toDateString())
-            ->orderByDesc('fecha_hora')
-            ->orderByDesc('id')
-            ->first();
-    }
+        if ($qrToken->sucursal_id !== $colaborador->sucursal_id) {
+            return false;
+        }
 
-    /**
-     * Máquina de estados simple del día: determina qué tipo(s) de marcación
-     * son válidos a continuación, para no dejar marcar "salida" sin haber
-     * marcado "entrada", ni permitir una jornada ya cerrada.
-     *
-     * @return array<int, string>
-     */
-    private function siguientesTiposPermitidos(Colaborador $colaborador): array
-    {
-        $ultima = $this->ultimaMarcacionDeHoy($colaborador);
-
-        return match ($ultima?->tipo) {
-            null => [Marcacion::TIPO_ENTRADA],
-            Marcacion::TIPO_ENTRADA, Marcacion::TIPO_REGRESO_REFRIGERIO => [
-                Marcacion::TIPO_SALIDA_REFRIGERIO,
-                Marcacion::TIPO_SALIDA,
-            ],
-            Marcacion::TIPO_SALIDA_REFRIGERIO => [Marcacion::TIPO_REGRESO_REFRIGERIO],
-            Marcacion::TIPO_SALIDA => [],
-            default => [],
-        };
+        return ! $qrToken->punto_venta_id || $qrToken->punto_venta_id === $colaborador->punto_venta_id;
     }
 }

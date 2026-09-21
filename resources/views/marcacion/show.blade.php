@@ -25,6 +25,9 @@
     <div class="card">
         <h1>Hola, {{ $colaborador->nombre_completo }}</h1>
         <p class="sub">{{ $colaborador->sucursal->nombre }}{{ $colaborador->puntoVenta ? ' · ' . $colaborador->puntoVenta->nombre : '' }}</p>
+        <div class="ultima" style="margin-top: -0.5rem;">
+            Turno: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }}–{{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}
+        </div>
 
         @if ($errors->any())
             <div class="errores">
