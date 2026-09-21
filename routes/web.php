@@ -32,11 +32,14 @@ Route::middleware('throttle:30,1')->group(function () {
     // binding del modelo y revienta con un 500 de SQL crudo en vez de un
     // 404 limpio, la misma respuesta que ya se espera para cualquier ID
     // inexistente.
+    Route::get('/estacion-marcado/{sucursal}/token', [EstacionMarcadoController::class, 'token'])
+        ->name('estacion-marcado.token')
+        ->where('sucursal', '[0-9]+');
+    Route::get('/estacion-marcado/{sucursal}/{puntoVenta}/token', [EstacionMarcadoController::class, 'token'])
+        ->name('estacion-marcado.punto-venta.token')
+        ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
     Route::get('/estacion-marcado/{sucursal}/{puntoVenta?}', [EstacionMarcadoController::class, 'show'])
         ->name('estacion-marcado.show')
-        ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
-    Route::get('/estacion-marcado/{sucursal}/{puntoVenta?}/token', [EstacionMarcadoController::class, 'token'])
-        ->name('estacion-marcado.token')
         ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
 });
 
