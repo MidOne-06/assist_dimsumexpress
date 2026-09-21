@@ -2,13 +2,10 @@
 
 namespace App\Filament\Resources\Turnos\Pages;
 
-use App\Filament\Concerns\HasCompactFormWidth;
 use App\Filament\Resources\Turnos\TurnoResource;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateTurno extends CreateRecord
 {
-    use HasCompactFormWidth;
-
     protected static string $resource = TurnoResource::class;
 }

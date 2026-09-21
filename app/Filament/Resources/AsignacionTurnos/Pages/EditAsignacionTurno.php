@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\AsignacionTurnos\Pages;
 
-use App\Filament\Concerns\HasCompactFormWidth;
 use App\Filament\Resources\AsignacionTurnos\AsignacionTurnoResource;
 use App\Models\Colaborador;
 use App\Support\AlcanceSupervisor;
@@ -11,8 +10,6 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditAsignacionTurno extends EditRecord
 {
-    use HasCompactFormWidth;
-
     protected static string $resource = AsignacionTurnoResource::class;
 
     protected function getHeaderActions(): array

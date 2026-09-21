@@ -46,8 +46,7 @@ class ColaboradorForm
                         TextInput::make('nombre_completo')
                             ->label('Nombre completo')
                             ->required()
-                            ->maxLength(255)
-                            ->columnSpanFull(),
+                            ->maxLength(255),
                         TextInput::make('documento_identidad')
                             ->label('Documento de identidad')
                             ->required()

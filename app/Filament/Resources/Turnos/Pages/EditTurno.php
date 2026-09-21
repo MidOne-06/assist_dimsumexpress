@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Turnos\Pages;
 
-use App\Filament\Concerns\HasCompactFormWidth;
 use App\Filament\Resources\Turnos\TurnoResource;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
@@ -10,8 +9,6 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditTurno extends EditRecord
 {
-    use HasCompactFormWidth;
-
     protected static string $resource = TurnoResource::class;
 
     protected function getHeaderActions(): array

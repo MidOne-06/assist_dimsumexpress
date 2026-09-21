@@ -17,8 +17,7 @@ class TurnoForm
                 TextInput::make('nombre')
                     ->label('Nombre')
                     ->required()
-                    ->maxLength(255)
-                    ->columnSpanFull(),
+                    ->maxLength(255),
                 TimePicker::make('hora_inicio')
                     ->label('Hora de inicio')
                     ->seconds(false)

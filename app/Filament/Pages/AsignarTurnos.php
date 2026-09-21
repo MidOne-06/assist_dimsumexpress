@@ -17,7 +17,6 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\DB;
 
@@ -66,8 +65,6 @@ class AsignarTurnos extends Page
             ->components([
                 Section::make()
                     ->columns(12)
-                    ->maxWidth(Width::FourExtraLarge)
-                    ->extraAttributes(['style' => 'margin-inline: auto;'])
                     ->schema([
                         Select::make('colaborador_ids')
                             ->label('Colaboradores')
