@@ -53,8 +53,6 @@ class EstacionesQr extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->heading('Estaciones activas')
-            ->description('Filtra, busca o pagina las estaciones. El enlace privado y el QR se muestran solo al abrir el detalle.')
             ->records(fn (?array $filters, ?string $search, int | string $page, int | string $recordsPerPage, ?string $sortColumn, ?string $sortDirection): LengthAwarePaginator => $this->registrosPaginados(
                 filters: $filters,
                 search: $search,
@@ -103,8 +101,7 @@ class EstacionesQr extends Page implements HasTable
             ->defaultSort('sucursal')
             ->paginated([10, 25, 50])
             ->defaultPaginationPageOption(10)
-            ->emptyStateHeading('No hay estaciones disponibles')
-            ->emptyStateDescription('No hay estaciones activas que coincidan con tus permisos o filtros.');
+            ->emptyStateHeading('Sin estaciones');
     }
 
     /**
