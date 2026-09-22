@@ -30,7 +30,7 @@ class IncidenciasMarcacionTest extends TestCase
         [$colaborador, $asignacion] = $this->crearJornada();
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
 
-        Carbon::setTestNow('2026-09-21 17:10:01');
+        Carbon::setTestNow('2026-09-22 03:00:01');
         $this->artisan('asistencia:detectar-incidencias')->assertExitCode(0);
 
         $this->assertDatabaseHas('incidencias_marcacion', [
@@ -49,7 +49,7 @@ class IncidenciasMarcacionTest extends TestCase
         Carbon::setTestNow('2026-09-21 12:30:11');
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
 
-        Carbon::setTestNow('2026-09-21 17:10:01');
+        Carbon::setTestNow('2026-09-22 03:00:01');
         $this->artisan('asistencia:detectar-incidencias')->assertExitCode(0);
 
         $this->assertDatabaseHas('incidencias_marcacion', [

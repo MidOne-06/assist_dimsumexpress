@@ -55,6 +55,7 @@ class MarcacionController extends Controller
                 'retornoEsperado' => $asignacion
                     ? JornadaMarcacion::retornoRefrigerioEsperado($colaborador, $asignacion)
                     : null,
+                'resumenJornada' => $asignacion ? JornadaMarcacion::resumen($colaborador, $asignacion) : null,
             ]);
         }
 
@@ -96,6 +97,7 @@ class MarcacionController extends Controller
             'siguientesTipos' => JornadaMarcacion::siguientesTipos($colaborador, $asignacion),
             'ultimaMarcacion' => JornadaMarcacion::ultimaMarcacion($colaborador, $asignacion),
             'retornoEsperado' => JornadaMarcacion::retornoRefrigerioEsperado($colaborador, $asignacion),
+            'resumenJornada' => JornadaMarcacion::resumen($colaborador, $asignacion),
         ]);
     }
 
@@ -161,7 +163,11 @@ class MarcacionController extends Controller
                     throw ValidationException::withMessages(['tipo' => 'No se encontró la salida a refrigerio de esta jornada. Actualiza la página.']);
                 }
 
-                $controlRefrigerio = JornadaMarcacion::controlRetornoRefrigerio($salidaRefrigerio, $fechaHora);
+                $controlRefrigerio = JornadaMarcacion::controlRetornoRefrigerio(
+                    $salidaRefrigerio,
+                    $fechaHora,
+                    JornadaMarcacion::minutosRefrigerio($asignacion),
+                );
             }
 
             return Marcacion::create([
@@ -190,9 +196,21 @@ class MarcacionController extends Controller
         return view('marcacion.confirmacion', [
             'marcacion' => $marcacion,
             'retornoEsperado' => $marcacion->tipo === Marcacion::TIPO_SALIDA_REFRIGERIO
-                ? $marcacion->fecha_hora->copy()->addMinutes(JornadaMarcacion::DURACION_REFRIGERIO_MINUTOS)
+                ? $marcacion->fecha_hora->copy()->addMinutes($marcacion->turno?->incluye_refrigerio ? $marcacion->turno->refrigerio_minutos : 0)
+                : null,
+            'resumenJornada' => $marcacion->tipo === Marcacion::TIPO_SALIDA
+                ? JornadaMarcacion::resumen($marcacion->colaborador, $this->asignacionDeMarcacion($marcacion))
                 : null,
         ]);
+    }
+
+    private function asignacionDeMarcacion(Marcacion $marcacion): \App\Models\AsignacionTurno
+    {
+        return $marcacion->colaborador->asignacionesTurno()
+            ->with('turno')
+            ->where('turno_id', $marcacion->turno_id)
+            ->whereIn('fecha', [$marcacion->fecha_hora->toDateString(), $marcacion->fecha_hora->copy()->subDay()->toDateString()])
+            ->firstOrFail();
     }
 
     private function estacionPermitida(Colaborador $colaborador, QrToken $qrToken): bool

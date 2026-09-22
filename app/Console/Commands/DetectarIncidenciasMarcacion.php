@@ -30,10 +30,10 @@ class DetectarIncidenciasMarcacion extends Command
 
                 $limites = JornadaMarcacion::limites($asignacion);
 
-                // La incidencia solo existe una vez cerrada la tolerancia del
-                // turno; durante la ventana vigente el colaborador aún puede
-                // escanear y completar la acción pendiente normalmente.
-                if ($momento->lte($limites['ventana_fin'])) {
+                // Una jornada abierta puede cerrar fuera del turno programado
+                // por operación. La incidencia solo nace al vencer el máximo
+                // de jornada, nunca al terminar el horario base.
+                if ($momento->lte($limites['jornada_fin_maximo'])) {
                     return;
                 }
 

@@ -110,6 +110,39 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame([], JornadaMarcacion::siguientesTipos($colaborador, $asignacion->fresh('turno')));
     }
 
+    public function test_turn_without_refrigerio_only_offers_final_exit(): void
+    {
+        Carbon::setTestNow('2026-09-21 14:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('13:00:00', '22:00:00');
+        $asignacion->turno->update(['incluye_refrigerio' => false, 'refrigerio_minutos' => 0, 'horas_efectivas_objetivo_minutos' => 540]);
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+
+        $asignacionSinRefrigerio = $asignacion->fresh(['turno']);
+        $this->assertSame([Marcacion::TIPO_SALIDA], JornadaMarcacion::siguientesTipos($colaborador, $asignacionSinRefrigerio));
+    }
+
+    public function test_extended_open_jornada_calculates_effective_and_extra_hours(): void
+    {
+        Carbon::setTestNow('2026-09-21 08:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '18:00:00');
+        $asignacion->turno->update(['incluye_refrigerio' => true, 'refrigerio_minutos' => 60, 'horas_efectivas_objetivo_minutos' => 540]);
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+        Carbon::setTestNow('2026-09-21 13:00:00');
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
+        Carbon::setTestNow('2026-09-21 14:00:00');
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_REGRESO_REFRIGERIO);
+
+        Carbon::setTestNow('2026-09-21 22:00:00');
+        $this->assertSame($asignacion->id, JornadaMarcacion::asignacionVigente($colaborador)?->id);
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA);
+
+        $resumen = JornadaMarcacion::resumen($colaborador, $asignacion->fresh('turno'));
+        $this->assertSame(780, $resumen['efectivos_minutos']);
+        $this->assertSame(540, $resumen['objetivo_minutos']);
+        $this->assertSame(240, $resumen['extras_minutos']);
+        $this->assertSame('extendida', $resumen['estado']);
+    }
+
     public function test_qr_return_persists_the_one_hour_refrigerio_audit(): void
     {
         $this->withoutMiddleware();

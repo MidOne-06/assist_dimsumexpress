@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Marcacions\Tables;
 
 use App\Models\Marcacion;
 use App\Models\Sucursal;
+use App\Models\AsignacionTurno;
+use App\Support\JornadaMarcacion;
 use Filament\Actions\Action;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
@@ -69,6 +71,16 @@ class MarcacionsTable
                 TextColumn::make('turno.nombre')
                     ->label('Turno')
                     ->placeholder('—'),
+                TextColumn::make('horas_efectivas')
+                    ->label('Horas efectivas')
+                    ->getStateUsing(function (Marcacion $record): string {
+                        if ($record->tipo !== Marcacion::TIPO_SALIDA) {
+                            return '—';
+                        }
+                        $asignacion = AsignacionTurno::query()->with('turno')->where('colaborador_id', $record->colaborador_id)->where('turno_id', $record->turno_id)->whereIn('fecha', [$record->fecha_hora->toDateString(), $record->fecha_hora->copy()->subDay()->toDateString()])->first();
+                        $resumen = $asignacion ? JornadaMarcacion::resumen($record->colaborador, $asignacion) : null;
+                        return $resumen && $resumen['efectivos_minutos'] !== null ? sprintf('%dh %02dm', intdiv($resumen['efectivos_minutos'], 60), $resumen['efectivos_minutos'] % 60) : '—';
+                    }),
                 TextColumn::make('ip_origen')
                     ->label('IP')
                     ->toggleable(isToggledHiddenByDefault: true),

@@ -30,6 +30,13 @@
         <div class="hora">{{ $marcacion->fecha_hora->format('H:i:s') }}</div>
         <p class="fecha">{{ $marcacion->fecha_hora->translatedFormat('l d \d\e F') }}</p>
         <div class="siguiente"><strong>{{ $siguiente[0] }}</strong>{{ $siguiente[1] }}</div>
+        @if ($resumenJornada)
+            <div class="siguiente" style="background:#f0fdf4;border-color:#bbf7d0;">
+                <strong style="color:#166534;">Horas efectivas trabajadas</strong>
+                {{ intdiv($resumenJornada['efectivos_minutos'], 60) }} h {{ $resumenJornada['efectivos_minutos'] % 60 }} min · Meta {{ intdiv($resumenJornada['objetivo_minutos'], 60) }} h
+                @if ($resumenJornada['extras_minutos']) · Extras {{ intdiv($resumenJornada['extras_minutos'], 60) }} h {{ $resumenJornada['extras_minutos'] % 60 }} min @endif
+            </div>
+        @endif
         <div class="acciones">
             <a href="{{ route('marcacion.show') }}" class="accion"><x-heroicon-o-camera style="width:1rem;height:1rem;" /> Ver mi jornada</a>
             <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="accion"><x-heroicon-o-arrow-left-on-rectangle style="width:1rem;height:1rem;" /> Cerrar sesión</button></form>

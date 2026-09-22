@@ -37,9 +37,13 @@ class TurnosTable
                     ->label('Toler. salida')
                     ->suffix(' min')
                     ->alignCenter(),
-                TextColumn::make('refrigerio')
+                TextColumn::make('refrigerio_minutos')
                     ->label('Refrigerio')
-                    ->state('1 h')
+                    ->formatStateUsing(fn ($state, $record) => $record->incluye_refrigerio ? $state . ' min' : 'No')
+                    ->alignCenter(),
+                TextColumn::make('horas_efectivas_objetivo_minutos')
+                    ->label('Horas efectivas')
+                    ->formatStateUsing(fn (int $state) => ($state / 60) . ' h')
                     ->alignCenter(),
                 IconColumn::make('solo_entrada')
                     ->label('Solo entrada')

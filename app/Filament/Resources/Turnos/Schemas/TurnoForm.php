@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Turnos\Schemas;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Schemas\Schema;
 
 class TurnoForm
@@ -45,11 +47,25 @@ class TurnoForm
                     ->minValue(0)
                     ->maxValue(120)
                     ->default(10),
-                TextInput::make('refrigerio')
+                Toggle::make('incluye_refrigerio')
+                    ->label('Incluye refrigerio')
+                    ->live()
+                    ->default(true)
+                    ->afterStateUpdated(fn (Set $set, bool $state) => $set('refrigerio_minutos', $state ? 60 : 0)),
+                TextInput::make('refrigerio_minutos')
                     ->label('Refrigerio')
-                    ->default('1 hora')
-                    ->disabled()
-                    ->dehydrated(false),
+                    ->suffix('min')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(180)
+                    ->default(60)
+                    ->required(fn (Get $get): bool => (bool) $get('incluye_refrigerio'))
+                    ->visible(fn (Get $get): bool => (bool) $get('incluye_refrigerio')),
+                \Filament\Forms\Components\Select::make('horas_efectivas_objetivo_minutos')
+                    ->label('Horas efectivas requeridas')
+                    ->options(collect(range(1, 16))->mapWithKeys(fn (int $hora): array => [$hora * 60 => $hora . ' h'])->all())
+                    ->default(480)
+                    ->required(),
                 Toggle::make('solo_entrada')
                     ->label('Solo entrada')
                     ->default(false),

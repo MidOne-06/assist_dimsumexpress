@@ -12,8 +12,9 @@ use Illuminate\Support\Collection;
 final class JornadaMarcacion
 {
     public const DURACION_REFRIGERIO_MINUTOS = 60;
+    public const MAXIMO_JORNADA_MINUTOS = 18 * 60;
 
-    /** @return array{inicio: Carbon, fin: Carbon, ventana_inicio: Carbon, ventana_fin: Carbon} */
+    /** @return array{inicio: Carbon, fin: Carbon, ventana_inicio: Carbon, ventana_fin: Carbon, jornada_fin_maximo: Carbon} */
     public static function limites(AsignacionTurno $asignacion): array
     {
         $turno = $asignacion->turno;
@@ -29,6 +30,7 @@ final class JornadaMarcacion
             'fin' => $fin,
             'ventana_inicio' => $inicio->copy()->subMinutes($turno->tolerancia_entrada_minutos),
             'ventana_fin' => $fin->copy()->addMinutes($turno->tolerancia_salida_minutos),
+            'jornada_fin_maximo' => $inicio->copy()->addMinutes(static::MAXIMO_JORNADA_MINUTOS),
         ];
     }
 
@@ -41,14 +43,15 @@ final class JornadaMarcacion
             ->with('turno')
             ->whereIn('fecha', [$momento->toDateString(), $momento->copy()->subDay()->toDateString()])
             ->get()
-            ->filter(function (AsignacionTurno $asignacion) use ($momento): bool {
+            ->filter(function (AsignacionTurno $asignacion) use ($momento, $colaborador): bool {
                 if (! $asignacion->turno?->activo) {
                     return false;
                 }
 
                 $limites = static::limites($asignacion);
 
-                return $momento->betweenIncluded($limites['ventana_inicio'], $limites['ventana_fin']);
+                return $momento->betweenIncluded($limites['ventana_inicio'], $limites['ventana_fin'])
+                    || ($momento->lte($limites['jornada_fin_maximo']) && static::jornadaAbierta($colaborador, $asignacion));
             })
             ->sortByDesc(fn (AsignacionTurno $asignacion) => static::limites($asignacion)['inicio']->getTimestamp())
             ->first();
@@ -61,7 +64,7 @@ final class JornadaMarcacion
 
         return $colaborador->marcaciones()
             ->where('turno_id', $asignacion->turno_id)
-            ->whereBetween('fecha_hora', [$limites['ventana_inicio'], $limites['ventana_fin']])
+            ->whereBetween('fecha_hora', [$limites['ventana_inicio'], $limites['jornada_fin_maximo']])
             ->orderBy('fecha_hora')
             ->orderBy('id')
             ->get();
@@ -70,6 +73,26 @@ final class JornadaMarcacion
     public static function ultimaMarcacion(Colaborador $colaborador, AsignacionTurno $asignacion): ?Marcacion
     {
         return static::marcaciones($colaborador, $asignacion)->last();
+    }
+
+    public static function jornadaAbierta(Colaborador $colaborador, AsignacionTurno $asignacion): bool
+    {
+        $marcaciones = static::marcaciones($colaborador, $asignacion);
+
+        return $marcaciones->contains('tipo', Marcacion::TIPO_ENTRADA)
+            && $marcaciones->last()?->tipo !== Marcacion::TIPO_SALIDA;
+    }
+
+    public static function minutosRefrigerio(AsignacionTurno $asignacion): int
+    {
+        return $asignacion->turno->incluye_refrigerio
+            ? (int) $asignacion->turno->refrigerio_minutos
+            : 0;
+    }
+
+    public static function minutosObjetivo(AsignacionTurno $asignacion): int
+    {
+        return (int) $asignacion->turno->horas_efectivas_objetivo_minutos;
     }
 
     /** La salida pendiente determina la hora comprometida para el retorno. */
@@ -81,13 +104,13 @@ final class JornadaMarcacion
             return null;
         }
 
-        return $ultimaMarcacion->fecha_hora->copy()->addMinutes(static::DURACION_REFRIGERIO_MINUTOS);
+        return $ultimaMarcacion->fecha_hora->copy()->addMinutes(static::minutosRefrigerio($asignacion));
     }
 
     /** @return array{esperado: Carbon, diferencia_segundos: int} */
-    public static function controlRetornoRefrigerio(Marcacion $salidaRefrigerio, Carbon $retorno): array
+    public static function controlRetornoRefrigerio(Marcacion $salidaRefrigerio, Carbon $retorno, int $minutosRefrigerio = self::DURACION_REFRIGERIO_MINUTOS): array
     {
-        $esperado = $salidaRefrigerio->fecha_hora->copy()->addMinutes(static::DURACION_REFRIGERIO_MINUTOS);
+        $esperado = $salidaRefrigerio->fecha_hora->copy()->addMinutes($minutosRefrigerio);
 
         return [
             'esperado' => $esperado,
@@ -100,9 +123,44 @@ final class JornadaMarcacion
         $momento ??= now();
         $limites = static::limites($asignacion);
 
+        if (static::minutosRefrigerio($asignacion) < 1) {
+            return false;
+        }
+
         return $momento->copy()
-            ->addMinutes(static::DURACION_REFRIGERIO_MINUTOS)
+            ->addMinutes(static::minutosRefrigerio($asignacion))
             ->lte($limites['ventana_fin']);
+    }
+
+    /** @return array{estado:string, efectivos_minutos:?int, objetivo_minutos:int, extras_minutos:?int, diferencia_minutos:?int} */
+    public static function resumen(Colaborador $colaborador, AsignacionTurno $asignacion): array
+    {
+        $marcaciones = static::marcaciones($colaborador, $asignacion);
+        $entrada = $marcaciones->firstWhere('tipo', Marcacion::TIPO_ENTRADA);
+        $salida = $marcaciones->filter(fn (Marcacion $marcacion) => $marcacion->tipo === Marcacion::TIPO_SALIDA)->last();
+        $objetivo = static::minutosObjetivo($asignacion);
+
+        if (! $entrada || ! $salida) {
+            return ['estado' => 'en_curso', 'efectivos_minutos' => null, 'objetivo_minutos' => $objetivo, 'extras_minutos' => null, 'diferencia_minutos' => null];
+        }
+
+        $refrigerio = 0;
+        $inicioRefrigerio = $marcaciones->firstWhere('tipo', Marcacion::TIPO_SALIDA_REFRIGERIO);
+        $finRefrigerio = $marcaciones->firstWhere('tipo', Marcacion::TIPO_REGRESO_REFRIGERIO);
+        if ($inicioRefrigerio && $finRefrigerio) {
+            $refrigerio = $inicioRefrigerio->fecha_hora->diffInMinutes($finRefrigerio->fecha_hora);
+        }
+
+        $efectivos = (int) max(0, $entrada->fecha_hora->diffInMinutes($salida->fecha_hora) - $refrigerio);
+        $diferencia = $efectivos - $objetivo;
+
+        return [
+            'estado' => $diferencia < 0 ? 'pendiente' : ($diferencia > 0 ? 'extendida' : 'cumplida'),
+            'efectivos_minutos' => $efectivos,
+            'objetivo_minutos' => $objetivo,
+            'extras_minutos' => max(0, $diferencia),
+            'diferencia_minutos' => $diferencia,
+        ];
     }
 
     /** @return array<int, string> */

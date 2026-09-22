@@ -58,7 +58,15 @@
         @if ($asignacion)
             <div class="turno">
                 Turno de hoy: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }}–{{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}
+                · {{ intdiv($asignacion->turno->horas_efectivas_objetivo_minutos, 60) }} h efectivas{{ $asignacion->turno->incluye_refrigerio ? ' + ' . $asignacion->turno->refrigerio_minutos . ' min de refrigerio' : '' }}
             </div>
+
+            @if (($resumenJornada['efectivos_minutos'] ?? null) !== null)
+                <div class="estado" style="border-color:#bbf7d0;background:#f0fdf4;">
+                    <div class="estado-titulo" style="color:#15803d;">Horas efectivas</div>
+                    <p class="estado-detalle" style="margin-top:.35rem;">{{ intdiv($resumenJornada['efectivos_minutos'], 60) }} h {{ $resumenJornada['efectivos_minutos'] % 60 }} min · Meta: {{ intdiv($resumenJornada['objetivo_minutos'], 60) }} h{{ $resumenJornada['extras_minutos'] ? ' · Extras: ' . intdiv($resumenJornada['extras_minutos'], 60) . ' h ' . ($resumenJornada['extras_minutos'] % 60) . ' min' : '' }}</p>
+                </div>
+            @endif
 
             @if ($siguiente)
                 <div class="estado">
