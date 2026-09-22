@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\Pages\AsignarTurnos;
 use App\Filament\Pages\CalendarioTurnos;
+use App\Filament\Resources\AsignacionTurnos\Pages\ListAsignacionTurnos;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Sucursal;
@@ -63,6 +64,46 @@ class SupervisionTurnosTest extends TestCase
             ->test(CalendarioTurnos::class)
             ->set('sucursalId', $ajena->id)
             ->assertSet('sucursalId', $propia->id);
+    }
+
+    public function test_supervisor_assigns_a_date_range_from_the_assignments_list(): void
+    {
+        $sucursal = $this->sucursal('Local propio');
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(
+            Permission::findOrCreate('ViewAny:AsignacionTurno', 'web'),
+            Permission::findOrCreate('AsignarMasivo:AsignarTurnos', 'web'),
+        );
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+        $colaborador = $this->colaborador($sucursal);
+        $turno = Turno::create(['nombre' => 'Turno por rango', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'activo' => true]);
+        $desde = now()->addDay()->toDateString();
+        $hasta = now()->addDays(3)->toDateString();
+        $dias = collect(range(1, 3))
+            ->map(fn (int $diasDesdeManana): string => (string) now()->addDays($diasDesdeManana)->isoWeekday())
+            ->unique()
+            ->values()
+            ->all();
+
+        Livewire::actingAs($supervisor)
+            ->test(ListAsignacionTurnos::class)
+            ->mountAction('asignarPorRango')
+            ->set('mountedActions.0.data.sucursal_id', $sucursal->id)
+            ->set('mountedActions.0.data.colaborador_ids', [$colaborador->id])
+            ->set('mountedActions.0.data.turno_id', $turno->id)
+            ->set('mountedActions.0.data.fecha_inicio', $desde)
+            ->set('mountedActions.0.data.fecha_fin', $hasta)
+            ->set('mountedActions.0.data.dias_semana', $dias)
+            ->callMountedAction()
+            ->assertHasNoErrors();
+
+        foreach (range(1, 3) as $diasDesdeManana) {
+            $this->assertDatabaseHas('asignaciones_turno', [
+                'colaborador_id' => $colaborador->id,
+                'turno_id' => $turno->id,
+                'fecha' => now()->addDays($diasDesdeManana)->toDateString(),
+            ]);
+        }
     }
 
     private function sucursal(string $nombre): Sucursal
