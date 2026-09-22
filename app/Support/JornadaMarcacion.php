@@ -13,6 +13,7 @@ final class JornadaMarcacion
 {
     public const DURACION_REFRIGERIO_MINUTOS = 60;
     public const MAXIMO_JORNADA_MINUTOS = 18 * 60;
+    public const META_DIARIA_ORDINARIA_MINUTOS = 9 * 60;
 
     /** @return array{inicio: Carbon, fin: Carbon, ventana_inicio: Carbon, ventana_fin: Carbon, jornada_fin_maximo: Carbon} */
     public static function limites(AsignacionTurno $asignacion): array
@@ -138,10 +139,10 @@ final class JornadaMarcacion
         $marcaciones = static::marcaciones($colaborador, $asignacion);
         $entrada = $marcaciones->firstWhere('tipo', Marcacion::TIPO_ENTRADA);
         $salida = $marcaciones->filter(fn (Marcacion $marcacion) => $marcacion->tipo === Marcacion::TIPO_SALIDA)->last();
-        $objetivo = static::minutosObjetivo($asignacion);
+        $objetivoConfigurado = static::minutosObjetivo($asignacion);
 
         if (! $entrada || ! $salida) {
-            return ['estado' => 'en_curso', 'efectivos_minutos' => null, 'objetivo_minutos' => $objetivo, 'extras_minutos' => null, 'diferencia_minutos' => null];
+            return ['estado' => 'en_curso', 'efectivos_minutos' => null, 'objetivo_minutos' => $objetivoConfigurado, 'extras_minutos' => null, 'diferencia_minutos' => null];
         }
 
         $refrigerio = 0;
@@ -152,6 +153,11 @@ final class JornadaMarcacion
         }
 
         $efectivos = (int) max(0, $entrada->fecha_hora->diffInMinutes($salida->fecha_hora) - $refrigerio);
+        // Una jornada que alcanza nueve horas efectivas usa esa meta diaria
+        // como base ordinaria; solo lo que la supera se considera extra.
+        $objetivo = $efectivos >= static::META_DIARIA_ORDINARIA_MINUTOS
+            ? max($objetivoConfigurado, static::META_DIARIA_ORDINARIA_MINUTOS)
+            : $objetivoConfigurado;
         $diferencia = $efectivos - $objetivo;
 
         return [

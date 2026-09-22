@@ -124,8 +124,8 @@ class JornadaMarcacionTest extends TestCase
     public function test_extended_open_jornada_calculates_effective_and_extra_hours(): void
     {
         Carbon::setTestNow('2026-09-21 08:00:00');
-        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '18:00:00');
-        $asignacion->turno->update(['incluye_refrigerio' => true, 'refrigerio_minutos' => 60, 'horas_efectivas_objetivo_minutos' => 540]);
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $asignacion->turno->update(['incluye_refrigerio' => true, 'refrigerio_minutos' => 60, 'horas_efectivas_objetivo_minutos' => 480]);
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
         Carbon::setTestNow('2026-09-21 13:00:00');
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
