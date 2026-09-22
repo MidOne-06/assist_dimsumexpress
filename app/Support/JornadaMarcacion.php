@@ -13,8 +13,6 @@ final class JornadaMarcacion
 {
     public const DURACION_REFRIGERIO_MINUTOS = 60;
     public const MAXIMO_JORNADA_MINUTOS = 18 * 60;
-    public const META_DIARIA_ORDINARIA_MINUTOS = 9 * 60;
-
     /** @return array{inicio: Carbon, fin: Carbon, ventana_inicio: Carbon, ventana_fin: Carbon, jornada_fin_maximo: Carbon} */
     public static function limites(AsignacionTurno $asignacion): array
     {
@@ -153,11 +151,10 @@ final class JornadaMarcacion
         }
 
         $efectivos = (int) max(0, $entrada->fecha_hora->diffInMinutes($salida->fecha_hora) - $refrigerio);
-        // Una jornada que alcanza nueve horas efectivas usa esa meta diaria
-        // como base ordinaria; solo lo que la supera se considera extra.
-        $objetivo = $efectivos >= static::META_DIARIA_ORDINARIA_MINUTOS
-            ? max($objetivoConfigurado, static::META_DIARIA_ORDINARIA_MINUTOS)
-            : $objetivoConfigurado;
+        // La jornada ordinaria siempre la determina el turno asignado. No se
+        // impone una meta global: cada tipo de turno puede tener su propia
+        // duración efectiva y sus excedentes se calculan contra esa meta.
+        $objetivo = $objetivoConfigurado;
         $diferencia = $efectivos - $objetivo;
 
         return [

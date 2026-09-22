@@ -138,8 +138,8 @@ class JornadaMarcacionTest extends TestCase
 
         $resumen = JornadaMarcacion::resumen($colaborador, $asignacion->fresh('turno'));
         $this->assertSame(780, $resumen['efectivos_minutos']);
-        $this->assertSame(540, $resumen['objetivo_minutos']);
-        $this->assertSame(240, $resumen['extras_minutos']);
+        $this->assertSame(480, $resumen['objetivo_minutos']);
+        $this->assertSame(300, $resumen['extras_minutos']);
         $this->assertSame('extendida', $resumen['estado']);
     }
 
