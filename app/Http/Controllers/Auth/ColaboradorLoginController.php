@@ -31,6 +31,21 @@ class ColaboradorLoginController extends Controller
 
         $request->session()->regenerate();
 
+        $usuario = $request->user();
+
+        // Supervisión es un flujo operativo distinto de asistencia. Un
+        // supervisor no necesita (ni debe tener) ficha de colaborador para
+        // registrar su visita mediante el QR del local asignado.
+        if ($usuario?->hasRole('supervisor') && ! $usuario->colaborador) {
+            return redirect()->intended(route('visita-supervisor.esperando'));
+        }
+
+        // Las cuentas administrativas puras tampoco deben terminar en el
+        // flujo de marcación, que solo corresponde a colaboradores.
+        if ($usuario?->can('Access:AdminPanel') && ! $usuario->colaborador) {
+            return redirect()->intended(route('filament.admin.pages.dashboard'));
+        }
+
         return redirect()->intended(route('marcacion.show'));
     }
 

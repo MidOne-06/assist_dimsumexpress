@@ -19,6 +19,14 @@ class VisitaSupervisorController extends Controller
 {
     private const VIGENCIA_SEGUNDOS = 20;
 
+    /** Punto de entrada móvil para un supervisor, antes de escanear el QR. */
+    public function esperando(Request $request): View
+    {
+        $this->validarSupervisor($request->user());
+
+        return view('visitas-supervisor.esperando');
+    }
+
     /** Pantalla física del QR; abrirla no crea una visita. */
     public function estacion(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): View
     {
@@ -68,13 +76,8 @@ class VisitaSupervisorController extends Controller
         abort_unless($sucursal?->activo && (! $qrToken->punto_venta_id || $puntoVenta?->activo), 404);
 
         $usuario = $request->user();
-        abort_unless(
-            $usuario instanceof User
-                && $usuario->hasRole('supervisor')
-                && $usuario->can('Registrar:VisitaSupervisor')
-                && AlcanceSupervisor::puedeGestionarSucursal($usuario, $sucursal->id),
-            403,
-        );
+        $this->validarSupervisor($usuario);
+        abort_unless(AlcanceSupervisor::puedeGestionarSucursal($usuario, $sucursal->id), 403);
 
         $visita = VisitaSupervisor::firstOrCreate(
             [
@@ -105,5 +108,15 @@ class VisitaSupervisorController extends Controller
 
         $claveEsperada = $puntoVenta?->token_pantalla ?? $sucursal->token_pantalla;
         abort_unless($claveEsperada && hash_equals($claveEsperada, (string) $request->query('clave')), 404);
+    }
+
+    private function validarSupervisor(mixed $usuario): void
+    {
+        abort_unless(
+            $usuario instanceof User
+                && $usuario->hasRole('supervisor')
+                && $usuario->can('Registrar:VisitaSupervisor'),
+            403,
+        );
     }
 }

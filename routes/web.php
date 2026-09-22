@@ -59,6 +59,8 @@ Route::middleware('throttle:30,1')->group(function () {
 });
 
 Route::middleware(['auth', 'throttle:30,1'])->group(function () {
+    Route::get('/visitas-supervisor/esperando', [VisitaSupervisorController::class, 'esperando'])
+        ->name('visita-supervisor.esperando');
     Route::get('/visitas-supervisor', [VisitaSupervisorController::class, 'show'])
         ->name('visita-supervisor.show');
 

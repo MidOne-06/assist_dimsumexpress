@@ -8,6 +8,7 @@ use App\Models\VisitaSupervisor;
 use App\Models\QrToken;
 use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -124,6 +125,32 @@ class VisitaSupervisorTest extends TestCase
             ->assertStatus(410)
             ->assertSee('Código QR vencido')
             ->assertSee('Vuelve a escanear');
+    }
+
+    public function test_supervisor_without_a_collaborator_profile_is_sent_to_the_visit_qr_flow(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $supervisor = User::factory()->create([
+            'email' => 'supervisor@example.test',
+            'password' => Hash::make('ClaveDePrueba123!'),
+        ]);
+        $supervisor->assignRole('supervisor');
+
+        $this->assertNull($supervisor->colaborador);
+
+        $this->withSession(['_token' => 'token-de-prueba'])
+            ->post(route('login'), [
+                '_token' => 'token-de-prueba',
+                'email' => $supervisor->email,
+                'password' => 'ClaveDePrueba123!',
+            ])
+            ->assertRedirect(route('visita-supervisor.esperando'));
+
+        $this->actingAs($supervisor)
+            ->get(route('visita-supervisor.esperando'))
+            ->assertOk()
+            ->assertSee('Escanear QR de visita')
+            ->assertSee('/visitas-supervisor?token=');
     }
 
     private function emitirTokenVisita(Sucursal $sucursal): QrToken

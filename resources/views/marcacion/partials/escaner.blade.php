@@ -23,7 +23,7 @@
 
 <button type="button" class="mp-escanear" id="mp-btn-escanear">
     <x-heroicon-o-qr-code style="width: 1.25rem; height: 1.25rem;" />
-    Escanear código QR
+    {{ $textoBoton ?? 'Escanear código QR' }}
 </button>
 
 <div class="mp-overlay" id="mp-overlay-camara">
@@ -47,6 +47,7 @@
         const estado = document.getElementById('mp-estado-camara');
         const avisoSinSoporte = document.getElementById('mp-aviso-sin-soporte');
         const avisoSinPermiso = document.getElementById('mp-aviso-sin-permiso');
+        const rutaQrPermitida = @js($rutaQr ?? '/marcar?token=');
 
         let stream = null;
         let escaneando = false;
@@ -98,7 +99,7 @@
                         // Solo navega si el QR realmente apunta al marcado de este
                         // sistema -- evita que un QR ajeno/malicioso redirija a
                         // otro sitio.
-                        if (valor.includes('/marcar?token=')) {
+                        if (valor.includes(rutaQrPermitida)) {
                             estado.textContent = 'Código detectado, registrando...';
                             detenerCamara();
                             window.location.href = valor;
