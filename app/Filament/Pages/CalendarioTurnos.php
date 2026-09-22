@@ -110,7 +110,26 @@ class CalendarioTurnos extends Page
 
     public function getTurnosActivosProperty(): Collection
     {
-        return Turno::query()->where('activo', true)->orderBy('hora_inicio')->get();
+        $colaboradores = $this->colaboradores;
+
+        if ($colaboradores->isEmpty()) {
+            return new Collection();
+        }
+
+        $inicio = Carbon::parse("{$this->mes}-01")->toDateString();
+        $fin = Carbon::parse("{$this->mes}-01")->endOfMonth()->toDateString();
+
+        // Un supervisor no necesita ver filas de turnos que solo existen en
+        // otros locales. La grilla muestra exclusivamente turnos asignados a
+        // colaboradores dentro de su alcance y en el mes que está consultando.
+        return Turno::query()
+            ->where('activo', true)
+            ->whereIn('id', AsignacionTurno::query()
+                ->whereIn('colaborador_id', $colaboradores->pluck('id'))
+                ->whereBetween('fecha', [$inicio, $fin])
+                ->select('turno_id'))
+            ->orderBy('hora_inicio')
+            ->get();
     }
 
     private function sucursalesPermitidas(): \Illuminate\Database\Eloquent\Builder

@@ -66,6 +66,29 @@ class SupervisionTurnosTest extends TestCase
             ->assertSet('sucursalId', $propia->id);
     }
 
+    public function test_calendar_only_renders_shifts_and_collaborators_for_the_supervisors_location_and_month(): void
+    {
+        $propia = $this->sucursal('Local propio');
+        $ajena = $this->sucursal('Local ajeno');
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(Permission::findOrCreate('View:CalendarioTurnos', 'web'));
+        $supervisor->sucursalesSupervisadas()->attach($propia);
+        $colaboradorPropio = $this->colaborador($propia);
+        $colaboradorAjeno = $this->colaborador($ajena);
+        $turnoPropio = Turno::create(['nombre' => 'Turno propio', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'activo' => true]);
+        $turnoAjeno = Turno::create(['nombre' => 'Turno ajeno', 'hora_inicio' => '10:00', 'hora_fin' => '19:00', 'activo' => true]);
+
+        AsignacionTurno::create(['colaborador_id' => $colaboradorPropio->id, 'turno_id' => $turnoPropio->id, 'fecha' => now()->toDateString()]);
+        AsignacionTurno::create(['colaborador_id' => $colaboradorAjeno->id, 'turno_id' => $turnoAjeno->id, 'fecha' => now()->toDateString()]);
+
+        Livewire::actingAs($supervisor)
+            ->test(CalendarioTurnos::class)
+            ->assertSee('Turno propio')
+            ->assertDontSee('Turno ajeno')
+            ->assertSee($colaboradorPropio->nombre_completo)
+            ->assertDontSee($colaboradorAjeno->nombre_completo);
+    }
+
     public function test_supervisor_assigns_a_date_range_from_the_assignments_list(): void
     {
         $sucursal = $this->sucursal('Local propio');
