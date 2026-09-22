@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
+use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
@@ -16,6 +17,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\DB;
@@ -52,8 +55,8 @@ class AsignarTurnos extends Page
     public function mount(): void
     {
         $this->form->fill([
-            'fecha_inicio' => now()->toDateString(),
-            'fecha_fin' => now()->toDateString(),
+            'fecha_inicio' => today()->addDay()->toDateString(),
+            'fecha_fin' => today()->addDay()->toDateString(),
             'dias_semana' => ['1', '2', '3', '4', '5', '6', '7'],
         ]);
     }
@@ -66,19 +69,30 @@ class AsignarTurnos extends Page
                 Section::make()
                     ->columns(12)
                     ->schema([
+                        Select::make('sucursal_id')
+                            ->label('Local')
+                            ->options(fn (): array => AlcanceSupervisor::sucursalesQuery(auth()->user())
+                                ->pluck('nombre', 'id')
+                                ->all())
+                            ->required()
+                            ->searchable()
+                            ->live()
+                            ->afterStateUpdated(fn (Set $set) => $set('colaborador_ids', []))
+                            ->columnSpan(['default' => 'full', 'lg' => 5]),
                         Select::make('colaborador_ids')
                             ->label('Colaboradores')
-                            ->options(fn () => Colaborador::query()
-                                ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
+                            ->options(fn (Get $get): array => filled($get('sucursal_id')) ? Colaborador::query()
+                                ->where('sucursal_id', $get('sucursal_id'))
                                 ->where('activo', true)
-                                ->with('sucursal')
                                 ->orderBy('nombre_completo')
                                 ->get()
-                                ->mapWithKeys(fn (Colaborador $c) => [$c->id => "{$c->nombre_completo} ({$c->sucursal->nombre})"]))
+                                ->mapWithKeys(fn (Colaborador $c) => [$c->id => $c->nombre_completo])
+                                ->all() : [])
                             ->multiple()
                             ->searchable()
                             ->optionsLimit(8)
                             ->required()
+                            ->disabled(fn (Get $get): bool => blank($get('sucursal_id')))
                             ->columnSpan(['default' => 'full', 'lg' => 7]),
                         Select::make('turno_id')
                             ->label('Turno')
@@ -89,11 +103,13 @@ class AsignarTurnos extends Page
                             ->label('Desde')
                             ->required()
                             ->native(false)
+                            ->minDate(today()->addDay())
                             ->columnSpan(3),
                         DatePicker::make('fecha_fin')
                             ->label('Hasta')
                             ->required()
                             ->native(false)
+                            ->minDate(today()->addDay())
                             ->columnSpan(3),
                         CheckboxList::make('dias_semana')
                             ->label('Días')
@@ -130,6 +146,24 @@ class AsignarTurnos extends Page
 
         $fechaInicio = \Illuminate\Support\Carbon::parse($data['fecha_inicio'])->startOfDay();
         $fechaFin = \Illuminate\Support\Carbon::parse($data['fecha_fin'])->startOfDay();
+        $sucursalId = (int) $data['sucursal_id'];
+
+        abort_unless(
+            Sucursal::query()
+                ->whereKey($sucursalId)
+                ->whereIn('id', AlcanceSupervisor::sucursalIds(auth()->user()))
+                ->exists(),
+            403,
+        );
+
+        if ($fechaInicio->lte(today())) {
+            Notification::make()
+                ->title('Solo se pueden programar turnos futuros')
+                ->danger()
+                ->send();
+
+            return;
+        }
 
         if ($fechaFin->lt($fechaInicio)) {
             Notification::make()
@@ -156,7 +190,7 @@ class AsignarTurnos extends Page
 
         $colaboradoresPermitidos = Colaborador::query()
             ->whereIn('id', $colaboradorIds)
-            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
+            ->where('sucursal_id', $sucursalId)
             ->where('activo', true)
             ->count();
 
