@@ -172,8 +172,8 @@ return [
     */
 
     'localization' => [
-        'enabled' => false,
-        'key' => 'filament-shield::filament-shield.resource_permission_prefixes_labels',
+        'enabled' => true,
+        'key' => 'permisos',
     ],
 
     /*
@@ -260,6 +260,9 @@ return [
         // Accesos funcionales fuera de los Resources y Pages de Filament.
         'Access:AdminPanel',
         'Registrar:Marcacion',
+        'Registrar:VisitaSupervisor',
+        'Reportar:IncidenciaMarcacion',
+        'Resolver:IncidenciaMarcacion',
         'View:MiHorario',
         'View:EstacionesQr',
 

@@ -31,4 +31,12 @@ class SeguridadModalTest extends TestCase
             ->mountAction('create')
             ->assertHasNoErrors();
     }
+
+    public function test_operational_permission_labels_are_translated_to_spanish(): void
+    {
+        $this->assertTrue(config('filament-shield.localization.enabled'));
+        $this->assertSame('Registrar marcación', __('permisos.registrar_marcacion'));
+        $this->assertSame('Registrar visita de supervisión', __('permisos.registrar_visita_supervisor'));
+        $this->assertSame('Restablecer contraseña', __('permisos.reset_password_user'));
+    }
 }
