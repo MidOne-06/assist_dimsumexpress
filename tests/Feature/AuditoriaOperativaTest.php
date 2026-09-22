@@ -91,7 +91,7 @@ class AuditoriaOperativaTest extends TestCase
 
         $this->assertFalse($admin->can('update', $asignacion));
         $this->assertFalse($admin->can('delete', $asignacion));
-        $this->assertFalse($admin->can('update', $turno));
+        $this->assertTrue($admin->can('update', $turno));
         $this->assertFalse($admin->can('delete', $colaborador->user));
     }
 

@@ -45,6 +45,11 @@ class TurnoForm
                     ->minValue(0)
                     ->maxValue(120)
                     ->default(10),
+                TextInput::make('refrigerio')
+                    ->label('Refrigerio')
+                    ->default('1 hora')
+                    ->disabled()
+                    ->dehydrated(false),
                 Toggle::make('activo')
                     ->label('Activo')
                     ->default(true)

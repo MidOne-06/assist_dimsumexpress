@@ -37,6 +37,10 @@ class TurnosTable
                     ->label('Toler. salida')
                     ->suffix(' min')
                     ->alignCenter(),
+                TextColumn::make('refrigerio')
+                    ->label('Refrigerio')
+                    ->state('1 h')
+                    ->alignCenter(),
                 IconColumn::make('activo')
                     ->label('Activo')
                     ->boolean(),

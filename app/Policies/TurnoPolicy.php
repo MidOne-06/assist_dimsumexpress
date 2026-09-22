@@ -29,8 +29,7 @@ class TurnoPolicy
 
     public function update(AuthUser $authUser, Turno $turno): bool
     {
-        return $authUser->can('Update:Turno')
-            && ! $turno->asignaciones()->where('fecha', '<=', today())->exists();
+        return $authUser->can('Update:Turno');
     }
 
     public function delete(AuthUser $authUser, Turno $turno): bool
