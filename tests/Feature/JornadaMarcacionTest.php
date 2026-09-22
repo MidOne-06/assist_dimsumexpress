@@ -175,7 +175,7 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.show'))
             ->assertOk()
             ->assertSee('Tu siguiente paso')
-            ->assertSee('Registrar entrada');
+            ->assertSee('Marcar ingreso de turno');
 
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
         $qr = QrToken::create([
@@ -188,9 +188,25 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($operador)
             ->get(route('marcacion.show', ['token' => $qr->token]))
             ->assertOk()
-            ->assertSee('Iniciar refrigerio')
-            ->assertSee('Finalizar turno')
+            ->assertSee('Marcar salida de refrigerio')
+            ->assertSee('Marcar salida de turno')
             ->assertSee('10:00:00');
+
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
+
+        $this->actingAs($operador)
+            ->get(route('marcacion.show', ['token' => $qr->token]))
+            ->assertOk()
+            ->assertSee('Marcar ingreso de refrigerio')
+            ->assertDontSee('Marcar salida de turno');
+
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_REGRESO_REFRIGERIO);
+
+        $this->actingAs($operador)
+            ->get(route('marcacion.show', ['token' => $qr->token]))
+            ->assertOk()
+            ->assertSee('Marcar salida de refrigerio')
+            ->assertSee('Marcar salida de turno');
     }
 
     public function test_confirmation_and_traceability_keep_the_exact_seconds_of_a_mark(): void

@@ -16,7 +16,7 @@
 </head>
 <body>
     @php
-        $etiquetas = ['entrada' => 'Entrada registrada', 'salida' => 'Salida registrada', 'salida_refrigerio' => 'Refrigerio iniciado', 'regreso_refrigerio' => 'Regreso de refrigerio registrado'];
+        $etiquetas = ['entrada' => 'Ingreso de turno registrado', 'salida' => 'Salida de turno registrada', 'salida_refrigerio' => 'Salida de refrigerio registrada', 'regreso_refrigerio' => 'Ingreso de refrigerio registrado'];
         $siguiente = match ($marcacion->tipo) {
             'entrada' => ['Siguiente paso', 'Cuando corresponda, escanea el QR para iniciar tu refrigerio de 1 hora o finalizar tu turno.'],
             'salida_refrigerio' => ['Refrigerio en curso', 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Al volver, escanea el QR y registra tu regreso.'],

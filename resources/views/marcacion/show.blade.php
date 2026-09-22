@@ -29,15 +29,15 @@
 </head>
 <body>
     @php
-        $etiquetas = ['entrada' => 'Registrar entrada', 'salida' => 'Finalizar turno', 'salida_refrigerio' => 'Iniciar refrigerio', 'regreso_refrigerio' => 'Registrar regreso de refrigerio'];
+        $etiquetas = ['entrada' => 'Marcar ingreso de turno', 'salida' => 'Marcar salida de turno', 'salida_refrigerio' => 'Marcar salida de refrigerio', 'regreso_refrigerio' => 'Marcar ingreso de refrigerio'];
         $iconos = ['entrada' => 'arrow-right-on-rectangle', 'salida' => 'arrow-left-on-rectangle', 'salida_refrigerio' => 'pause-circle', 'regreso_refrigerio' => 'play-circle'];
-        $detallesBoton = ['entrada' => 'Inicia tu jornada', 'salida' => 'Cierra tu jornada', 'salida_refrigerio' => 'Pausa de 1 hora', 'regreso_refrigerio' => 'Continúa tu jornada'];
+        $detallesBoton = ['entrada' => 'Inicia tu jornada', 'salida' => 'Cierra tu jornada', 'salida_refrigerio' => 'Refrigerio de 1 hora', 'regreso_refrigerio' => 'Continúa tu jornada'];
         $siguiente = $siguientesTipos[0] ?? null;
         $detalleEstado = match ($siguiente) {
-            'entrada' => 'Confirma tu ingreso para iniciar tu jornada.',
-            'salida_refrigerio' => 'Elige si iniciarás tu refrigerio de 1 hora o si finalizarás tu turno.',
-            'regreso_refrigerio' => $retornoEsperado ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '.' : 'Confirma tu regreso para continuar tu jornada.',
-            'salida' => 'Ya puedes finalizar tu turno.',
+            'entrada' => 'Usa el botón para confirmar tu ingreso de turno.',
+            'salida_refrigerio' => 'Usa el botón correspondiente: salida a refrigerio de 1 hora o salida de turno.',
+            'regreso_refrigerio' => $retornoEsperado ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Usa el botón de ingreso de refrigerio.' : 'Usa el botón para registrar tu ingreso de refrigerio.',
+            'salida' => 'Usa el botón para registrar tu salida de turno.',
             default => 'No tienes marcaciones pendientes en esta jornada.',
         };
     @endphp

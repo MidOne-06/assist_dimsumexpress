@@ -30,19 +30,19 @@
 <body>
     @php
         $etiquetas = [
-            'entrada' => 'Registrar entrada',
-            'salida' => 'Finalizar turno',
-            'salida_refrigerio' => 'Iniciar refrigerio',
-            'regreso_refrigerio' => 'Registrar regreso de refrigerio',
+            'entrada' => 'Marcar ingreso de turno',
+            'salida' => 'Marcar salida de turno',
+            'salida_refrigerio' => 'Marcar salida de refrigerio',
+            'regreso_refrigerio' => 'Marcar ingreso de refrigerio',
         ];
         $siguiente = $siguientesTipos[0] ?? null;
         $detalleSiguiente = match ($siguiente) {
-            'entrada' => 'Escanea el QR del punto de venta y confirma tu ingreso.',
-            'salida_refrigerio' => 'Escanea el QR para elegir entre iniciar tu refrigerio de 1 hora o finalizar tu turno.',
+            'entrada' => 'Escanea el QR del punto de venta y usa el botón para confirmar tu ingreso de turno.',
+            'salida_refrigerio' => 'Escanea el QR para usar el botón de salida a refrigerio o salida de turno.',
             'regreso_refrigerio' => $retornoEsperado
                 ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Escanea el QR para registrarlo.'
                 : 'Escanea el QR del punto de venta para registrar tu regreso.',
-            'salida' => 'Escanea el QR del punto de venta para registrar tu salida.',
+            'salida' => 'Escanea el QR del punto de venta para usar el botón de salida de turno.',
             default => null,
         };
     @endphp
