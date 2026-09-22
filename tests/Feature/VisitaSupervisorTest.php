@@ -44,4 +44,22 @@ class VisitaSupervisorTest extends TestCase
             ->get($ajena->enlaceVisitaSupervisor())
             ->assertForbidden();
     }
+
+    public function test_administrator_roles_cannot_register_a_supervisor_visit_from_the_link(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $sucursal = Sucursal::create(['nombre' => 'Local de prueba', 'tipo' => 'tienda', 'activo' => true]);
+        $administrador = User::factory()->create();
+        $administrador->assignRole('super_admin');
+
+        $this->actingAs($administrador)
+            ->get($sucursal->enlaceVisitaSupervisor())
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('visitas_supervisor', [
+            'supervisor_id' => $administrador->id,
+            'sucursal_id' => $sucursal->id,
+            'fecha' => today()->toDateString(),
+        ]);
+    }
 }

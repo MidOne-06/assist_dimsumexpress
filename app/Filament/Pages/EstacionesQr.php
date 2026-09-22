@@ -115,6 +115,11 @@ class EstacionesQr extends Page implements HasTable
                         'url' => $record['visita_url'],
                         'etiqueta' => 'Enlace QR de visita',
                         'archivo' => 'visita-supervisor-',
+                        // Abrir o copiar una URL de visita desde el panel
+                        // equivale a registrar una visita. El panel solo debe
+                        // servir para visualizar o descargar el QR físico.
+                        'mostrarEnlace' => false,
+                        'permitirAbrir' => false,
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),

@@ -26,6 +26,7 @@ class VisitaSupervisorController extends Controller
         $usuario = $request->user();
         abort_unless(
             $usuario instanceof User
+                && $usuario->hasRole('supervisor')
                 && $usuario->can('Registrar:VisitaSupervisor')
                 && AlcanceSupervisor::puedeGestionarSucursal($usuario, $sucursal->id),
             403,
