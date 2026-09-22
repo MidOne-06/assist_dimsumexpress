@@ -132,9 +132,9 @@ final class JornadaMarcacion
     }
 
     /** @return array{estado:string, efectivos_minutos:?int, objetivo_minutos:int, extras_minutos:?int, diferencia_minutos:?int} */
-    public static function resumen(Colaborador $colaborador, AsignacionTurno $asignacion): array
+    public static function resumen(Colaborador $colaborador, AsignacionTurno $asignacion, ?Collection $marcaciones = null): array
     {
-        $marcaciones = static::marcaciones($colaborador, $asignacion);
+        $marcaciones ??= static::marcaciones($colaborador, $asignacion);
         $entrada = $marcaciones->firstWhere('tipo', Marcacion::TIPO_ENTRADA);
         $salida = $marcaciones->filter(fn (Marcacion $marcacion) => $marcacion->tipo === Marcacion::TIPO_SALIDA)->last();
         $objetivoConfigurado = static::minutosObjetivo($asignacion);
