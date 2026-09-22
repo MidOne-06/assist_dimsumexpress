@@ -34,7 +34,11 @@ class VisitaSupervisorTest extends TestCase
             ->assertOk()
             ->assertSee('Visita ya registrada hoy');
 
-        $this->assertSame(1, VisitaSupervisor::query()->count());
+        $this->assertSame(1, VisitaSupervisor::query()
+            ->where('supervisor_id', $supervisor->id)
+            ->where('sucursal_id', $propia->id)
+            ->whereDate('fecha', today())
+            ->count());
 
         $this->actingAs($supervisor)
             ->get($ajena->enlaceVisitaSupervisor())

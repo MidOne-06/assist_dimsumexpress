@@ -20,6 +20,7 @@ class RolesYPermisosSeeder extends Seeder
             'Registrar:Marcacion',
             'View:MiHorario',
             'Registrar:VisitaSupervisor',
+            'View:CalendarioVisitasSupervisor',
             'ViewAny:Marcacion',
             'View:Marcacion',
             'View:EstacionesQr',
