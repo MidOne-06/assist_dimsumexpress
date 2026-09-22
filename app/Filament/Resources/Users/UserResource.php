@@ -13,6 +13,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -36,7 +37,7 @@ class UserResource extends Resource
 
     protected static ?string $modelLabel = 'usuario';
 
-    protected static ?string $pluralModelLabel = 'usuarios y roles';
+    protected static ?string $pluralModelLabel = 'usuarios';
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -99,7 +100,9 @@ class UserResource extends Resource
                             ->preload()
                             ->searchable()
                             ->optionsLimit(8)
-                            ->helperText('Aplica a usuarios con rol supervisor.' )
+                            ->visible(fn (Get $get): bool => collect($get('roles') ?? [])
+                                ->map(fn ($id): string => (string) $id)
+                                ->contains((string) Role::query()->where('name', 'supervisor')->value('id')))
                             ->columnSpanFull(),
                     ]),
             ]);
