@@ -66,6 +66,12 @@ class Sucursal extends Model
         return route('visita-supervisor.show', ['sucursal' => $this->id, 'clave' => $this->token_pantalla]);
     }
 
+    /** Pantalla física que muestra el QR sin registrar una visita. */
+    public function enlaceEstacionVisita(): string
+    {
+        return route('estacion-visita.show', ['sucursal' => $this->id, 'clave' => $this->token_pantalla]);
+    }
+
     public function regenerarTokenPantalla(): void
     {
         $this->forceFill(['token_pantalla' => Str::random(40)])->save();

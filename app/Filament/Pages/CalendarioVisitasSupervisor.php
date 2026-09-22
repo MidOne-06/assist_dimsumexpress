@@ -6,7 +6,6 @@ use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VisitaSupervisor;
 use BackedEnum;
-use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Collection;
@@ -14,11 +13,9 @@ use Illuminate\Support\Carbon;
 
 class CalendarioVisitasSupervisor extends Page
 {
-    use HasPageShield;
-
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Gestión de personal';
+    protected static string|\UnitEnum|null $navigationGroup = 'Asistencia';
 
     protected static ?int $navigationSort = 3;
 
@@ -27,6 +24,11 @@ class CalendarioVisitasSupervisor extends Page
     protected static ?string $title = 'Visitas de supervisión';
 
     protected string $view = 'filament.pages.calendario-visitas-supervisor';
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('View:CalendarioVisitasSupervisor') ?? false;
+    }
 
     public ?int $supervisorId = null;
 

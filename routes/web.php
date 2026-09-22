@@ -42,6 +42,9 @@ Route::middleware('throttle:30,1')->group(function () {
     Route::get('/estacion-marcado/{sucursal}/{puntoVenta?}', [EstacionMarcadoController::class, 'show'])
         ->name('estacion-marcado.show')
         ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
+    Route::get('/estacion-visita/{sucursal}/{puntoVenta?}', [VisitaSupervisorController::class, 'estacion'])
+        ->name('estacion-visita.show')
+        ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
 });
 
 Route::middleware(['auth', 'throttle:30,1'])->group(function () {

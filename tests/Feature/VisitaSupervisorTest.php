@@ -62,4 +62,16 @@ class VisitaSupervisorTest extends TestCase
             'fecha' => today()->toDateString(),
         ]);
     }
+
+    public function test_station_preview_shows_the_qr_without_recording_a_visit(): void
+    {
+        $sucursal = Sucursal::create(['nombre' => 'Local QR', 'tipo' => 'tienda', 'activo' => true]);
+
+        $this->get($sucursal->enlaceEstacionVisita())
+            ->assertOk()
+            ->assertSee('Código QR de visita de supervisión')
+            ->assertSee('La supervisora debe iniciar sesión');
+
+        $this->assertDatabaseMissing('visitas_supervisor', ['sucursal_id' => $sucursal->id]);
+    }
 }

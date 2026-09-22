@@ -119,7 +119,9 @@ class EstacionesQr extends Page implements HasTable
                         // equivale a registrar una visita. El panel solo debe
                         // servir para visualizar o descargar el QR físico.
                         'mostrarEnlace' => false,
-                        'permitirAbrir' => false,
+                        'permitirAbrir' => true,
+                        'abrirUrl' => $record['visita_estacion_url'],
+                        'etiquetaAbrir' => 'Abrir vista de estación',
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
@@ -197,7 +199,7 @@ class EstacionesQr extends Page implements HasTable
     }
 
     /**
-     * @return Collection<int, array{__key: string, tipo: string, tipo_label: string, nombre: string, sucursal: string, sucursal_id: int, ubicacion: string, url: string, visita_url: string}>
+     * @return Collection<int, array{__key: string, tipo: string, tipo_label: string, nombre: string, sucursal: string, sucursal_id: int, ubicacion: string, url: string, visita_url: string, visita_estacion_url: string}>
      */
     private function estacionesBase(): Collection
     {
@@ -222,6 +224,7 @@ class EstacionesQr extends Page implements HasTable
                         'ubicacion' => $sucursal->tipo === 'planta' ? 'Planta' : 'Tienda',
                         'url' => $sucursal->enlaceEstacion(),
                         'visita_url' => $sucursal->enlaceVisitaSupervisor(),
+                        'visita_estacion_url' => $sucursal->enlaceEstacionVisita(),
                     ]);
                 });
         }
@@ -245,6 +248,7 @@ class EstacionesQr extends Page implements HasTable
                         'ubicacion' => 'Punto de venta',
                         'url' => $puntoVenta->enlaceEstacion(),
                         'visita_url' => $puntoVenta->enlaceVisitaSupervisor(),
+                        'visita_estacion_url' => $puntoVenta->enlaceEstacionVisita(),
                     ]);
                 });
         }

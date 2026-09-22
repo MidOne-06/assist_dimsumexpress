@@ -20,6 +20,8 @@ class CalendarioVisitasSupervisorTest extends TestCase
         $this->seed(RolesYPermisosSeeder::class);
         $administrador = User::factory()->create();
         $administrador->assignRole('administrador');
+        $this->actingAs($administrador);
+        $this->assertTrue(CalendarioVisitasSupervisor::shouldRegisterNavigation());
         $ana = User::factory()->create(['name' => 'Ana Supervisora']);
         $ana->assignRole('supervisor');
         $beatriz = User::factory()->create(['name' => 'Beatriz Supervisora']);

@@ -4,6 +4,8 @@
     $archivo = $archivo ?? 'estacion-';
     $mostrarEnlace = $mostrarEnlace ?? true;
     $permitirAbrir = $permitirAbrir ?? true;
+    $abrirUrl = $abrirUrl ?? $url;
+    $etiquetaAbrir = $etiquetaAbrir ?? 'Abrir estación';
 @endphp
 <div x-data="{ copiado: false }" class="space-y-4">
     <x-filament::section
@@ -38,8 +40,8 @@
                     </x-filament::button>
                 @endif
                 @if ($permitirAbrir)
-                    <x-filament::button tag="a" color="gray" outlined icon="heroicon-o-arrow-top-right-on-square" :href="$url" target="_blank" rel="noopener noreferrer">
-                        Abrir estación
+                    <x-filament::button tag="a" color="gray" outlined icon="heroicon-o-arrow-top-right-on-square" :href="$abrirUrl" target="_blank" rel="noopener noreferrer">
+                        {{ $etiquetaAbrir }}
                     </x-filament::button>
                 @endif
                 <x-filament::button tag="a" color="gray" outlined icon="heroicon-o-arrow-down-tray" :href="$qr" :download="$archivo.\Illuminate\Support\Str::slug($estacion['sucursal'].'-'.$estacion['nombre']).'.svg'">
