@@ -95,6 +95,20 @@ class VisitaSupervisorTest extends TestCase
         ]);
     }
 
+    public function test_legacy_static_visit_qr_opens_the_dynamic_station_without_recording_a_visit(): void
+    {
+        $sucursal = Sucursal::create(['nombre' => 'Local anterior', 'tipo' => 'tienda', 'activo' => true]);
+
+        $this->get(route('visita-supervisor.legacy', [
+            'sucursal' => $sucursal->id,
+            'clave' => $sucursal->token_pantalla,
+        ]))
+            ->assertOk()
+            ->assertSee('Código QR dinámico de visita de supervisión');
+
+        $this->assertDatabaseMissing('visitas_supervisor', ['sucursal_id' => $sucursal->id]);
+    }
+
     private function emitirTokenVisita(Sucursal $sucursal): QrToken
     {
         $this->get(route('estacion-visita.token', [

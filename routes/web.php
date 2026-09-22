@@ -51,6 +51,11 @@ Route::middleware('throttle:30,1')->group(function () {
     Route::get('/estacion-visita/{sucursal}/{puntoVenta}/token', [VisitaSupervisorController::class, 'token'])
         ->name('estacion-visita.punto-venta.token')
         ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
+    // Los QR estáticos emitidos antes de la rotación no registran visitas:
+    // llevan a la nueva estación dinámica para que sigan siendo utilizables.
+    Route::get('/visitas-supervisor/{sucursal}/{puntoVenta?}', [VisitaSupervisorController::class, 'estacion'])
+        ->name('visita-supervisor.legacy')
+        ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
 });
 
 Route::middleware(['auth', 'throttle:30,1'])->group(function () {
