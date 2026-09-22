@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Users;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\User;
 use App\Models\Sucursal;
+use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -37,6 +39,19 @@ class UserResource extends Resource
     protected static ?string $pluralModelLabel = 'usuarios y roles';
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    /** @param array<string, mixed> $data */
+    public static function validarCuentaOperador(array $data, ?User $usuario = null): void
+    {
+        $rolOperadorId = Role::query()->where('name', 'operador')->value('id');
+        $roles = collect($data['roles'] ?? [])->map(static fn ($id): string => (string) $id);
+
+        if ($rolOperadorId && $roles->contains((string) $rolOperadorId) && ! $usuario?->colaborador) {
+            throw ValidationException::withMessages([
+                'roles' => 'Los operadores se crean y administran desde Colaboradores para mantener su vínculo laboral.',
+            ]);
+        }
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -120,6 +135,7 @@ class UserResource extends Resource
             ])
             ->recordActions([
                 EditAction::make()
+                    ->before(fn (User $record, array $data): mixed => static::validarCuentaOperador($data, $record))
                     ->modal()
                     ->modalHeading('Actualizar usuario')
                     ->modalWidth(Width::TwoExtraLarge),

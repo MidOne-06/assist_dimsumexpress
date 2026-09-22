@@ -6,6 +6,8 @@ namespace App\Policies;
 
 use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Marcacion;
+use App\Models\User;
+use App\Support\AlcanceSupervisor;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class MarcacionPolicy
@@ -19,7 +21,9 @@ class MarcacionPolicy
 
     public function view(AuthUser $authUser, Marcacion $marcacion): bool
     {
-        return $authUser->can('View:Marcacion');
+        return $authUser->can('View:Marcacion')
+            && $authUser instanceof User
+            && AlcanceSupervisor::puedeGestionarSucursal($authUser, $marcacion->sucursal_id);
     }
 
     public function create(AuthUser $authUser): bool

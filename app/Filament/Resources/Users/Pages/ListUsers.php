@@ -15,6 +15,7 @@ class ListUsers extends ListRecords
     {
         return [
             CreateAction::make()
+                ->before(fn (array $data): mixed => UserResource::validarCuentaOperador($data))
                 ->modal()
                 ->modalHeading('Crear usuario')
                 ->modalWidth(Width::TwoExtraLarge)

@@ -5,11 +5,13 @@ namespace App\Filament\Resources\Marcacions;
 use App\Filament\Resources\Marcacions\Pages\ListMarcacions;
 use App\Filament\Resources\Marcacions\Tables\MarcacionsTable;
 use App\Models\Marcacion;
+use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MarcacionResource extends Resource implements HasShieldPermissions
 {
@@ -65,6 +67,12 @@ class MarcacionResource extends Resource implements HasShieldPermissions
     public static function table(Table $table): Table
     {
         return MarcacionsTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()));
     }
 
     public static function getRelations(): array

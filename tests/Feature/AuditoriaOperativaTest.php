@@ -11,6 +11,7 @@ use App\Models\Turno;
 use App\Models\User;
 use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class AuditoriaOperativaTest extends TestCase
@@ -52,12 +53,29 @@ class AuditoriaOperativaTest extends TestCase
         $ajena = $this->sucursal(['nombre' => 'Local ajeno']);
         $supervisor = User::factory()->create();
         $supervisor->assignRole('supervisor');
+        $supervisor->givePermissionTo(Permission::findByName('View:Marcacion', 'web'));
+        $supervisor = $supervisor->fresh();
+        $this->assertTrue($supervisor->hasPermissionTo('View:Marcacion'));
         $supervisor->sucursalesSupervisadas()->attach($propia);
         $colaboradorPropio = $this->colaborador($propia);
         $colaboradorAjeno = $this->colaborador($ajena);
+        $marcacionPropia = Marcacion::create([
+            'colaborador_id' => $colaboradorPropio->id,
+            'sucursal_id' => $propia->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now(),
+        ]);
+        $marcacionAjena = Marcacion::create([
+            'colaborador_id' => $colaboradorAjeno->id,
+            'sucursal_id' => $ajena->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now(),
+        ]);
 
         $this->assertTrue($supervisor->can('view', $colaboradorPropio));
         $this->assertFalse($supervisor->can('view', $colaboradorAjeno));
+        $this->assertTrue($supervisor->can('view', $marcacionPropia));
+        $this->assertFalse($supervisor->can('view', $marcacionAjena));
     }
 
     public function test_past_schedule_and_employee_with_attendance_cannot_be_deleted_or_changed(): void

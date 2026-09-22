@@ -19,6 +19,8 @@ class RolesYPermisosSeeder extends Seeder
             'Access:AdminPanel',
             'Registrar:Marcacion',
             'View:MiHorario',
+            'ViewAny:Marcacion',
+            'View:Marcacion',
             'View:EstacionesQr',
             'VerEnlace:Sucursal',
             'VerEnlace:PuntoVenta',
@@ -55,6 +57,8 @@ class RolesYPermisosSeeder extends Seeder
             'View:Colaborador',
             'ViewAny:AsignacionTurno',
             'View:AsignacionTurno',
+            'ViewAny:Marcacion',
+            'View:Marcacion',
             'Create:AsignacionTurno',
             'Update:AsignacionTurno',
             'Delete:AsignacionTurno',
@@ -67,6 +71,12 @@ class RolesYPermisosSeeder extends Seeder
             'Registrar:Marcacion',
             'View:MiHorario',
         ]));
+        // Estas dos lecturas se declaran expresamente porque Marcaciones es
+        // un recurso de solo lectura y no genera permisos CRUD completos.
+        $supervisor->givePermissionTo(
+            Permission::findByName('ViewAny:Marcacion', 'web'),
+            Permission::findByName('View:Marcacion', 'web'),
+        );
 
         // El operario marca asistencia mediante /marcar. No recibe acceso al
         // panel administrativo ni privilegios de gestión.
