@@ -44,4 +44,27 @@ class CalendarioVisitasSupervisorTest extends TestCase
             ->assertSee('Ana Supervisora')
             ->assertDontSee('Beatriz Supervisora');
     }
+
+    public function test_calendar_keeps_historical_visits_visible_after_a_supervisor_role_is_removed(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $administrador = User::factory()->create();
+        $administrador->assignRole('administrador');
+        $exSupervisora = User::factory()->create(['name' => 'Supervisora histórica']);
+        $exSupervisora->assignRole('supervisor');
+        $local = Sucursal::create(['nombre' => 'Tienda histórica', 'tipo' => 'tienda', 'activo' => true]);
+
+        VisitaSupervisor::create([
+            'supervisor_id' => $exSupervisora->id,
+            'sucursal_id' => $local->id,
+            'fecha' => now()->toDateString(),
+            'fecha_hora' => now()->setTime(10, 15),
+        ]);
+        $exSupervisora->removeRole('supervisor');
+
+        Livewire::actingAs($administrador)
+            ->test(CalendarioVisitasSupervisor::class)
+            ->assertSee('Supervisora histórica')
+            ->assertSee('Tienda histórica');
+    }
 }

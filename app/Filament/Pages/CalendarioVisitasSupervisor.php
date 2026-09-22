@@ -59,8 +59,16 @@ class CalendarioVisitasSupervisor extends Page
     /** @return Collection<int, User> */
     public function getSupervisoresProperty(): Collection
     {
+        // Además de quienes hoy tienen el rol, se incluyen las personas con
+        // visitas del período. Así un cambio de rol no borra del calendario
+        // la evidencia histórica de una visita registrada correctamente.
+        $ids = User::role('supervisor')->pluck('id')
+            ->merge($this->visitasDelPeriodo()->distinct()->pluck('supervisor_id'))
+            ->unique()
+            ->values();
+
         return User::query()
-            ->role('supervisor')
+            ->whereIn('id', $ids)
             ->when($this->supervisorId, fn ($query) => $query->whereKey($this->supervisorId))
             ->orderBy('name')
             ->get(['id', 'name']);
@@ -97,15 +105,10 @@ class CalendarioVisitasSupervisor extends Page
      */
     public function getMapaVisitasProperty(): array
     {
-        $inicio = Carbon::parse("{$this->mes}-01")->startOfMonth();
-        $fin = $inicio->copy()->endOfMonth();
         $mapa = [];
 
-        VisitaSupervisor::query()
+        $this->visitasDelPeriodo()
             ->with(['sucursal:id,nombre', 'puntoVenta:id,nombre'])
-            ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
-            ->when($this->supervisorId, fn ($query) => $query->where('supervisor_id', $this->supervisorId))
-            ->when($this->sucursalId, fn ($query) => $query->where('sucursal_id', $this->sucursalId))
             ->orderBy('fecha_hora')
             ->get()
             ->each(function (VisitaSupervisor $visita) use (&$mapa): void {
@@ -115,5 +118,16 @@ class CalendarioVisitasSupervisor extends Page
             });
 
         return $mapa;
+    }
+
+    private function visitasDelPeriodo(): \Illuminate\Database\Eloquent\Builder
+    {
+        $inicio = Carbon::parse("{$this->mes}-01")->startOfMonth();
+        $fin = $inicio->copy()->endOfMonth();
+
+        return VisitaSupervisor::query()
+            ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
+            ->when($this->supervisorId, fn ($query) => $query->where('supervisor_id', $this->supervisorId))
+            ->when($this->sucursalId, fn ($query) => $query->where('sucursal_id', $this->sucursalId));
     }
 }

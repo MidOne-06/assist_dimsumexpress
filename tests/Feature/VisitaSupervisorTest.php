@@ -109,6 +109,23 @@ class VisitaSupervisorTest extends TestCase
         $this->assertDatabaseMissing('visitas_supervisor', ['sucursal_id' => $sucursal->id]);
     }
 
+    public function test_expired_visit_qr_shows_a_clear_retry_message(): void
+    {
+        $sucursal = Sucursal::create(['nombre' => 'Local vencido', 'tipo' => 'tienda', 'activo' => true]);
+        $token = QrToken::generarPara(
+            $sucursal,
+            null,
+            -1,
+            QrToken::PROPOSITO_VISITA_SUPERVISOR,
+        );
+
+        $this->actingAs(User::factory()->create())
+            ->get(route('visita-supervisor.show', ['token' => $token->token]))
+            ->assertStatus(410)
+            ->assertSee('Código QR vencido')
+            ->assertSee('Vuelve a escanear');
+    }
+
     private function emitirTokenVisita(Sucursal $sucursal): QrToken
     {
         $this->get(route('estacion-visita.token', [

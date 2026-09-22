@@ -12,6 +12,7 @@ use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class VisitaSupervisorController extends Controller
@@ -51,14 +52,16 @@ class VisitaSupervisorController extends Controller
         ]);
     }
 
-    public function show(Request $request): View
+    public function show(Request $request): View|Response
     {
         $qrToken = QrToken::query()
             ->with(['sucursal', 'puntoVenta'])
             ->where('token', (string) $request->query('token'))
             ->first();
 
-        abort_unless($qrToken?->vigentePara(QrToken::PROPOSITO_VISITA_SUPERVISOR), 404);
+        if (! $qrToken?->vigentePara(QrToken::PROPOSITO_VISITA_SUPERVISOR)) {
+            return response()->view('visitas-supervisor.expirada', status: 410);
+        }
 
         $sucursal = $qrToken->sucursal;
         $puntoVenta = $qrToken->puntoVenta;
