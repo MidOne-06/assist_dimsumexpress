@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Marcacions\Tables;
 
 use App\Models\Marcacion;
 use App\Models\Sucursal;
+use Filament\Actions\Action;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -95,7 +97,18 @@ class MarcacionsTable
                             ->when($data['hasta'] ?? null, fn (Builder $q, $fecha) => $q->whereDate('fecha_hora', '<=', $fecha));
                     }),
             ])
-            ->recordActions([])
+            ->recordActions([
+                Action::make('trazabilidad')
+                    ->label('Trazabilidad')
+                    ->authorize(fn (): bool => auth()->user()->can('View:Marcacion'))
+                    ->modalHeading('Trazabilidad de marcación')
+                    ->modalWidth(Width::TwoExtraLarge)
+                    ->modalContent(fn (Marcacion $record) => view('filament.actions.trazabilidad-marcacion', [
+                        'marcacion' => $record->loadMissing(['colaborador', 'turno', 'sucursal', 'puntoVenta', 'qrToken']),
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
+            ])
             ->toolbarActions([]);
     }
 }

@@ -36,7 +36,7 @@
         $detalleEstado = match ($siguiente) {
             'entrada' => 'Confirma tu ingreso para iniciar tu jornada.',
             'salida_refrigerio' => 'Elige si iniciarás tu refrigerio de 1 hora o si finalizarás tu turno.',
-            'regreso_refrigerio' => $retornoEsperado ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i') . '.' : 'Confirma tu regreso para continuar tu jornada.',
+            'regreso_refrigerio' => $retornoEsperado ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '.' : 'Confirma tu regreso para continuar tu jornada.',
             'salida' => 'Ya puedes finalizar tu turno.',
             default => 'No tienes marcaciones pendientes en esta jornada.',
         };
@@ -51,7 +51,7 @@
         @endif
 
         @if ($ultimaMarcacion)
-            <div class="ultima">Última marcación: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> · {{ $ultimaMarcacion->fecha_hora->format('H:i') }}</div>
+            <div class="ultima">Última marcación: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> · {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</div>
         @endif
 
         <div class="estado"><strong>{{ $siguiente ? 'Siguiente paso: ' . $etiquetas[$siguiente] : 'Jornada completada' }}</strong><span>{{ $detalleEstado }}</span></div>

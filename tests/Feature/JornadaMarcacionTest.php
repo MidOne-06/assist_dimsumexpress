@@ -189,7 +189,46 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.show', ['token' => $qr->token]))
             ->assertOk()
             ->assertSee('Iniciar refrigerio')
-            ->assertSee('Finalizar turno');
+            ->assertSee('Finalizar turno')
+            ->assertSee('10:00:00');
+    }
+
+    public function test_confirmation_and_traceability_keep_the_exact_seconds_of_a_mark(): void
+    {
+        Carbon::setTestNow('2026-09-21 10:30:45');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $operador = $colaborador->user;
+        $operador->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $qr = QrToken::create([
+            'sucursal_id' => $colaborador->sucursal_id,
+            'token' => 'token-traza-' . uniqid(),
+            'proposito' => QrToken::PROPOSITO_ASISTENCIA,
+            'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
+        ]);
+        $marcacion = Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $asignacion->turno_id,
+            'sucursal_id' => $colaborador->sucursal_id,
+            'qr_token_id' => $qr->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => '2026-09-21 10:30:45',
+            'ip_origen' => '198.51.100.24',
+            'user_agent' => 'Agente de prueba',
+        ]);
+
+        $this->actingAs($operador)
+            ->get(route('marcacion.confirmacion', $marcacion))
+            ->assertOk()
+            ->assertSee('10:30:45');
+
+        $traza = view('filament.actions.trazabilidad-marcacion', [
+            'marcacion' => $marcacion->fresh(['colaborador', 'turno', 'sucursal', 'puntoVenta', 'qrToken']),
+        ])->render();
+
+        $this->assertStringContainsString('21/09/2026 10:30:45', $traza);
+        $this->assertStringContainsString('198.51.100.24', $traza);
+        $this->assertStringContainsString('QR #' . $qr->id, $traza);
+        $this->assertStringContainsString('Agente de prueba', $traza);
     }
 
     /** @return array{Colaborador, AsignacionTurno} */

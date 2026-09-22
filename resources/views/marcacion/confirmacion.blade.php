@@ -19,7 +19,7 @@
         $etiquetas = ['entrada' => 'Entrada registrada', 'salida' => 'Salida registrada', 'salida_refrigerio' => 'Refrigerio iniciado', 'regreso_refrigerio' => 'Regreso de refrigerio registrado'];
         $siguiente = match ($marcacion->tipo) {
             'entrada' => ['Siguiente paso', 'Cuando corresponda, escanea el QR para iniciar tu refrigerio de 1 hora o finalizar tu turno.'],
-            'salida_refrigerio' => ['Refrigerio en curso', 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i') . '. Al volver, escanea el QR y registra tu regreso.'],
+            'salida_refrigerio' => ['Refrigerio en curso', 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Al volver, escanea el QR y registra tu regreso.'],
             'regreso_refrigerio' => ['Jornada en curso', 'Cuando corresponda, escanea el QR para continuar con la siguiente acción de tu turno.'],
             'salida' => ['Jornada completada', 'Tu salida quedó registrada. No tienes ninguna acción pendiente para este turno.'],
         };
@@ -27,7 +27,7 @@
     <div class="card">
         <x-heroicon-s-check-circle style="width:2.75rem;height:2.75rem;color:#16a34a;margin:0 auto .75rem;display:block;" />
         <h1>{{ $etiquetas[$marcacion->tipo] }}</h1>
-        <div class="hora">{{ $marcacion->fecha_hora->format('H:i') }}</div>
+        <div class="hora">{{ $marcacion->fecha_hora->format('H:i:s') }}</div>
         <p class="fecha">{{ $marcacion->fecha_hora->translatedFormat('l d \d\e F') }}</p>
         <div class="siguiente"><strong>{{ $siguiente[0] }}</strong>{{ $siguiente[1] }}</div>
         <div class="acciones">

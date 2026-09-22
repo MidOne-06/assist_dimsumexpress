@@ -40,7 +40,7 @@
             'entrada' => 'Escanea el QR del punto de venta y confirma tu ingreso.',
             'salida_refrigerio' => 'Escanea el QR para elegir entre iniciar tu refrigerio de 1 hora o finalizar tu turno.',
             'regreso_refrigerio' => $retornoEsperado
-                ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i') . '. Escanea el QR para registrarlo.'
+                ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Escanea el QR para registrarlo.'
                 : 'Escanea el QR del punto de venta para registrar tu regreso.',
             'salida' => 'Escanea el QR del punto de venta para registrar tu salida.',
             default => null,
@@ -67,7 +67,7 @@
                     <p class="estado-detalle">{{ $detalleSiguiente }}</p>
                 </div>
                 @if ($ultimaMarcacion)
-                    <p class="ultimo">Última marcación: {{ $etiquetas[$ultimaMarcacion->tipo] }} · {{ $ultimaMarcacion->fecha_hora->format('H:i') }}</p>
+                    <p class="ultimo">Última marcación: {{ $etiquetas[$ultimaMarcacion->tipo] }} · {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</p>
                 @endif
                 <p class="guia">Usa la cámara para escanear el QR dinámico mostrado en tu punto de venta.</p>
                 @include('marcacion.partials.escaner')
