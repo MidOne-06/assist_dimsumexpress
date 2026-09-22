@@ -45,6 +45,10 @@ class TurnosTable
                     ->label('Horas efectivas')
                     ->formatStateUsing(fn (int $state) => ($state / 60) . ' h')
                     ->alignCenter(),
+                TextColumn::make('horas_efectivas_jornada_completa_minutos')
+                    ->label('Jornada completa')
+                    ->formatStateUsing(fn (?int $state) => $state ? ($state / 60) . ' h' : '—')
+                    ->alignCenter(),
                 IconColumn::make('solo_entrada')
                     ->label('Solo entrada')
                     ->boolean(),

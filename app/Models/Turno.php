@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-#[Fillable(['nombre', 'hora_inicio', 'hora_fin', 'cruza_medianoche', 'tolerancia_entrada_minutos', 'tolerancia_salida_minutos', 'solo_entrada', 'incluye_refrigerio', 'refrigerio_minutos', 'horas_efectivas_objetivo_minutos', 'activo'])]
+#[Fillable(['nombre', 'hora_inicio', 'hora_fin', 'cruza_medianoche', 'tolerancia_entrada_minutos', 'tolerancia_salida_minutos', 'solo_entrada', 'incluye_refrigerio', 'refrigerio_minutos', 'horas_efectivas_objetivo_minutos', 'horas_efectivas_jornada_completa_minutos', 'activo'])]
 class Turno extends Model
 {
     protected $attributes = [
@@ -26,6 +26,7 @@ class Turno extends Model
             'incluye_refrigerio' => 'boolean',
             'refrigerio_minutos' => 'integer',
             'horas_efectivas_objetivo_minutos' => 'integer',
+            'horas_efectivas_jornada_completa_minutos' => 'integer',
             'activo' => 'boolean',
         ];
     }
@@ -54,6 +55,13 @@ class Turno extends Model
             if ($refrigerio < 0 || ($objetivo + $refrigerio) > $duracionProgramada) {
                 throw ValidationException::withMessages([
                     'horas_efectivas_objetivo_minutos' => 'El horario debe cubrir las horas efectivas objetivo más el refrigerio configurado.',
+                ]);
+            }
+
+            $objetivoJornadaCompleta = $turno->horas_efectivas_jornada_completa_minutos;
+            if ($objetivoJornadaCompleta !== null && (int) $objetivoJornadaCompleta <= $objetivo) {
+                throw ValidationException::withMessages([
+                    'horas_efectivas_jornada_completa_minutos' => 'La meta de jornada completa debe ser mayor a las horas efectivas requeridas.',
                 ]);
             }
         });

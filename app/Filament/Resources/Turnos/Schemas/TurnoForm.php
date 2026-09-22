@@ -66,6 +66,10 @@ class TurnoForm
                     ->options(collect(range(1, 16))->mapWithKeys(fn (int $hora): array => [$hora * 60 => $hora . ' h'])->all())
                     ->default(480)
                     ->required(),
+                \Filament\Forms\Components\Select::make('horas_efectivas_jornada_completa_minutos')
+                    ->label('Objetivo si completa jornada')
+                    ->options(collect(range(1, 18))->mapWithKeys(fn (int $hora): array => [$hora * 60 => $hora . ' h'])->all())
+                    ->placeholder('No aplica'),
                 Toggle::make('solo_entrada')
                     ->label('Solo entrada')
                     ->default(false),

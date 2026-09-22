@@ -125,7 +125,7 @@ class JornadaMarcacionTest extends TestCase
     {
         Carbon::setTestNow('2026-09-21 08:00:00');
         [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
-        $asignacion->turno->update(['incluye_refrigerio' => true, 'refrigerio_minutos' => 60, 'horas_efectivas_objetivo_minutos' => 480]);
+        $asignacion->turno->update(['incluye_refrigerio' => true, 'refrigerio_minutos' => 60, 'horas_efectivas_objetivo_minutos' => 480, 'horas_efectivas_jornada_completa_minutos' => 540]);
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
         Carbon::setTestNow('2026-09-21 13:00:00');
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
@@ -138,8 +138,8 @@ class JornadaMarcacionTest extends TestCase
 
         $resumen = JornadaMarcacion::resumen($colaborador, $asignacion->fresh('turno'));
         $this->assertSame(780, $resumen['efectivos_minutos']);
-        $this->assertSame(480, $resumen['objetivo_minutos']);
-        $this->assertSame(300, $resumen['extras_minutos']);
+        $this->assertSame(540, $resumen['objetivo_minutos']);
+        $this->assertSame(240, $resumen['extras_minutos']);
         $this->assertSame('extendida', $resumen['estado']);
     }
 

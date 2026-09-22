@@ -151,10 +151,14 @@ final class JornadaMarcacion
         }
 
         $efectivos = (int) max(0, $entrada->fecha_hora->diffInMinutes($salida->fecha_hora) - $refrigerio);
-        // La jornada ordinaria siempre la determina el turno asignado. No se
-        // impone una meta global: cada tipo de turno puede tener su propia
-        // duración efectiva y sus excedentes se calculan contra esa meta.
-        $objetivo = $objetivoConfigurado;
+        // Un turno puede definir una meta de jornada completa superior a su
+        // meta ordinaria. Solo se aplica cuando la permanencia real la
+        // alcanza: así un turno mañana extendido se reconoce sin reasignar
+        // al colaborador y sin imponer una regla global a los demás turnos.
+        $objetivoJornadaCompleta = $asignacion->turno->horas_efectivas_jornada_completa_minutos;
+        $objetivo = $objetivoJornadaCompleta !== null && $efectivos >= $objetivoJornadaCompleta
+            ? (int) $objetivoJornadaCompleta
+            : $objetivoConfigurado;
         $diferencia = $efectivos - $objetivo;
 
         return [
