@@ -57,11 +57,7 @@ class PuntoVenta extends Model
 
     public function enlaceVisitaSupervisor(): string
     {
-        return route('visita-supervisor.show', [
-            'sucursal' => $this->sucursal_id,
-            'puntoVenta' => $this->id,
-            'clave' => $this->token_pantalla,
-        ]);
+        return $this->enlaceEstacionVisita();
     }
 
     /** Pantalla física no registrable para mostrar el QR de visita. */

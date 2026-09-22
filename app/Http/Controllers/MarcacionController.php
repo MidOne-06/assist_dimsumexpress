@@ -46,7 +46,7 @@ class MarcacionController extends Controller
 
         $qrToken = QrToken::with(['sucursal', 'puntoVenta'])->where('token', $token)->first();
 
-        if (! $qrToken || ! $qrToken->vigente()) {
+        if (! $qrToken || ! $qrToken->vigentePara(QrToken::PROPOSITO_ASISTENCIA)) {
             return view('marcacion.error', [
                 'mensaje' => 'El código QR expiró o no es válido. Vuelve a escanear el código de la pantalla.',
             ]);
@@ -95,7 +95,7 @@ class MarcacionController extends Controller
 
         $qrToken = QrToken::with(['sucursal', 'puntoVenta'])->where('token', $data['token'])->first();
 
-        if (! $qrToken || ! $qrToken->vigente()) {
+        if (! $qrToken || ! $qrToken->vigentePara(QrToken::PROPOSITO_ASISTENCIA)) {
             return back()->withErrors(['tipo' => 'El código QR expiró. Vuelve a escanearlo desde la pantalla.']);
         }
 

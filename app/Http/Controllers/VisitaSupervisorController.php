@@ -3,35 +3,66 @@
 namespace App\Http\Controllers;
 
 use App\Models\PuntoVenta;
+use App\Models\QrToken;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VisitaSupervisor;
 use App\Support\AlcanceSupervisor;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\SvgWriter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class VisitaSupervisorController extends Controller
 {
+    private const VIGENCIA_SEGUNDOS = 20;
+
     /** Pantalla física del QR; abrirla no crea una visita. */
     public function estacion(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): View
     {
         $this->validarEstacion($request, $sucursal, $puntoVenta);
 
-        $urlVisita = route('visita-supervisor.show', [
-            'sucursal' => $sucursal->id,
-            'puntoVenta' => $puntoVenta?->id,
+        return view('estacion-visita.show', [
+            'sucursal' => $sucursal,
+            'puntoVenta' => $puntoVenta,
             'clave' => $request->query('clave'),
+            'vigenciaSegundos' => self::VIGENCIA_SEGUNDOS,
         ]);
-        $qr = (new Builder(writer: new SvgWriter(), data: $urlVisita, size: 340, margin: 12))->build()->getDataUri();
-
-        return view('estacion-visita.show', compact('sucursal', 'puntoVenta', 'qr'));
     }
 
-    public function show(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): View
+    /** Emite un QR de visita que vence en segundos, como el de asistencia. */
+    public function token(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): JsonResponse
     {
         $this->validarEstacion($request, $sucursal, $puntoVenta);
+
+        $qrToken = QrToken::generarPara(
+            $sucursal,
+            $puntoVenta,
+            self::VIGENCIA_SEGUNDOS,
+            QrToken::PROPOSITO_VISITA_SUPERVISOR,
+        );
+        $urlVisita = route('visita-supervisor.show', ['token' => $qrToken->token]);
+        $qr = (new Builder(writer: new SvgWriter(), data: $urlVisita, size: 340, margin: 12))->build()->getDataUri();
+
+        return response()->json([
+            'qr' => $qr,
+            'segundos_restantes' => self::VIGENCIA_SEGUNDOS,
+        ]);
+    }
+
+    public function show(Request $request): View
+    {
+        $qrToken = QrToken::query()
+            ->with(['sucursal', 'puntoVenta'])
+            ->where('token', (string) $request->query('token'))
+            ->first();
+
+        abort_unless($qrToken?->vigentePara(QrToken::PROPOSITO_VISITA_SUPERVISOR), 404);
+
+        $sucursal = $qrToken->sucursal;
+        $puntoVenta = $qrToken->puntoVenta;
+        abort_unless($sucursal?->activo && (! $qrToken->punto_venta_id || $puntoVenta?->activo), 404);
 
         $usuario = $request->user();
         abort_unless(

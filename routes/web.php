@@ -45,12 +45,17 @@ Route::middleware('throttle:30,1')->group(function () {
     Route::get('/estacion-visita/{sucursal}/{puntoVenta?}', [VisitaSupervisorController::class, 'estacion'])
         ->name('estacion-visita.show')
         ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
+    Route::get('/estacion-visita/{sucursal}/token', [VisitaSupervisorController::class, 'token'])
+        ->name('estacion-visita.token')
+        ->where('sucursal', '[0-9]+');
+    Route::get('/estacion-visita/{sucursal}/{puntoVenta}/token', [VisitaSupervisorController::class, 'token'])
+        ->name('estacion-visita.punto-venta.token')
+        ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
 });
 
 Route::middleware(['auth', 'throttle:30,1'])->group(function () {
-    Route::get('/visitas-supervisor/{sucursal}/{puntoVenta?}', [VisitaSupervisorController::class, 'show'])
-        ->name('visita-supervisor.show')
-        ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
+    Route::get('/visitas-supervisor', [VisitaSupervisorController::class, 'show'])
+        ->name('visita-supervisor.show');
 
     Route::get('/marcar', [MarcacionController::class, 'show'])->name('marcacion.show');
     Route::post('/marcar', [MarcacionController::class, 'store'])->name('marcacion.store');

@@ -63,7 +63,9 @@ class Sucursal extends Model
 
     public function enlaceVisitaSupervisor(): string
     {
-        return route('visita-supervisor.show', ['sucursal' => $this->id, 'clave' => $this->token_pantalla]);
+        // Compatibilidad con enlaces generados antes de que el QR de visita
+        // fuese dinámico: ahora siempre abre la estación no registrable.
+        return $this->enlaceEstacionVisita();
     }
 
     /** Pantalla física que muestra el QR sin registrar una visita. */

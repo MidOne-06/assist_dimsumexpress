@@ -8,9 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
-#[Fillable(['sucursal_id', 'punto_venta_id', 'token', 'expira_en'])]
+#[Fillable(['sucursal_id', 'punto_venta_id', 'token', 'proposito', 'expira_en'])]
 class QrToken extends Model
 {
+    public const PROPOSITO_ASISTENCIA = 'asistencia';
+
+    public const PROPOSITO_VISITA_SUPERVISOR = 'visita_supervisor';
+
     protected $table = 'qr_tokens';
 
     protected function casts(): array
@@ -40,12 +44,23 @@ class QrToken extends Model
         return $this->expira_en->isFuture();
     }
 
-    public static function generarPara(Sucursal $sucursal, ?PuntoVenta $puntoVenta = null, int $vigenciaSegundos = 20): self
+    public function vigentePara(string $proposito): bool
+    {
+        return $this->proposito === $proposito && $this->vigente();
+    }
+
+    public static function generarPara(
+        Sucursal $sucursal,
+        ?PuntoVenta $puntoVenta = null,
+        int $vigenciaSegundos = 20,
+        string $proposito = self::PROPOSITO_ASISTENCIA,
+    ): self
     {
         return self::create([
             'sucursal_id' => $sucursal->id,
             'punto_venta_id' => $puntoVenta?->id,
             'token' => Str::random(48),
+            'proposito' => $proposito,
             'expira_en' => now()->addSeconds($vigenciaSegundos),
         ]);
     }

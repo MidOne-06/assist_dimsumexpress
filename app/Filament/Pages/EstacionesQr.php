@@ -111,14 +111,16 @@ class EstacionesQr extends Page implements HasTable
                     ->modalHeading(fn (array $record): string => "Visita de supervisor: {$record['nombre']}")
                     ->modalContent(fn (array $record) => view('filament.actions.estacion-qr', [
                         'estacion' => $record,
-                        'qr' => $this->codigoQr($record['visita_url']),
-                        'url' => $record['visita_url'],
-                        'etiqueta' => 'Enlace QR de visita',
+                        // Este QR provisiona la pantalla física. El QR que
+                        // muestra esa pantalla rota cada 20 segundos.
+                        'qr' => $this->codigoQr($record['visita_estacion_url']),
+                        'url' => $record['visita_estacion_url'],
+                        'etiqueta' => 'Enlace de estación de visita',
                         'archivo' => 'visita-supervisor-',
                         // Abrir o copiar una URL de visita desde el panel
                         // equivale a registrar una visita. El panel solo debe
                         // servir para visualizar o descargar el QR físico.
-                        'mostrarEnlace' => false,
+                        'mostrarEnlace' => true,
                         'permitirAbrir' => true,
                         'abrirUrl' => $record['visita_estacion_url'],
                         'etiquetaAbrir' => 'Abrir vista de estación',

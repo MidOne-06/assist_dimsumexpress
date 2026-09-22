@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VisitaSupervisor;
+use App\Models\QrToken;
 use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -24,13 +25,15 @@ class VisitaSupervisorTest extends TestCase
         $supervisor->givePermissionTo(Permission::findOrCreate('Registrar:VisitaSupervisor', 'web'));
         $supervisor->sucursalesSupervisadas()->attach($propia);
 
+        $tokenPropio = $this->emitirTokenVisita($propia);
+
         $this->actingAs($supervisor)
-            ->get($propia->enlaceVisitaSupervisor())
+            ->get(route('visita-supervisor.show', ['token' => $tokenPropio->token]))
             ->assertOk()
             ->assertSee('Visita registrada');
 
         $this->actingAs($supervisor)
-            ->get($propia->enlaceVisitaSupervisor())
+            ->get(route('visita-supervisor.show', ['token' => $tokenPropio->token]))
             ->assertOk()
             ->assertSee('Visita ya registrada hoy');
 
@@ -40,8 +43,10 @@ class VisitaSupervisorTest extends TestCase
             ->whereDate('fecha', today())
             ->count());
 
+        $tokenAjeno = $this->emitirTokenVisita($ajena);
+
         $this->actingAs($supervisor)
-            ->get($ajena->enlaceVisitaSupervisor())
+            ->get(route('visita-supervisor.show', ['token' => $tokenAjeno->token]))
             ->assertForbidden();
     }
 
@@ -52,8 +57,10 @@ class VisitaSupervisorTest extends TestCase
         $administrador = User::factory()->create();
         $administrador->assignRole('super_admin');
 
+        $token = $this->emitirTokenVisita($sucursal);
+
         $this->actingAs($administrador)
-            ->get($sucursal->enlaceVisitaSupervisor())
+            ->get(route('visita-supervisor.show', ['token' => $token->token]))
             ->assertForbidden();
 
         $this->assertDatabaseMissing('visitas_supervisor', [
@@ -69,9 +76,36 @@ class VisitaSupervisorTest extends TestCase
 
         $this->get($sucursal->enlaceEstacionVisita())
             ->assertOk()
-            ->assertSee('Código QR de visita de supervisión')
+            ->assertSee('Código QR dinámico de visita de supervisión')
             ->assertSee('La supervisora debe iniciar sesión');
 
         $this->assertDatabaseMissing('visitas_supervisor', ['sucursal_id' => $sucursal->id]);
+
+        $this->get(route('estacion-visita.token', [
+            'sucursal' => $sucursal->id,
+            'clave' => $sucursal->token_pantalla,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure(['qr', 'segundos_restantes'])
+            ->assertJsonPath('segundos_restantes', 20);
+
+        $this->assertDatabaseHas('qr_tokens', [
+            'sucursal_id' => $sucursal->id,
+            'proposito' => QrToken::PROPOSITO_VISITA_SUPERVISOR,
+        ]);
+    }
+
+    private function emitirTokenVisita(Sucursal $sucursal): QrToken
+    {
+        $this->get(route('estacion-visita.token', [
+            'sucursal' => $sucursal->id,
+            'clave' => $sucursal->token_pantalla,
+        ]))->assertOk();
+
+        return QrToken::query()
+            ->where('sucursal_id', $sucursal->id)
+            ->where('proposito', QrToken::PROPOSITO_VISITA_SUPERVISOR)
+            ->latest('id')
+            ->firstOrFail();
     }
 }
