@@ -111,6 +111,7 @@ class IncidenciaMarcacionResource extends Resource implements HasShieldPermissio
                     ->options([
                         IncidenciaMarcacion::TIPO_RETORNO_REFRIGERIO_PENDIENTE => 'Retorno de refrigerio pendiente',
                         IncidenciaMarcacion::TIPO_SALIDA_TURNO_PENDIENTE => 'Salida de turno pendiente',
+                        IncidenciaMarcacion::TIPO_MARCACION_OMITIDA => 'Marcación omitida reportada',
                     ]),
                 SelectFilter::make('estado')
                     ->label('Estado')

@@ -80,6 +80,27 @@ class IncidenciasMarcacionTest extends TestCase
         $this->assertDatabaseCount('incidencias_marcacion', 0);
     }
 
+    public function test_a_reported_omission_is_traceable_without_creating_a_false_mark(): void
+    {
+        Carbon::setTestNow('2026-09-21 17:30:12');
+        [$colaborador, $asignacion] = $this->crearJornada();
+
+        $incidencia = IncidenciaMarcacion::create([
+            'asignacion_turno_id' => $asignacion->id,
+            'colaborador_id' => $colaborador->id,
+            'tipo' => IncidenciaMarcacion::TIPO_MARCACION_OMITIDA,
+            'detectada_en' => now(),
+            'observacion_reporte' => 'Salida a refrigerio no escaneada por falla del equipo.',
+        ]);
+
+        $this->assertSame('Marcación omitida reportada', IncidenciaMarcacion::etiquetaTipo($incidencia->tipo));
+        $this->assertSame(0, Marcacion::query()->where('colaborador_id', $colaborador->id)->count());
+        $this->assertDatabaseHas('incidencias_marcacion', [
+            'id' => $incidencia->id,
+            'observacion_reporte' => 'Salida a refrigerio no escaneada por falla del equipo.',
+        ]);
+    }
+
     /** @return array{Colaborador, AsignacionTurno} */
     private function crearJornada(): array
     {

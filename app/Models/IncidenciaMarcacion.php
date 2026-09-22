@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'detectada_en',
     'resuelta_en',
     'resuelta_por_id',
+    'observacion_reporte',
     'observacion_resolucion',
 ])]
 class IncidenciaMarcacion extends Model
@@ -22,6 +23,8 @@ class IncidenciaMarcacion extends Model
     public const TIPO_RETORNO_REFRIGERIO_PENDIENTE = 'retorno_refrigerio_pendiente';
 
     public const TIPO_SALIDA_TURNO_PENDIENTE = 'salida_turno_pendiente';
+
+    public const TIPO_MARCACION_OMITIDA = 'marcacion_omitida';
 
     protected function casts(): array
     {
@@ -56,6 +59,7 @@ class IncidenciaMarcacion extends Model
         return match ($tipo) {
             self::TIPO_RETORNO_REFRIGERIO_PENDIENTE => 'Retorno de refrigerio pendiente',
             self::TIPO_SALIDA_TURNO_PENDIENTE => 'Salida de turno pendiente',
+            self::TIPO_MARCACION_OMITIDA => 'Marcación omitida reportada',
             default => $tipo,
         };
     }
