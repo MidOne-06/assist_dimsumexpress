@@ -117,23 +117,33 @@ class JornadaMarcacionTest extends TestCase
         [$colaborador] = $this->crearJornada('08:00:00', '17:00:00');
         $usuario = $colaborador->user;
         $usuario->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
-        $qr = QrToken::create([
+        $qrEntrada = QrToken::create([
             'sucursal_id' => $colaborador->sucursal_id,
-            'token' => 'token-de-prueba-' . uniqid(),
+            'token' => 'token-entrada-' . uniqid(),
+            'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
+        ]);
+        $qrSalidaRefrigerio = QrToken::create([
+            'sucursal_id' => $colaborador->sucursal_id,
+            'token' => 'token-salida-refrigerio-' . uniqid(),
+            'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
+        ]);
+        $qrRegresoRefrigerio = QrToken::create([
+            'sucursal_id' => $colaborador->sucursal_id,
+            'token' => 'token-regreso-refrigerio-' . uniqid(),
             'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
         ]);
 
-        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_ENTRADA])
+        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qrEntrada->token, 'tipo' => Marcacion::TIPO_ENTRADA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
         Carbon::setTestNow('2026-09-21 12:10:00');
-        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_SALIDA_REFRIGERIO])
+        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qrSalidaRefrigerio->token, 'tipo' => Marcacion::TIPO_SALIDA_REFRIGERIO])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
         Carbon::setTestNow('2026-09-21 13:15:00');
-        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_REGRESO_REFRIGERIO])
+        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qrRegresoRefrigerio->token, 'tipo' => Marcacion::TIPO_REGRESO_REFRIGERIO])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -175,7 +185,9 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.show'))
             ->assertOk()
             ->assertSee('Tu siguiente paso')
-            ->assertSee('Marcar ingreso de turno');
+            ->assertSee('Escanea el QR para continuar')
+            ->assertSee('Marcar ingreso de turno')
+            ->assertDontSee('name="tipo"', false);
 
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
         $qr = QrToken::create([
@@ -207,6 +219,66 @@ class JornadaMarcacionTest extends TestCase
             ->assertOk()
             ->assertSee('Marcar salida de refrigerio')
             ->assertSee('Marcar salida de turno');
+    }
+
+    public function test_each_attendance_action_requires_a_new_dynamic_qr_scan(): void
+    {
+        $this->withoutMiddleware();
+        Carbon::setTestNow('2026-09-21 10:00:00');
+        [$colaborador] = $this->crearJornada('08:00:00', '17:00:00');
+        $operador = $colaborador->user;
+        $operador->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+
+        $primerQr = QrToken::create([
+            'sucursal_id' => $colaborador->sucursal_id,
+            'token' => 'qr-primero-' . uniqid(),
+            'proposito' => QrToken::PROPOSITO_ASISTENCIA,
+            'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
+        ]);
+        $nuevoQr = QrToken::create([
+            'sucursal_id' => $colaborador->sucursal_id,
+            'token' => 'qr-nuevo-' . uniqid(),
+            'proposito' => QrToken::PROPOSITO_ASISTENCIA,
+            'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
+        ]);
+
+        $this->actingAs($operador)
+            ->post(route('marcacion.store'), ['token' => $primerQr->token, 'tipo' => Marcacion::TIPO_ENTRADA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        // Volver atrás o reutilizar el enlace del primer escaneo no puede
+        // habilitar salida de refrigerio ni salida de turno.
+        $this->actingAs($operador)
+            ->get(route('marcacion.show', ['token' => $primerQr->token]))
+            ->assertOk()
+            ->assertSee('ya fue usado para una marcación');
+
+        $this->actingAs($operador)
+            ->post(route('marcacion.store'), ['token' => $primerQr->token, 'tipo' => Marcacion::TIPO_SALIDA])
+            ->assertRedirect()
+            ->assertSessionHasErrors('tipo');
+
+        // withoutMiddleware() conserva la bolsa de errores entre requests;
+        // se limpia para simular la siguiente navegación normal del usuario.
+        $this->flushSession();
+
+        // El recorrido normal abre el QR nuevo antes de confirmar.
+        $this->actingAs($operador)
+            ->get(route('marcacion.show', ['token' => $nuevoQr->token]))
+            ->assertOk()
+            ->assertSee('Marcar salida de turno');
+
+        $this->actingAs($operador)
+            ->post(route('marcacion.store'), ['token' => $nuevoQr->token, 'tipo' => Marcacion::TIPO_SALIDA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('marcaciones', [
+            'colaborador_id' => $colaborador->id,
+            'tipo' => Marcacion::TIPO_SALIDA,
+            'qr_token_id' => $nuevoQr->id,
+        ]);
     }
 
     public function test_confirmation_and_traceability_keep_the_exact_seconds_of_a_mark(): void

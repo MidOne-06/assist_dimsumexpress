@@ -46,7 +46,7 @@
         <p class="sub">{{ $colaborador->nombre_completo }} · {{ $colaborador->sucursal->nombre }}{{ $colaborador->puntoVenta ? ' · ' . $colaborador->puntoVenta->nombre : '' }}</p>
         <div class="turno">Turno: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }}–{{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}</div>
 
-        @if ($errors->any())
+        @if (isset($errors) && $errors->any())
             <div class="errores">@foreach ($errors->all() as $error){{ $error }}<br>@endforeach</div>
         @endif
 

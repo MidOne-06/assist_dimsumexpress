@@ -72,6 +72,15 @@ class MarcacionController extends Controller
             ]);
         }
 
+        // Un QR dinámico solo habilita una acción por colaborador. Así no
+        // puede reutilizarse al volver atrás en el navegador para confirmar
+        // una salida sin escanear nuevamente la estación.
+        if ($this->qrYaUsadoPorColaborador($colaborador, $qrToken)) {
+            return view('marcacion.error', [
+                'mensaje' => 'Este código QR ya fue usado para una marcación. Escanea el nuevo QR de la pantalla para continuar.',
+            ]);
+        }
+
         $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
 
         if (! $asignacion) {
@@ -129,6 +138,13 @@ class MarcacionController extends Controller
 
             if (! $asignacion) {
                 throw ValidationException::withMessages(['tipo' => 'No tienes un turno activo para marcar en este momento.']);
+            }
+
+            // Se repite dentro de la transacción, después de bloquear al
+            // colaborador, para impedir que dos pestañas reutilicen el mismo
+            // QR antes de que una de ellas termine de registrar la acción.
+            if ($this->qrYaUsadoPorColaborador($colaboradorBloqueado, $qrToken)) {
+                throw ValidationException::withMessages(['tipo' => 'Este código QR ya fue usado para una marcación. Escanea el nuevo QR de la pantalla para continuar.']);
             }
 
             if (! in_array($data['tipo'], JornadaMarcacion::siguientesTipos($colaboradorBloqueado, $asignacion), true)) {
@@ -190,5 +206,13 @@ class MarcacionController extends Controller
         }
 
         return ! $qrToken->punto_venta_id || $qrToken->punto_venta_id === $colaborador->punto_venta_id;
+    }
+
+    private function qrYaUsadoPorColaborador(Colaborador $colaborador, QrToken $qrToken): bool
+    {
+        return Marcacion::query()
+            ->where('colaborador_id', $colaborador->id)
+            ->where('qr_token_id', $qrToken->id)
+            ->exists();
     }
 }

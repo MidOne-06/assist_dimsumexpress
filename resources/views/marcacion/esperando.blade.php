@@ -37,12 +37,12 @@
         ];
         $siguiente = $siguientesTipos[0] ?? null;
         $detalleSiguiente = match ($siguiente) {
-            'entrada' => 'Escanea el QR del punto de venta y usa el botón para confirmar tu ingreso de turno.',
-            'salida_refrigerio' => 'Escanea el QR para usar el botón de salida a refrigerio o salida de turno.',
+            'entrada' => 'Después de escanear el QR, podrás confirmar: Marcar ingreso de turno.',
+            'salida_refrigerio' => 'Después de escanear el QR, podrás elegir: Marcar salida de refrigerio o Marcar salida de turno.',
             'regreso_refrigerio' => $retornoEsperado
-                ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Escanea el QR para registrarlo.'
-                : 'Escanea el QR del punto de venta para registrar tu regreso.',
-            'salida' => 'Escanea el QR del punto de venta para usar el botón de salida de turno.',
+                ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Después de escanear el QR, podrás confirmar tu ingreso de refrigerio.'
+                : 'Después de escanear el QR, podrás confirmar tu ingreso de refrigerio.',
+            'salida' => 'Después de escanear el QR, podrás confirmar: Marcar salida de turno.',
             default => null,
         };
     @endphp
@@ -63,13 +63,13 @@
             @if ($siguiente)
                 <div class="estado">
                     <div class="estado-titulo"><x-heroicon-o-arrow-right-circle style="width:1rem;height:1rem;" /> Tu siguiente paso</div>
-                    <div class="estado-accion">{{ $etiquetas[$siguiente] }}</div>
+                    <div class="estado-accion">Escanea el QR para continuar</div>
                     <p class="estado-detalle">{{ $detalleSiguiente }}</p>
                 </div>
                 @if ($ultimaMarcacion)
                     <p class="ultimo">Última marcación: {{ $etiquetas[$ultimaMarcacion->tipo] }} · {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</p>
                 @endif
-                <p class="guia">Usa la cámara para escanear el QR dinámico mostrado en tu punto de venta.</p>
+                <p class="guia">Cada marcación requiere escanear un QR dinámico nuevo mostrado en tu punto de venta.</p>
                 @include('marcacion.partials.escaner')
             @else
                 <div class="estado" style="border-color:#bbf7d0;background:#f0fdf4;">
