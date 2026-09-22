@@ -37,7 +37,7 @@ class JornadaMarcacionTest extends TestCase
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
         $this->assertSame(['regreso_refrigerio'], JornadaMarcacion::siguientesTipos($colaborador, $asignacion));
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_REGRESO_REFRIGERIO);
-        $this->assertSame(['salida_refrigerio', 'salida'], JornadaMarcacion::siguientesTipos($colaborador, $asignacion));
+        $this->assertSame(['salida'], JornadaMarcacion::siguientesTipos($colaborador, $asignacion));
     }
 
     public function test_night_shift_keeps_its_refrigerio_flow_after_midnight(): void
@@ -217,7 +217,7 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($operador)
             ->get(route('marcacion.show', ['token' => $qr->token]))
             ->assertOk()
-            ->assertSee('Marcar salida de refrigerio')
+            ->assertDontSee('Marcar salida de refrigerio')
             ->assertSee('Marcar salida de turno');
     }
 

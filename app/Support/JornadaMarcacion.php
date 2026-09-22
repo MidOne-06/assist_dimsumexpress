@@ -114,10 +114,9 @@ final class JornadaMarcacion
                 static::puedeIniciarRefrigerio($asignacion) ? Marcacion::TIPO_SALIDA_REFRIGERIO : null,
                 Marcacion::TIPO_SALIDA,
             ])),
-            Marcacion::TIPO_REGRESO_REFRIGERIO => array_values(array_filter([
-                static::puedeIniciarRefrigerio($asignacion) ? Marcacion::TIPO_SALIDA_REFRIGERIO : null,
-                Marcacion::TIPO_SALIDA,
-            ])),
+            // El refrigerio es único por jornada. Tras registrar el retorno,
+            // la única marcación posible es el cierre del turno.
+            Marcacion::TIPO_REGRESO_REFRIGERIO => [Marcacion::TIPO_SALIDA],
             Marcacion::TIPO_SALIDA_REFRIGERIO => [Marcacion::TIPO_REGRESO_REFRIGERIO],
             Marcacion::TIPO_SALIDA => [],
             default => [],
