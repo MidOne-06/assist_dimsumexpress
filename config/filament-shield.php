@@ -21,7 +21,9 @@ return [
 
     'shield_resource' => [
         'slug' => 'shield/roles',
-        'show_model_path' => true,
+        // La interfaz de roles debe mostrar nombres funcionales de módulos,
+        // no clases internas PHP como App\\Models\\AsignacionTurno.
+        'show_model_path' => false,
         'cluster' => null,
         'tabs' => [
             'pages' => true,
