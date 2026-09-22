@@ -41,6 +41,9 @@ class TurnosTable
                     ->label('Refrigerio')
                     ->state('1 h')
                     ->alignCenter(),
+                IconColumn::make('solo_entrada')
+                    ->label('Solo entrada')
+                    ->boolean(),
                 IconColumn::make('activo')
                     ->label('Activo')
                     ->boolean(),

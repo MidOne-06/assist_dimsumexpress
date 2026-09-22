@@ -104,6 +104,20 @@ class EstacionesQr extends Page implements HasTable
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
+                Action::make('verQrVisita')
+                    ->label('QR visita')
+                    ->icon(Heroicon::OutlinedIdentification)
+                    ->authorize(fn (): bool => auth()->user()->can('View:EstacionesQr'))
+                    ->modalHeading(fn (array $record): string => "Visita de supervisor: {$record['nombre']}")
+                    ->modalContent(fn (array $record) => view('filament.actions.estacion-qr', [
+                        'estacion' => $record,
+                        'qr' => $this->codigoQr($record['visita_url']),
+                        'url' => $record['visita_url'],
+                        'etiqueta' => 'Enlace QR de visita',
+                        'archivo' => 'visita-supervisor-',
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
                 Action::make('regenerarEnlace')
                     ->label('Regenerar enlace')
                     ->icon(Heroicon::OutlinedArrowPath)
@@ -178,7 +192,7 @@ class EstacionesQr extends Page implements HasTable
     }
 
     /**
-     * @return Collection<int, array{__key: string, tipo: string, tipo_label: string, nombre: string, sucursal: string, sucursal_id: int, ubicacion: string, url: string}>
+     * @return Collection<int, array{__key: string, tipo: string, tipo_label: string, nombre: string, sucursal: string, sucursal_id: int, ubicacion: string, url: string, visita_url: string}>
      */
     private function estacionesBase(): Collection
     {
@@ -202,6 +216,7 @@ class EstacionesQr extends Page implements HasTable
                         'sucursal_id' => $sucursal->id,
                         'ubicacion' => $sucursal->tipo === 'planta' ? 'Planta' : 'Tienda',
                         'url' => $sucursal->enlaceEstacion(),
+                        'visita_url' => $sucursal->enlaceVisitaSupervisor(),
                     ]);
                 });
         }
@@ -224,6 +239,7 @@ class EstacionesQr extends Page implements HasTable
                         'sucursal_id' => $puntoVenta->sucursal_id,
                         'ubicacion' => 'Punto de venta',
                         'url' => $puntoVenta->enlaceEstacion(),
+                        'visita_url' => $puntoVenta->enlaceVisitaSupervisor(),
                     ]);
                 });
         }

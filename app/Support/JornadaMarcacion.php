@@ -110,7 +110,11 @@ final class JornadaMarcacion
     {
         return match (static::ultimaMarcacion($colaborador, $asignacion)?->tipo) {
             null => [Marcacion::TIPO_ENTRADA],
-            Marcacion::TIPO_ENTRADA, Marcacion::TIPO_REGRESO_REFRIGERIO => array_values(array_filter([
+            Marcacion::TIPO_ENTRADA => $asignacion->turno->solo_entrada ? [] : array_values(array_filter([
+                static::puedeIniciarRefrigerio($asignacion) ? Marcacion::TIPO_SALIDA_REFRIGERIO : null,
+                Marcacion::TIPO_SALIDA,
+            ])),
+            Marcacion::TIPO_REGRESO_REFRIGERIO => array_values(array_filter([
                 static::puedeIniciarRefrigerio($asignacion) ? Marcacion::TIPO_SALIDA_REFRIGERIO : null,
                 Marcacion::TIPO_SALIDA,
             ])),

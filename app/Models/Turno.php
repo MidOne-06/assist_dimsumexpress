@@ -8,13 +8,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
-#[Fillable(['nombre', 'hora_inicio', 'hora_fin', 'cruza_medianoche', 'tolerancia_entrada_minutos', 'tolerancia_salida_minutos', 'activo'])]
+#[Fillable(['nombre', 'hora_inicio', 'hora_fin', 'cruza_medianoche', 'tolerancia_entrada_minutos', 'tolerancia_salida_minutos', 'solo_entrada', 'activo'])]
 class Turno extends Model
 {
     protected function casts(): array
     {
         return [
             'cruza_medianoche' => 'boolean',
+            'solo_entrada' => 'boolean',
             'activo' => 'boolean',
         ];
     }

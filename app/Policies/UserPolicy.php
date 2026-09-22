@@ -40,8 +40,9 @@ class UserPolicy
 
         $colaborador = $user->colaborador;
 
-        return ! $colaborador
-            || (! $colaborador->marcaciones()->exists() && ! $colaborador->asignacionesTurno()->exists());
+        return ! $user->visitasSupervisor()->exists()
+            && (! $colaborador
+                || (! $colaborador->marcaciones()->exists() && ! $colaborador->asignacionesTurno()->exists()));
     }
 
     public function deleteAny(AuthUser $authUser): bool

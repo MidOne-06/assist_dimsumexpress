@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\ColaboradorLoginController;
 use App\Http\Controllers\EstacionMarcadoController;
 use App\Http\Controllers\HorarioColaboradorController;
 use App\Http\Controllers\MarcacionController;
+use App\Http\Controllers\VisitaSupervisorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -44,6 +45,10 @@ Route::middleware('throttle:30,1')->group(function () {
 });
 
 Route::middleware(['auth', 'throttle:30,1'])->group(function () {
+    Route::get('/visitas-supervisor/{sucursal}/{puntoVenta?}', [VisitaSupervisorController::class, 'show'])
+        ->name('visita-supervisor.show')
+        ->where(['sucursal' => '[0-9]+', 'puntoVenta' => '[0-9]+']);
+
     Route::get('/marcar', [MarcacionController::class, 'show'])->name('marcacion.show');
     Route::post('/marcar', [MarcacionController::class, 'store'])->name('marcacion.store');
     Route::get('/marcar/{marcacion}/confirmacion', [MarcacionController::class, 'confirmacion'])

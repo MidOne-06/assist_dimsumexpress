@@ -19,6 +19,7 @@ class RolesYPermisosSeeder extends Seeder
             'Access:AdminPanel',
             'Registrar:Marcacion',
             'View:MiHorario',
+            'Registrar:VisitaSupervisor',
             'ViewAny:Marcacion',
             'View:Marcacion',
             'View:EstacionesQr',
@@ -77,6 +78,7 @@ class RolesYPermisosSeeder extends Seeder
             Permission::findByName('ViewAny:Marcacion', 'web'),
             Permission::findByName('View:Marcacion', 'web'),
         );
+        $supervisor->givePermissionTo(Permission::findByName('Registrar:VisitaSupervisor', 'web'));
 
         // El operario marca asistencia mediante /marcar. No recibe acceso al
         // panel administrativo ni privilegios de gestión.

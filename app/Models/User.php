@@ -12,6 +12,7 @@ use Illuminate\Notifications\Notifiable;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password'])]
@@ -43,6 +44,11 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->belongsToMany(Sucursal::class, 'supervisor_sucursal')
             ->withTimestamps();
+    }
+
+    public function visitasSupervisor(): HasMany
+    {
+        return $this->hasMany(VisitaSupervisor::class, 'supervisor_id');
     }
 
     public function canAccessPanel(Panel $panel): bool

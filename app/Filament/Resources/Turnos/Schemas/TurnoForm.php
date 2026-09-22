@@ -50,6 +50,9 @@ class TurnoForm
                     ->default('1 hora')
                     ->disabled()
                     ->dehydrated(false),
+                Toggle::make('solo_entrada')
+                    ->label('Solo entrada')
+                    ->default(false),
                 Toggle::make('activo')
                     ->label('Activo')
                     ->default(true)

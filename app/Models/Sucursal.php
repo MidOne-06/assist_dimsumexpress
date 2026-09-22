@@ -61,6 +61,11 @@ class Sucursal extends Model
         return route('estacion-marcado.show', ['sucursal' => $this->id, 'clave' => $this->token_pantalla]);
     }
 
+    public function enlaceVisitaSupervisor(): string
+    {
+        return route('visita-supervisor.show', ['sucursal' => $this->id, 'clave' => $this->token_pantalla]);
+    }
+
     public function regenerarTokenPantalla(): void
     {
         $this->forceFill(['token_pantalla' => Str::random(40)])->save();
