@@ -4,9 +4,11 @@ namespace App\Filament\Pages;
 
 use App\Models\PuntoVenta;
 use App\Models\Sucursal;
+use App\Support\AlcanceSupervisor;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\SvgWriter;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -83,6 +85,7 @@ class EstacionesQr extends Page implements HasTable
                     ->label('Sucursal')
                     ->options(fn (): array => Sucursal::query()
                         ->where('activo', true)
+                        ->whereIn('id', AlcanceSupervisor::sucursalIds(auth()->user()))
                         ->orderBy('nombre')
                         ->pluck('nombre', 'id')
                         ->all()),
@@ -101,6 +104,26 @@ class EstacionesQr extends Page implements HasTable
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
+                Action::make('regenerarEnlace')
+                    ->label('Regenerar enlace')
+                    ->icon(Heroicon::OutlinedArrowPath)
+                    ->color('warning')
+                    ->authorize(fn (array $record): bool => $record['tipo'] === 'sucursal'
+                        ? auth()->user()->can('VerEnlace:Sucursal')
+                        : auth()->user()->can('VerEnlace:PuntoVenta'))
+                    ->requiresConfirmation()
+                    ->modalHeading('Regenerar enlace de estación')
+                    ->modalDescription('El enlace anterior dejará de funcionar de inmediato. Actualiza la pantalla física con el nuevo QR.')
+                    ->modalSubmitActionLabel('Regenerar enlace')
+                    ->action(function (array $record): void {
+                        if ($record['tipo'] === 'sucursal') {
+                            Sucursal::query()->findOrFail($record['sucursal_id'])->regenerarTokenPantalla();
+                        } else {
+                            PuntoVenta::query()->findOrFail((int) str_replace('punto-venta-', '', $record['__key']))->regenerarTokenPantalla();
+                        }
+
+                        Notification::make()->title('Enlace de estación regenerado')->success()->send();
+                    }),
             ])
             ->defaultSort('sucursal')
             ->paginated([10, 25, 50])
@@ -164,7 +187,11 @@ class EstacionesQr extends Page implements HasTable
         $puedeVerPuntosVenta = auth()->user()->can('VerEnlace:PuntoVenta');
 
         if ($puedeVerSucursales) {
-            Sucursal::query()->where('activo', true)->orderBy('nombre')->get()
+            Sucursal::query()
+                ->where('activo', true)
+                ->whereIn('id', AlcanceSupervisor::sucursalIds(auth()->user()))
+                ->orderBy('nombre')
+                ->get()
                 ->each(function (Sucursal $sucursal) use ($estaciones): void {
                     $estaciones->push([
                         '__key' => "sucursal-{$sucursal->id}",
@@ -182,6 +209,7 @@ class EstacionesQr extends Page implements HasTable
         if ($puedeVerPuntosVenta) {
             PuntoVenta::query()
                 ->where('activo', true)
+                ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
                 ->with('sucursal:id,nombre')
                 ->orderBy('sucursal_id')
                 ->orderBy('nombre')

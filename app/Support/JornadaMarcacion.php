@@ -95,15 +95,25 @@ final class JornadaMarcacion
         ];
     }
 
+    public static function puedeIniciarRefrigerio(AsignacionTurno $asignacion, ?Carbon $momento = null): bool
+    {
+        $momento ??= now();
+        $limites = static::limites($asignacion);
+
+        return $momento->copy()
+            ->addMinutes(static::DURACION_REFRIGERIO_MINUTOS)
+            ->lte($limites['ventana_fin']);
+    }
+
     /** @return array<int, string> */
     public static function siguientesTipos(Colaborador $colaborador, AsignacionTurno $asignacion): array
     {
         return match (static::ultimaMarcacion($colaborador, $asignacion)?->tipo) {
             null => [Marcacion::TIPO_ENTRADA],
-            Marcacion::TIPO_ENTRADA, Marcacion::TIPO_REGRESO_REFRIGERIO => [
-                Marcacion::TIPO_SALIDA_REFRIGERIO,
+            Marcacion::TIPO_ENTRADA, Marcacion::TIPO_REGRESO_REFRIGERIO => array_values(array_filter([
+                static::puedeIniciarRefrigerio($asignacion) ? Marcacion::TIPO_SALIDA_REFRIGERIO : null,
                 Marcacion::TIPO_SALIDA,
-            ],
+            ])),
             Marcacion::TIPO_SALIDA_REFRIGERIO => [Marcacion::TIPO_REGRESO_REFRIGERIO],
             Marcacion::TIPO_SALIDA => [],
             default => [],

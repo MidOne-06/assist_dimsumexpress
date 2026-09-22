@@ -6,6 +6,8 @@ namespace App\Policies;
 
 use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Colaborador;
+use App\Models\User;
+use App\Support\AlcanceSupervisor;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class ColaboradorPolicy
@@ -19,7 +21,7 @@ class ColaboradorPolicy
 
     public function view(AuthUser $authUser, Colaborador $colaborador): bool
     {
-        return $authUser->can('View:Colaborador');
+        return $authUser->can('View:Colaborador') && $this->puedeGestionar($authUser, $colaborador);
     }
 
     public function create(AuthUser $authUser): bool
@@ -29,17 +31,17 @@ class ColaboradorPolicy
 
     public function update(AuthUser $authUser, Colaborador $colaborador): bool
     {
-        return $authUser->can('Update:Colaborador');
+        return $authUser->can('Update:Colaborador') && $this->puedeGestionar($authUser, $colaborador);
     }
 
     public function delete(AuthUser $authUser, Colaborador $colaborador): bool
     {
-        return $authUser->can('Delete:Colaborador');
+        return false;
     }
 
     public function deleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('DeleteAny:Colaborador');
+        return false;
     }
 
     public function restore(AuthUser $authUser, Colaborador $colaborador): bool
@@ -70,6 +72,12 @@ class ColaboradorPolicy
     public function reorder(AuthUser $authUser): bool
     {
         return $authUser->can('Reorder:Colaborador');
+    }
+
+    private function puedeGestionar(AuthUser $authUser, Colaborador $colaborador): bool
+    {
+        return $authUser instanceof User
+            && AlcanceSupervisor::puedeGestionarSucursal($authUser, $colaborador->sucursal_id);
     }
 
 }

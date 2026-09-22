@@ -34,12 +34,19 @@ class UserPolicy
 
     public function delete(AuthUser $authUser, User $user): bool
     {
-        return $authUser->can('Delete:User');
+        if (! $authUser->can('Delete:User') || $user->is($authUser)) {
+            return false;
+        }
+
+        $colaborador = $user->colaborador;
+
+        return ! $colaborador
+            || (! $colaborador->marcaciones()->exists() && ! $colaborador->asignacionesTurno()->exists());
     }
 
     public function deleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('DeleteAny:User');
+        return false;
     }
 
     public function restore(AuthUser $authUser, User $user): bool

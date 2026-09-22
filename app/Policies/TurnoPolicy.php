@@ -29,17 +29,19 @@ class TurnoPolicy
 
     public function update(AuthUser $authUser, Turno $turno): bool
     {
-        return $authUser->can('Update:Turno');
+        return $authUser->can('Update:Turno')
+            && ! $turno->asignaciones()->where('fecha', '<=', today())->exists();
     }
 
     public function delete(AuthUser $authUser, Turno $turno): bool
     {
-        return $authUser->can('Delete:Turno');
+        return $authUser->can('Delete:Turno')
+            && ! $turno->asignaciones()->where('fecha', '<=', today())->exists();
     }
 
     public function deleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('DeleteAny:Turno');
+        return false;
     }
 
     public function restore(AuthUser $authUser, Turno $turno): bool

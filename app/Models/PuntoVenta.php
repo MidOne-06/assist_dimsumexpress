@@ -54,4 +54,9 @@ class PuntoVenta extends Model
             'clave' => $this->token_pantalla,
         ]);
     }
+
+    public function regenerarTokenPantalla(): void
+    {
+        $this->forceFill(['token_pantalla' => Str::random(40)])->save();
+    }
 }

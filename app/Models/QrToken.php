@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 #[Fillable(['sucursal_id', 'punto_venta_id', 'token', 'expira_en'])]
@@ -27,6 +28,11 @@ class QrToken extends Model
     public function puntoVenta(): BelongsTo
     {
         return $this->belongsTo(PuntoVenta::class);
+    }
+
+    public function marcaciones(): HasMany
+    {
+        return $this->hasMany(Marcacion::class);
     }
 
     public function vigente(): bool

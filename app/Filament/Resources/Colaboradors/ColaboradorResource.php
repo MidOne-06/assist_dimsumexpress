@@ -13,6 +13,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use App\Support\AlcanceSupervisor;
 
 class ColaboradorResource extends Resource
 {
@@ -40,6 +42,17 @@ class ColaboradorResource extends Resource
     public static function table(Table $table): Table
     {
         return ColaboradorsTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()));
+    }
+
+    public static function canDelete($record): bool
+    {
+        return false;
     }
 
     public static function getRelations(): array

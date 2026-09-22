@@ -44,7 +44,7 @@ class MarcacionController extends Controller
             return view('marcacion.esperando', ['colaborador' => $colaborador]);
         }
 
-        $qrToken = QrToken::where('token', $token)->first();
+        $qrToken = QrToken::with(['sucursal', 'puntoVenta'])->where('token', $token)->first();
 
         if (! $qrToken || ! $qrToken->vigente()) {
             return view('marcacion.error', [
@@ -93,7 +93,7 @@ class MarcacionController extends Controller
         $colaborador = $request->user()->colaborador;
         abort_unless($colaborador, 403, 'Tu usuario no está vinculado a ningún colaborador.');
 
-        $qrToken = QrToken::where('token', $data['token'])->first();
+        $qrToken = QrToken::with(['sucursal', 'puntoVenta'])->where('token', $data['token'])->first();
 
         if (! $qrToken || ! $qrToken->vigente()) {
             return back()->withErrors(['tipo' => 'El código QR expiró. Vuelve a escanearlo desde la pantalla.']);
@@ -162,6 +162,10 @@ class MarcacionController extends Controller
 
     private function estacionPermitida(Colaborador $colaborador, QrToken $qrToken): bool
     {
+        if (! $qrToken->sucursal?->activo || ($qrToken->punto_venta_id && ! $qrToken->puntoVenta?->activo)) {
+            return false;
+        }
+
         if ($qrToken->sucursal_id !== $colaborador->sucursal_id) {
             return false;
         }

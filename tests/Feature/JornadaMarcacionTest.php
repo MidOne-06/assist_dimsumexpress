@@ -89,6 +89,16 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame('tarde', $retorno->resumenRetornoRefrigerio()['estado']);
     }
 
+    public function test_refrigerio_is_not_offered_when_there_is_not_enough_time_to_return(): void
+    {
+        Carbon::setTestNow('2026-09-21 16:11:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+
+        $this->assertSame([Marcacion::TIPO_SALIDA], JornadaMarcacion::siguientesTipos($colaborador, $asignacion));
+        $this->assertFalse(JornadaMarcacion::puedeIniciarRefrigerio($asignacion));
+    }
+
     public function test_qr_return_persists_the_one_hour_refrigerio_audit(): void
     {
         $this->withoutMiddleware();

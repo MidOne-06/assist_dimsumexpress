@@ -152,7 +152,7 @@ class UserResource extends Resource
                         $record->update(['password' => $data['password']]);
                     }),
                 DeleteAction::make()
-                    ->visible(fn (User $record): bool => $record->id !== auth()->id()),
+                    ->visible(fn (User $record): bool => auth()->user()->can('delete', $record)),
             ])
             ->defaultSort('name');
     }

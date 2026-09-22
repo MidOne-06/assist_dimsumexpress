@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Colaboradors\Pages;
 
 use App\Filament\Resources\Colaboradors\ColaboradorResource;
-use Filament\Actions\DeleteAction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Filament\Resources\Pages\EditRecord;
@@ -11,13 +10,6 @@ use Filament\Resources\Pages\EditRecord;
 class EditColaborador extends EditRecord
 {
     protected static string $resource = ColaboradorResource::class;
-
-    protected function getHeaderActions(): array
-    {
-        return [
-            DeleteAction::make(),
-        ];
-    }
 
     protected function mutateFormDataBeforeFill(array $data): array
     {

@@ -33,18 +33,20 @@ class AsignacionTurnoPolicy
     public function update(AuthUser $authUser, AsignacionTurno $asignacionTurno): bool
     {
         return $authUser->can('Update:AsignacionTurno')
+            && $asignacionTurno->fecha->isAfter(today())
             && $this->puedeGestionarAsignacion($authUser, $asignacionTurno);
     }
 
     public function delete(AuthUser $authUser, AsignacionTurno $asignacionTurno): bool
     {
         return $authUser->can('Delete:AsignacionTurno')
+            && $asignacionTurno->fecha->isAfter(today())
             && $this->puedeGestionarAsignacion($authUser, $asignacionTurno);
     }
 
     public function deleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('DeleteAny:AsignacionTurno');
+        return false;
     }
 
     public function restore(AuthUser $authUser, AsignacionTurno $asignacionTurno): bool
