@@ -2,7 +2,11 @@
 
 namespace App\Filament\Resources\Turnos\Tables;
 
+use App\Models\Turno;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
@@ -62,7 +66,24 @@ class TurnosTable
                     ->label('Activo'),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->using(fn (Turno $record, array $data): Turno => $record->actualizarParaFuturo($data))
+                    ->modal()
+                    ->modalHeading('Actualizar turno')
+                    ->modalWidth(Width::TwoExtraLarge),
+                DeleteAction::make()
+                    ->before(function (Turno $record, DeleteAction $action): void {
+                        if (! $record->asignaciones()->exists()) {
+                            return;
+                        }
+
+                        Notification::make()
+                            ->title('No se puede eliminar')
+                            ->danger()
+                            ->send();
+
+                        $action->cancel();
+                    }),
             ])
             ->toolbarActions([]);
     }

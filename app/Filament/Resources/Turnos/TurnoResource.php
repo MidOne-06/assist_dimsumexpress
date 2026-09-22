@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Turnos;
 
-use App\Filament\Resources\Turnos\Pages\CreateTurno;
-use App\Filament\Resources\Turnos\Pages\EditTurno;
 use App\Filament\Resources\Turnos\Pages\ListTurnos;
 use App\Filament\Resources\Turnos\Schemas\TurnoForm;
 use App\Filament\Resources\Turnos\Tables\TurnosTable;
@@ -51,8 +49,6 @@ class TurnoResource extends Resource
     {
         return [
             'index' => ListTurnos::route('/'),
-            'create' => CreateTurno::route('/create'),
-            'edit' => EditTurno::route('/{record}/edit'),
         ];
     }
 }

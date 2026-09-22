@@ -30,7 +30,6 @@ class TurnoForm
                     ->required(),
                 Toggle::make('cruza_medianoche')
                     ->label('Cruza medianoche')
-                    ->helperText('Actívalo para turnos nocturnos donde la hora de fin es al día siguiente (ej. 22:00 - 06:00).')
                     ->default(false)
                     ->required(),
                 TextInput::make('tolerancia_entrada_minutos')
