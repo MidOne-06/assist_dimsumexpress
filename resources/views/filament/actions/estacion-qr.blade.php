@@ -11,7 +11,7 @@
     <x-filament::section
         icon="heroicon-o-qr-code"
         :heading="$estacion['nombre']"
-        :description="$estacion['tipo_label'].' · '.$estacion['sucursal']"
+        :description="'Punto de venta · '.$estacion['sucursal']"
     >
         <div class="flex justify-center bg-gray-50 p-4 dark:bg-white/5">
             <img src="{{ $qr }}" alt="QR de acceso a la estación {{ $estacion['nombre'] }}" class="h-56 w-56 rounded-lg bg-white p-2">

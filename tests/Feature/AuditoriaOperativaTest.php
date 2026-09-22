@@ -65,6 +65,20 @@ class AuditoriaOperativaTest extends TestCase
         $this->get($puntoVenta->enlaceEstacion())->assertNotFound();
     }
 
+    public function test_qr_station_modal_renders_using_only_point_of_sale_data(): void
+    {
+        $this->view('filament.actions.estacion-qr', [
+            'estacion' => [
+                'nombre' => 'Caja de prueba',
+                'sucursal' => 'Tienda de prueba',
+                'url' => 'https://example.test/estacion-marcado/1/1?clave=secreta',
+            ],
+            'qr' => 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+        ])
+            ->assertSee('Punto de venta · Tienda de prueba')
+            ->assertSee('Caja de prueba');
+    }
+
     public function test_supervisor_cannot_view_collaborators_outside_assigned_locations(): void
     {
         $this->seed(RolesYPermisosSeeder::class);
