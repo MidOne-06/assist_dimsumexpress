@@ -3,105 +3,82 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Marcar asistencia</title>
+    <title>Confirmar marcación</title>
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; min-height: 100vh; background: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
-        .card { background: #fff; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.06); padding: 1.75rem; width: 100%; max-width: 24rem; }
-        h1 { font-size: 1.1rem; margin: 0 0 0.15rem; color: #111827; }
-        p.sub { margin: 0 0 1.25rem; color: #6b7280; font-size: 0.85rem; }
-        .errores { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 0.6rem 0.8rem; border-radius: 0.5rem; font-size: 0.8rem; margin-bottom: 1rem; }
-        .ultima { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.75rem 0.9rem; font-size: 0.8rem; color: #374151; margin-bottom: 1.25rem; }
-        button.marca { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.85rem; border: none; border-radius: 0.6rem; font-size: 1rem; font-weight: 600; color: #fff; cursor: pointer; margin-bottom: 0.75rem; }
-        .btn-entrada { background: #16a34a; }
-        .btn-salida { background: #dc2626; }
-        .btn-salida_refrigerio { background: #d97706; }
-        .btn-regreso_refrigerio { background: #2563eb; }
-        .completo { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; text-align: center; color: #4b5563; font-size: 0.9rem; padding: 1rem 0; }
-        .salir { display: flex; align-items: center; justify-content: center; gap: 0.35rem; text-align: center; margin-top: 1rem; color: #6b7280; font-size: 0.8rem; text-decoration: none; }
+        body { margin: 0; min-height: 100vh; background: #f3f4f6; color: #111827; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; align-items: center; justify-content: center; padding: 1.25rem; }
+        .card { background:#fff; border-radius:1rem; box-shadow:0 10px 25px rgba(0,0,0,.06); padding:1.5rem; width:100%; max-width:29rem; }
+        h1 { font-size:1.15rem; margin:0; } .sub { color:#6b7280; font-size:.83rem; margin:.2rem 0 1rem; }
+        .turno, .ultima, .estado { border-radius:.7rem; padding:.8rem .9rem; font-size:.82rem; line-height:1.45; }
+        .turno, .ultima { background:#f9fafb; border:1px solid #e5e7eb; color:#374151; margin-bottom:.7rem; }
+        .estado { background:#eff6ff; border:1px solid #bfdbfe; margin: .9rem 0; }
+        .estado strong { display:block; color:#1e3a8a; font-size:.98rem; margin-bottom:.16rem; }
+        .estado span { color:#475569; }
+        .errores { background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; padding:.65rem .8rem; border-radius:.6rem; font-size:.8rem; margin-bottom:.85rem; }
+        .acciones { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.7rem; margin-top:1rem; }
+        .acciones.unica { grid-template-columns:1fr; }
+        button.marca { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.22rem; min-height:5.1rem; width:100%; padding:.75rem; border:0; border-radius:.7rem; font-size:.92rem; font-weight:700; color:#fff; cursor:pointer; }
+        button.marca small { font-size:.72rem; font-weight:500; opacity:.92; text-align:center; line-height:1.3; }
+        .btn-entrada { background:#16a34a; } .btn-salida { background:#dc2626; } .btn-salida_refrigerio { background:#d97706; } .btn-regreso_refrigerio { background:#2563eb; }
+        .completo { text-align:center; padding:1rem .5rem .3rem; color:#166534; font-size:.9rem; }
+        .links { display:flex; justify-content:center; gap:1rem; margin-top:1.1rem; }
+        .links a, .links button { color:#4b5563; font-size:.8rem; text-decoration:none; background:none; border:0; padding:0; cursor:pointer; }
+        .link-item { display:inline-flex; align-items:center; gap:.3rem; }
+        @media (max-width: 360px) { .acciones { grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
+    @php
+        $etiquetas = ['entrada' => 'Registrar entrada', 'salida' => 'Finalizar turno', 'salida_refrigerio' => 'Iniciar refrigerio', 'regreso_refrigerio' => 'Registrar regreso de refrigerio'];
+        $iconos = ['entrada' => 'arrow-right-on-rectangle', 'salida' => 'arrow-left-on-rectangle', 'salida_refrigerio' => 'pause-circle', 'regreso_refrigerio' => 'play-circle'];
+        $detallesBoton = ['entrada' => 'Inicia tu jornada', 'salida' => 'Cierra tu jornada', 'salida_refrigerio' => 'Pausa de 1 hora', 'regreso_refrigerio' => 'Continúa tu jornada'];
+        $siguiente = $siguientesTipos[0] ?? null;
+        $detalleEstado = match ($siguiente) {
+            'entrada' => 'Confirma tu ingreso para iniciar tu jornada.',
+            'salida_refrigerio' => 'Elige si iniciarás tu refrigerio de 1 hora o si finalizarás tu turno.',
+            'regreso_refrigerio' => $retornoEsperado ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i') . '.' : 'Confirma tu regreso para continuar tu jornada.',
+            'salida' => 'Ya puedes finalizar tu turno.',
+            default => 'No tienes marcaciones pendientes en esta jornada.',
+        };
+    @endphp
     <div class="card">
-        <h1>Hola, {{ $colaborador->nombre_completo }}</h1>
-        <p class="sub">{{ $colaborador->sucursal->nombre }}{{ $colaborador->puntoVenta ? ' · ' . $colaborador->puntoVenta->nombre : '' }}</p>
-        <div class="ultima" style="margin-top: -0.5rem;">
-            Turno: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }}–{{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}
-        </div>
-        @if ($retornoEsperado)
-            <div class="ultima" style="margin-top: -0.75rem;">
-                Refrigerio: <strong>1 hora</strong> · retorno previsto a las <strong>{{ $retornoEsperado->format('H:i') }}</strong>
-            </div>
-        @endif
+        <h1>Confirma tu marcación</h1>
+        <p class="sub">{{ $colaborador->nombre_completo }} · {{ $colaborador->sucursal->nombre }}{{ $colaborador->puntoVenta ? ' · ' . $colaborador->puntoVenta->nombre : '' }}</p>
+        <div class="turno">Turno: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }}–{{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}</div>
 
         @if ($errors->any())
-            <div class="errores">
-                @foreach ($errors->all() as $error)
-                    {{ $error }}<br>
+            <div class="errores">@foreach ($errors->all() as $error){{ $error }}<br>@endforeach</div>
+        @endif
+
+        @if ($ultimaMarcacion)
+            <div class="ultima">Última marcación: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> · {{ $ultimaMarcacion->fecha_hora->format('H:i') }}</div>
+        @endif
+
+        <div class="estado"><strong>{{ $siguiente ? 'Siguiente paso: ' . $etiquetas[$siguiente] : 'Jornada completada' }}</strong><span>{{ $detalleEstado }}</span></div>
+
+        @if (empty($siguientesTipos))
+            <div class="completo"><x-heroicon-s-check-circle style="width:2rem;height:2rem;display:block;margin:0 auto .4rem;" />Tu turno ya quedó registrado.</div>
+        @else
+            <div class="acciones {{ count($siguientesTipos) === 1 ? 'unica' : '' }}">
+                @foreach ($siguientesTipos as $tipo)
+                    <form method="POST" action="{{ route('marcacion.store') }}">
+                        @csrf
+                        <input type="hidden" name="token" value="{{ $token }}">
+                        <input type="hidden" name="tipo" value="{{ $tipo }}">
+                        <button type="submit" class="marca btn-{{ $tipo }}">
+                            <x-dynamic-component :component="'heroicon-o-' . $iconos[$tipo]" style="width:1.35rem;height:1.35rem;" />
+                            {{ $etiquetas[$tipo] }}
+                            <small>{{ $detallesBoton[$tipo] }}</small>
+                        </button>
+                    </form>
                 @endforeach
             </div>
         @endif
 
-        @if ($ultimaMarcacion)
-            @php
-                $etiquetas = [
-                    'entrada' => 'Entrada',
-                    'salida' => 'Salida',
-                    'salida_refrigerio' => 'Salida a refrigerio',
-                    'regreso_refrigerio' => 'Regreso de refrigerio',
-                ];
-            @endphp
-            <div class="ultima" style="display: flex; align-items: center; gap: 0.5rem;">
-                <x-heroicon-o-clock style="width: 1.1rem; height: 1.1rem; color: #6b7280; flex-shrink: 0;" />
-                <span>Última marcación de la jornada: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> a las {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</span>
-            </div>
-        @endif
-
-        @if (empty($siguientesTipos))
-            <div class="completo">
-                <x-heroicon-s-check-circle style="width: 2rem; height: 2rem; color: #16a34a;" />
-                Ya completaste tu jornada de hoy. ¡Buen trabajo!
-            </div>
-        @else
-            @foreach ($siguientesTipos as $tipo)
-                @php
-                    $etiquetas = [
-                        'entrada' => 'Registrar entrada',
-                        'salida' => 'Registrar salida',
-                        'salida_refrigerio' => 'Salida a refrigerio',
-                        'regreso_refrigerio' => 'Regreso de refrigerio',
-                    ];
-                    $iconos = [
-                        'entrada' => 'arrow-right-on-rectangle',
-                        'salida' => 'arrow-left-on-rectangle',
-                        'salida_refrigerio' => 'pause-circle',
-                        'regreso_refrigerio' => 'play-circle',
-                    ];
-                @endphp
-                <form method="POST" action="{{ route('marcacion.store') }}">
-                    @csrf
-                    <input type="hidden" name="token" value="{{ $token }}">
-                    <input type="hidden" name="tipo" value="{{ $tipo }}">
-                    <button type="submit" class="marca btn-{{ $tipo }}">
-                        <x-dynamic-component :component="'heroicon-o-' . $iconos[$tipo]" style="width: 1.25rem; height: 1.25rem;" />
-                        {{ $etiquetas[$tipo] }}
-                    </button>
-                </form>
-            @endforeach
-        @endif
-
-        <a href="{{ route('horario.show') }}" class="salir">
-            <x-heroicon-o-calendar-days style="width: 1rem; height: 1rem;" />
-            Ver mi horario
-        </a>
-
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button type="submit" style="all: unset; cursor: pointer;" class="salir">
-                <x-heroicon-o-arrow-left-on-rectangle style="width: 1rem; height: 1rem;" />
-                Cerrar sesión
-            </button>
-        </form>
+        <div class="links">
+            <a href="{{ route('horario.show') }}" class="link-item"><x-heroicon-o-calendar-days style="width:1rem;height:1rem;" /> Mi horario</a>
+            <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="link-item"><x-heroicon-o-arrow-left-on-rectangle style="width:1rem;height:1rem;" /> Cerrar sesión</button></form>
+        </div>
     </div>
 </body>
 </html>

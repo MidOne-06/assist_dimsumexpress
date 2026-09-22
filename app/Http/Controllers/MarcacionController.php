@@ -41,7 +41,21 @@ class MarcacionController extends Controller
         // marcación" que un QR realmente vencido, lo cual confundía al
         // colaborador que recién se loguea.
         if (! $token) {
-            return view('marcacion.esperando', ['colaborador' => $colaborador]);
+            $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
+
+            return view('marcacion.esperando', [
+                'colaborador' => $colaborador,
+                'asignacion' => $asignacion,
+                'siguientesTipos' => $asignacion
+                    ? JornadaMarcacion::siguientesTipos($colaborador, $asignacion)
+                    : [],
+                'ultimaMarcacion' => $asignacion
+                    ? JornadaMarcacion::ultimaMarcacion($colaborador, $asignacion)
+                    : null,
+                'retornoEsperado' => $asignacion
+                    ? JornadaMarcacion::retornoRefrigerioEsperado($colaborador, $asignacion)
+                    : null,
+            ]);
         }
 
         $qrToken = QrToken::with(['sucursal', 'puntoVenta'])->where('token', $token)->first();
@@ -157,7 +171,12 @@ class MarcacionController extends Controller
         abort_unless($request->user()?->can('Registrar:Marcacion'), 403);
         abort_unless($marcacion->colaborador->user_id === $request->user()->id, 403);
 
-        return view('marcacion.confirmacion', ['marcacion' => $marcacion]);
+        return view('marcacion.confirmacion', [
+            'marcacion' => $marcacion,
+            'retornoEsperado' => $marcacion->tipo === Marcacion::TIPO_SALIDA_REFRIGERIO
+                ? $marcacion->fecha_hora->copy()->addMinutes(JornadaMarcacion::DURACION_REFRIGERIO_MINUTOS)
+                : null,
+        ]);
     }
 
     private function estacionPermitida(Colaborador $colaborador, QrToken $qrToken): bool

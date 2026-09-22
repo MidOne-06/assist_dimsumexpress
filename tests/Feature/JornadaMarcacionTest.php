@@ -164,6 +164,34 @@ class JornadaMarcacionTest extends TestCase
             ->assertRedirect(route('filament.admin.pages.dashboard'));
     }
 
+    public function test_operator_landing_explains_the_real_next_step_of_the_shift(): void
+    {
+        Carbon::setTestNow('2026-09-21 10:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $operador = $colaborador->user;
+        $operador->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+
+        $this->actingAs($operador)
+            ->get(route('marcacion.show'))
+            ->assertOk()
+            ->assertSee('Tu siguiente paso')
+            ->assertSee('Registrar entrada');
+
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+        $qr = QrToken::create([
+            'sucursal_id' => $colaborador->sucursal_id,
+            'token' => 'token-vista-' . uniqid(),
+            'proposito' => QrToken::PROPOSITO_ASISTENCIA,
+            'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
+        ]);
+
+        $this->actingAs($operador)
+            ->get(route('marcacion.show', ['token' => $qr->token]))
+            ->assertOk()
+            ->assertSee('Iniciar refrigerio')
+            ->assertSee('Finalizar turno');
+    }
+
     /** @return array{Colaborador, AsignacionTurno} */
     private function crearJornada(string $inicio, string $fin, bool $nocturno = false, ?string $fecha = null): array
     {
