@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
+use App\Models\PuntoVenta;
 use App\Models\QrToken;
 use App\Models\Sucursal;
 use App\Models\Turno;
@@ -39,11 +40,29 @@ class AuditoriaOperativaTest extends TestCase
         $this->assertDatabaseHas('qr_tokens', ['id' => $used->id]);
     }
 
-    public function test_inactive_station_cannot_render_or_issue_qr(): void
+    public function test_only_an_active_point_of_sale_can_render_or_issue_qr(): void
     {
-        $sucursal = $this->sucursal(['activo' => false]);
+        $sucursal = $this->sucursal();
+        $puntoVenta = PuntoVenta::create([
+            'sucursal_id' => $sucursal->id,
+            'nombre' => 'Caja de prueba',
+            'activo' => true,
+        ]);
 
-        $this->get($sucursal->enlaceEstacion())->assertNotFound();
+        $this->get(route('estacion-marcado.show', [
+            'sucursal' => $sucursal->id,
+            'clave' => $sucursal->token_pantalla,
+        ]))->assertNotFound();
+
+        $this->get($puntoVenta->enlaceEstacion())->assertOk();
+        $this->get(route('estacion-marcado.punto-venta.token', [
+            'sucursal' => $sucursal->id,
+            'puntoVenta' => $puntoVenta->id,
+            'clave' => $puntoVenta->token_pantalla,
+        ]))->assertOk()->assertJsonStructure(['qr', 'segundos_restantes']);
+
+        $puntoVenta->update(['activo' => false]);
+        $this->get($puntoVenta->enlaceEstacion())->assertNotFound();
     }
 
     public function test_supervisor_cannot_view_collaborators_outside_assigned_locations(): void

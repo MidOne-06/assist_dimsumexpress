@@ -2,12 +2,9 @@
 
 namespace App\Filament\Resources\Sucursals\Tables;
 
-use App\Models\Sucursal;
-use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -58,22 +55,6 @@ class SucursalsTable
                     ->label('Activa'),
             ])
             ->recordActions([
-                Action::make('enlace')
-                    ->label('Ver enlace')
-                    ->icon(Heroicon::OutlinedLink)
-                    ->color('gray')
-                    // Permiso propio, distinto de ViewAny/View:Sucursal -- este
-                    // enlace incluye token_pantalla, el secreto que reemplaza al
-                    // QR físico; cualquiera con solo permiso de lectura sobre
-                    // sucursales no debería poder revelarlo. ->visible() sola no
-                    // basta (Filament no la revisa al montar la acción, solo
-                    // oculta el botón) -- ->authorize() sí se revisa siempre.
-                    ->visible(fn () => auth()->user()->can('VerEnlace:Sucursal'))
-                    ->authorize(fn () => auth()->user()->can('VerEnlace:Sucursal'))
-                    ->modalHeading('Enlace de la estación')
-                    ->modalContent(fn (Sucursal $record) => view('filament.actions.enlace-estacion', ['url' => $record->enlaceEstacion()]))
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Cerrar'),
                 EditAction::make(),
             ])
             ->toolbarActions([

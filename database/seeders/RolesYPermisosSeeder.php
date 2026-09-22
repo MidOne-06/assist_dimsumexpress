@@ -24,7 +24,6 @@ class RolesYPermisosSeeder extends Seeder
             'ViewAny:Marcacion',
             'View:Marcacion',
             'View:EstacionesQr',
-            'VerEnlace:Sucursal',
             'VerEnlace:PuntoVenta',
             'AsignarMasivo:AsignarTurnos',
             'ResetPassword:User',

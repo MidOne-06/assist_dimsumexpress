@@ -64,10 +64,13 @@ class EstacionMarcadoController extends Controller
      */
     private function validarEstacion(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta): void
     {
-        abort_if($puntoVenta && $puntoVenta->sucursal_id !== $sucursal->id, 404);
-        abort_unless($sucursal->activo && (! $puntoVenta || $puntoVenta->activo), 404);
+        // Una estación de asistencia siempre representa un punto de venta.
+        // La sucursal es únicamente su contenedor organizacional.
+        abort_unless($puntoVenta instanceof PuntoVenta, 404);
+        abort_if($puntoVenta->sucursal_id !== $sucursal->id, 404);
+        abort_unless($sucursal->activo && $puntoVenta->activo, 404);
 
-        $claveEsperada = $puntoVenta?->token_pantalla ?? $sucursal->token_pantalla;
+        $claveEsperada = $puntoVenta->token_pantalla;
         $claveRecibida = (string) $request->query('clave');
 
         abort_unless(

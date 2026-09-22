@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Sucursal;
+use App\Models\PuntoVenta;
 use App\Models\User;
 use App\Models\VisitaSupervisor;
 use App\Models\QrToken;
@@ -26,7 +27,7 @@ class VisitaSupervisorTest extends TestCase
         $supervisor->givePermissionTo(Permission::findOrCreate('Registrar:VisitaSupervisor', 'web'));
         $supervisor->sucursalesSupervisadas()->attach($propia);
 
-        $tokenPropio = $this->emitirTokenVisita($propia);
+        $tokenPropio = $this->emitirTokenVisita($this->puntoVenta($propia));
 
         $this->actingAs($supervisor)
             ->get(route('visita-supervisor.show', ['token' => $tokenPropio->token]))
@@ -44,7 +45,7 @@ class VisitaSupervisorTest extends TestCase
             ->whereDate('fecha', today())
             ->count());
 
-        $tokenAjeno = $this->emitirTokenVisita($ajena);
+        $tokenAjeno = $this->emitirTokenVisita($this->puntoVenta($ajena));
 
         $this->actingAs($supervisor)
             ->get(route('visita-supervisor.show', ['token' => $tokenAjeno->token]))
@@ -58,7 +59,7 @@ class VisitaSupervisorTest extends TestCase
         $administrador = User::factory()->create();
         $administrador->assignRole('super_admin');
 
-        $token = $this->emitirTokenVisita($sucursal);
+        $token = $this->emitirTokenVisita($this->puntoVenta($sucursal));
 
         $this->actingAs($administrador)
             ->get(route('visita-supervisor.show', ['token' => $token->token]))
@@ -74,17 +75,19 @@ class VisitaSupervisorTest extends TestCase
     public function test_station_preview_shows_the_qr_without_recording_a_visit(): void
     {
         $sucursal = Sucursal::create(['nombre' => 'Local QR', 'tipo' => 'tienda', 'activo' => true]);
+        $puntoVenta = $this->puntoVenta($sucursal);
 
-        $this->get($sucursal->enlaceEstacionVisita())
+        $this->get($puntoVenta->enlaceEstacionVisita())
             ->assertOk()
             ->assertSee('Código QR dinámico de visita de supervisión')
             ->assertSee('La supervisora debe iniciar sesión');
 
         $this->assertDatabaseMissing('visitas_supervisor', ['sucursal_id' => $sucursal->id]);
 
-        $this->get(route('estacion-visita.token', [
+        $this->get(route('estacion-visita.punto-venta.token', [
             'sucursal' => $sucursal->id,
-            'clave' => $sucursal->token_pantalla,
+            'puntoVenta' => $puntoVenta->id,
+            'clave' => $puntoVenta->token_pantalla,
         ]))
             ->assertOk()
             ->assertJsonStructure(['qr', 'segundos_restantes'])
@@ -99,10 +102,12 @@ class VisitaSupervisorTest extends TestCase
     public function test_legacy_static_visit_qr_opens_the_dynamic_station_without_recording_a_visit(): void
     {
         $sucursal = Sucursal::create(['nombre' => 'Local anterior', 'tipo' => 'tienda', 'activo' => true]);
+        $puntoVenta = $this->puntoVenta($sucursal);
 
         $this->get(route('visita-supervisor.legacy', [
             'sucursal' => $sucursal->id,
-            'clave' => $sucursal->token_pantalla,
+            'puntoVenta' => $puntoVenta->id,
+            'clave' => $puntoVenta->token_pantalla,
         ]))
             ->assertOk()
             ->assertSee('Código QR dinámico de visita de supervisión');
@@ -153,17 +158,27 @@ class VisitaSupervisorTest extends TestCase
             ->assertSee('/visitas-supervisor?token=');
     }
 
-    private function emitirTokenVisita(Sucursal $sucursal): QrToken
+    private function emitirTokenVisita(PuntoVenta $puntoVenta): QrToken
     {
-        $this->get(route('estacion-visita.token', [
-            'sucursal' => $sucursal->id,
-            'clave' => $sucursal->token_pantalla,
+        $this->get(route('estacion-visita.punto-venta.token', [
+            'sucursal' => $puntoVenta->sucursal_id,
+            'puntoVenta' => $puntoVenta->id,
+            'clave' => $puntoVenta->token_pantalla,
         ]))->assertOk();
 
         return QrToken::query()
-            ->where('sucursal_id', $sucursal->id)
+            ->where('punto_venta_id', $puntoVenta->id)
             ->where('proposito', QrToken::PROPOSITO_VISITA_SUPERVISOR)
             ->latest('id')
             ->firstOrFail();
+    }
+
+    private function puntoVenta(Sucursal $sucursal): PuntoVenta
+    {
+        return PuntoVenta::create([
+            'sucursal_id' => $sucursal->id,
+            'nombre' => 'Punto de venta ' . uniqid(),
+            'activo' => true,
+        ]);
     }
 }

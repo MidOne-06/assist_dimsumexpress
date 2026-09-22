@@ -38,14 +38,13 @@ class EstacionesQr extends Page implements HasTable
 
     /**
      * Esta pantalla revela enlaces que incluyen la clave privada de cada
-     * estación. Reutiliza los permisos ya existentes de cada recurso para no
+     * estación. Reutiliza el permiso de puntos de venta para no
      * convertir el acceso al módulo en una vía de revelación de secretos.
      */
     public static function canAccess(): bool
     {
         return auth()->user()?->can('View:EstacionesQr')
-            && (auth()->user()?->can('VerEnlace:Sucursal')
-                || auth()->user()?->can('VerEnlace:PuntoVenta'));
+            && auth()->user()?->can('VerEnlace:PuntoVenta');
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -66,21 +65,10 @@ class EstacionesQr extends Page implements HasTable
             ))
             ->columns([
                 TextColumn::make('nombre')->label('Estación')->searchable()->sortable(),
-                TextColumn::make('tipo_label')
-                    ->label('Tipo')
-                    ->badge()
-                    ->color(fn (string $state): string => $state === 'Sucursal' ? 'primary' : 'gray')
-                    ->sortable(),
                 TextColumn::make('sucursal')->label('Sucursal')->searchable()->sortable(),
                 TextColumn::make('ubicacion')->label('Ubicación')->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('tipo')
-                    ->label('Tipo de estación')
-                    ->options([
-                        'sucursal' => 'Sucursal',
-                        'punto_venta' => 'Punto de venta',
-                    ]),
                 SelectFilter::make('sucursal_id')
                     ->label('Sucursal')
                     ->options(fn (): array => Sucursal::query()
@@ -94,9 +82,7 @@ class EstacionesQr extends Page implements HasTable
                 Action::make('verQr')
                     ->label('Ver QR')
                     ->icon(Heroicon::OutlinedQrCode)
-                    ->authorize(fn (array $record): bool => $record['tipo'] === 'sucursal'
-                        ? auth()->user()->can('VerEnlace:Sucursal')
-                        : auth()->user()->can('VerEnlace:PuntoVenta'))
+                    ->authorize(fn (): bool => auth()->user()->can('VerEnlace:PuntoVenta'))
                     ->modalHeading(fn (array $record): string => "Estación: {$record['nombre']}")
                     ->modalContent(fn (array $record) => view('filament.actions.estacion-qr', [
                         'estacion' => $record,
@@ -107,7 +93,8 @@ class EstacionesQr extends Page implements HasTable
                 Action::make('verQrVisita')
                     ->label('QR visita')
                     ->icon(Heroicon::OutlinedIdentification)
-                    ->authorize(fn (): bool => auth()->user()->can('View:EstacionesQr'))
+                    ->authorize(fn (): bool => auth()->user()->can('View:EstacionesQr')
+                        && auth()->user()->can('VerEnlace:PuntoVenta'))
                     ->modalHeading(fn (array $record): string => "Visita de supervisor: {$record['nombre']}")
                     ->modalContent(fn (array $record) => view('filament.actions.estacion-qr', [
                         'estacion' => $record,
@@ -131,19 +118,15 @@ class EstacionesQr extends Page implements HasTable
                     ->label('Regenerar enlace')
                     ->icon(Heroicon::OutlinedArrowPath)
                     ->color('warning')
-                    ->authorize(fn (array $record): bool => $record['tipo'] === 'sucursal'
-                        ? auth()->user()->can('VerEnlace:Sucursal')
-                        : auth()->user()->can('VerEnlace:PuntoVenta'))
+                    ->authorize(fn (): bool => auth()->user()->can('VerEnlace:PuntoVenta'))
                     ->requiresConfirmation()
                     ->modalHeading('Regenerar enlace de estación')
                     ->modalDescription('El enlace anterior dejará de funcionar de inmediato. Actualiza la pantalla física con el nuevo QR.')
                     ->modalSubmitActionLabel('Regenerar enlace')
                     ->action(function (array $record): void {
-                        if ($record['tipo'] === 'sucursal') {
-                            Sucursal::query()->findOrFail($record['sucursal_id'])->regenerarTokenPantalla();
-                        } else {
-                            PuntoVenta::query()->findOrFail((int) str_replace('punto-venta-', '', $record['__key']))->regenerarTokenPantalla();
-                        }
+                        PuntoVenta::query()
+                            ->findOrFail((int) str_replace('punto-venta-', '', $record['__key']))
+                            ->regenerarTokenPantalla();
 
                         Notification::make()->title('Enlace de estación regenerado')->success()->send();
                     }),
@@ -163,12 +146,7 @@ class EstacionesQr extends Page implements HasTable
         // Los SelectFilter de Filament envían `['value' => null]` cuando no
         // tienen selección. No debemos tomar el arreglo completo como filtro,
         // pues Collection::where() lo interpretaría como un valor real.
-        $tipo = data_get($filters, 'tipo.value');
         $sucursalId = data_get($filters, 'sucursal_id.value');
-
-        if (filled($tipo)) {
-            $estaciones = $estaciones->where('tipo', $tipo);
-        }
 
         if (filled($sucursalId)) {
             $estaciones = $estaciones->where('sucursal_id', (int) $sucursalId);
@@ -183,7 +161,7 @@ class EstacionesQr extends Page implements HasTable
             ));
         }
 
-        $sortColumn = in_array($sortColumn, ['nombre', 'tipo_label', 'sucursal'], true) ? $sortColumn : 'sucursal';
+        $sortColumn = in_array($sortColumn, ['nombre', 'sucursal'], true) ? $sortColumn : 'sucursal';
         $estaciones = $estaciones
             ->sortBy(fn (array $estacion): string => Str::lower($estacion[$sortColumn]), SORT_NATURAL, $sortDirection === 'desc')
             ->values();
@@ -201,35 +179,12 @@ class EstacionesQr extends Page implements HasTable
     }
 
     /**
-     * @return Collection<int, array{__key: string, tipo: string, tipo_label: string, nombre: string, sucursal: string, sucursal_id: int, ubicacion: string, url: string, visita_url: string, visita_estacion_url: string}>
+     * @return Collection<int, array{__key: string, nombre: string, sucursal: string, sucursal_id: int, ubicacion: string, url: string, visita_estacion_url: string}>
      */
     private function estacionesBase(): Collection
     {
         $estaciones = collect();
-        $puedeVerSucursales = auth()->user()->can('VerEnlace:Sucursal');
         $puedeVerPuntosVenta = auth()->user()->can('VerEnlace:PuntoVenta');
-
-        if ($puedeVerSucursales) {
-            Sucursal::query()
-                ->where('activo', true)
-                ->whereIn('id', AlcanceSupervisor::sucursalIds(auth()->user()))
-                ->orderBy('nombre')
-                ->get()
-                ->each(function (Sucursal $sucursal) use ($estaciones): void {
-                    $estaciones->push([
-                        '__key' => "sucursal-{$sucursal->id}",
-                        'tipo' => 'sucursal',
-                        'tipo_label' => 'Sucursal',
-                        'nombre' => $sucursal->nombre,
-                        'sucursal' => $sucursal->nombre,
-                        'sucursal_id' => $sucursal->id,
-                        'ubicacion' => $sucursal->tipo === 'planta' ? 'Planta' : 'Tienda',
-                        'url' => $sucursal->enlaceEstacion(),
-                        'visita_url' => $sucursal->enlaceVisitaSupervisor(),
-                        'visita_estacion_url' => $sucursal->enlaceEstacionVisita(),
-                    ]);
-                });
-        }
 
         if ($puedeVerPuntosVenta) {
             PuntoVenta::query()
@@ -242,14 +197,11 @@ class EstacionesQr extends Page implements HasTable
                 ->each(function (PuntoVenta $puntoVenta) use ($estaciones): void {
                     $estaciones->push([
                         '__key' => "punto-venta-{$puntoVenta->id}",
-                        'tipo' => 'punto_venta',
-                        'tipo_label' => 'Punto de venta',
                         'nombre' => $puntoVenta->nombre,
                         'sucursal' => $puntoVenta->sucursal->nombre,
                         'sucursal_id' => $puntoVenta->sucursal_id,
                         'ubicacion' => 'Punto de venta',
                         'url' => $puntoVenta->enlaceEstacion(),
-                        'visita_url' => $puntoVenta->enlaceVisitaSupervisor(),
                         'visita_estacion_url' => $puntoVenta->enlaceEstacionVisita(),
                     ]);
                 });
