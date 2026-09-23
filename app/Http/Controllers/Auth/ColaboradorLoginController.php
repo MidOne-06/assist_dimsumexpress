@@ -29,9 +29,17 @@ class ColaboradorLoginController extends Controller
             ]);
         }
 
-        $request->session()->regenerate();
-
         $usuario = $request->user();
+
+        if (! $usuario?->estaActivoParaAcceso()) {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Esta cuenta está inactiva. Contacta a tu administrador.',
+            ]);
+        }
+
+        $request->session()->regenerate();
 
         // Supervisión es un flujo operativo distinto de asistencia. Un
         // supervisor no necesita (ni debe tener) ficha de colaborador para

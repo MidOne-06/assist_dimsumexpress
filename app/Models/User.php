@@ -51,8 +51,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(VisitaSupervisor::class, 'supervisor_id');
     }
 
+    /** Las cuentas de colaborador dependen del estado de su ficha laboral. */
+    public function estaActivoParaAcceso(): bool
+    {
+        return $this->colaborador?->activo ?? true;
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
-        return $panel->getId() === 'admin' && $this->can('Access:AdminPanel');
+        return $panel->getId() === 'admin'
+            && $this->estaActivoParaAcceso()
+            && $this->can('Access:AdminPanel');
     }
 }
