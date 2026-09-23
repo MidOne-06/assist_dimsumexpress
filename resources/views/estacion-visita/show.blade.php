@@ -14,16 +14,16 @@
         .barra { margin-top:1rem; width:20rem; max-width:60vw; height:.4rem; background:#374151; border-radius:999px; overflow:hidden; }
         .barra-fill { height:100%; width:100%; background:#22c55e; }
         .reloj { margin-top:2rem; font-size:2.25rem; font-weight:700; letter-spacing:.05em; }
-        .instrucciones { margin-top:1.5rem; max-width:26rem; color:#d1d5db; font-size:.9rem; line-height:1.5; }
     </style>
 </head>
 <body>
     <h1>{{ $sucursal->nombre }}</h1>
-    <p class="sub">{{ $puntoVenta?->nombre ?? 'Visita de supervisión' }}</p>
+    @if ($puntoVenta)
+        <p class="sub">{{ $puntoVenta->nombre }}</p>
+    @endif
     <div class="qr-wrap"><img id="qr-imagen" src="" alt="Código QR dinámico de visita de supervisión"></div>
     <div class="barra"><div class="barra-fill" id="barra-fill"></div></div>
     <div class="reloj" id="reloj"></div>
-    <p class="instrucciones">La supervisora debe iniciar sesión y escanear este código al visitar el local.</p>
     <script>
         const urlToken = @json(url('/estacion-visita/'.$sucursal->id.($puntoVenta ? '/'.$puntoVenta->id : '').'/token').'?clave='.urlencode($clave));
         const vigenciaSegundos = @json($vigenciaSegundos);

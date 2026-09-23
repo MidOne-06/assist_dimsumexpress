@@ -50,8 +50,7 @@ class AsignacionTurnoForm
                     )
                     ->validationMessages([
                         'unique' => 'Este colaborador ya tiene un turno asignado en esa fecha.',
-                    ])
-                    ->helperText('Un colaborador solo puede tener un turno asignado por día.'),
+                    ]),
                 TextInput::make('observacion')
                     ->label('Observación')
                     ->maxLength(255)

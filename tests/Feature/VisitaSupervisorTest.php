@@ -80,7 +80,7 @@ class VisitaSupervisorTest extends TestCase
         $this->get($puntoVenta->enlaceEstacionVisita())
             ->assertOk()
             ->assertSee('Código QR dinámico de visita de supervisión')
-            ->assertSee('La supervisora debe iniciar sesión');
+            ->assertDontSee('La supervisora debe iniciar sesión');
 
         $this->assertDatabaseMissing('visitas_supervisor', ['sucursal_id' => $sucursal->id]);
 

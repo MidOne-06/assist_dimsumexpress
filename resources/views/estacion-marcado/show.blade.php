@@ -14,12 +14,13 @@
         .reloj { margin-top: 2rem; font-size: 2.25rem; font-weight: 700; letter-spacing: 0.05em; }
         .barra { margin-top: 1rem; width: 20rem; max-width: 60vw; height: 0.4rem; background: #374151; border-radius: 999px; overflow: hidden; }
         .barra-fill { height: 100%; background: #22c55e; width: 100%; transition: width 1s linear; }
-        .instrucciones { margin-top: 1.5rem; max-width: 26rem; color: #d1d5db; font-size: 0.9rem; line-height: 1.5; }
     </style>
 </head>
 <body>
     <h1>{{ $sucursal->nombre }}</h1>
-    <p class="sub">{{ $puntoVenta?->nombre ?? 'Escanea el código para marcar tu asistencia' }}</p>
+    @if ($puntoVenta)
+        <p class="sub">{{ $puntoVenta->nombre }}</p>
+    @endif
 
     <div class="qr-wrap">
         <img id="qr-imagen" src="" alt="Código QR de marcado">
@@ -28,11 +29,6 @@
     <div class="barra"><div class="barra-fill" id="barra-fill"></div></div>
 
     <div class="reloj" id="reloj"></div>
-
-    <p class="instrucciones">
-        Abre la cámara de tu celular, escanea el código y sigue las instrucciones para registrar tu entrada,
-        salida o refrigerio. El código cambia cada pocos segundos por seguridad.
-    </p>
 
     @php
         $rutaToken = "/estacion-marcado/{$sucursal->id}";

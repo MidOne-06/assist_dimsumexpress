@@ -26,8 +26,7 @@ class SucursalForm
                         'planta' => 'Planta',
                     ])
                     ->required()
-                    ->default('tienda')
-                    ->helperText('Una "planta" es una sucursal de producción: no tiene puntos de venta.'),
+                    ->default('tienda'),
                 Textarea::make('direccion')
                     ->label('Dirección')
                     ->rows(2)

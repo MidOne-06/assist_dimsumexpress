@@ -121,7 +121,6 @@ class EstacionesQr extends Page implements HasTable
                     ->authorize(fn (): bool => auth()->user()->can('VerEnlace:PuntoVenta'))
                     ->requiresConfirmation()
                     ->modalHeading('Regenerar enlace de estación')
-                    ->modalDescription('El enlace anterior dejará de funcionar de inmediato. Actualiza la pantalla física con el nuevo QR.')
                     ->modalSubmitActionLabel('Regenerar enlace')
                     ->action(function (array $record): void {
                         PuntoVenta::query()

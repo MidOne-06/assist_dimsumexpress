@@ -101,9 +101,6 @@ class ColaboradorsTable
                     ->color(fn (Colaborador $record): string => $record->activo ? 'danger' : 'success')
                     ->requiresConfirmation()
                     ->modalHeading(fn (Colaborador $record): string => $record->activo ? 'Dar de baja a colaborador' : 'Reactivar colaborador')
-                    ->modalDescription(fn (Colaborador $record): string => $record->activo
-                        ? "{$record->nombre_completo} no podrá volver a iniciar sesión. Su historial se conservará."
-                        : "{$record->nombre_completo} podrá volver a iniciar sesión con su contraseña actual.")
                     ->modalSubmitActionLabel(fn (Colaborador $record): string => $record->activo ? 'Dar de baja' : 'Reactivar')
                     ->authorize(fn (Colaborador $record): bool => auth()->user()?->can('update', $record) ?? false)
                     ->action(function (Colaborador $record): void {

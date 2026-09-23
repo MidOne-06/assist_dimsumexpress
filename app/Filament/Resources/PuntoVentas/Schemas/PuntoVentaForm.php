@@ -23,8 +23,7 @@ class PuntoVentaForm
                         ->pluck('nombre', 'id'))
                     ->searchable()
                     ->optionsLimit(8)
-                    ->required()
-                    ->helperText('Solo se listan sucursales tipo "Tienda"; una planta no tiene puntos de venta.'),
+                    ->required(),
                 TextInput::make('nombre')
                     ->label('Nombre')
                     ->required()
