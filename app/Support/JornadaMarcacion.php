@@ -38,9 +38,15 @@ final class JornadaMarcacion
     {
         $momento ??= now();
 
+        $fechaActual = $momento->toDateString();
+        $fechaAnterior = $momento->copy()->subDay()->toDateString();
+
         return $colaborador->asignacionesTurno()
             ->with('turno')
-            ->whereIn('fecha', [$momento->toDateString(), $momento->copy()->subDay()->toDateString()])
+            ->where(function ($query) use ($fechaActual, $fechaAnterior): void {
+                $query->whereDate('fecha', $fechaActual)
+                    ->orWhereDate('fecha', $fechaAnterior);
+            })
             ->get()
             ->filter(function (AsignacionTurno $asignacion) use ($momento, $colaborador): bool {
                 if (! $asignacion->turno?->activo) {

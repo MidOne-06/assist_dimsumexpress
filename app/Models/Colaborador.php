@@ -56,6 +56,11 @@ class Colaborador extends Model
         return $this->hasMany(Marcacion::class);
     }
 
+    public function coberturasOperativas(): HasMany
+    {
+        return $this->hasMany(CoberturaOperativa::class);
+    }
+
     public function turnoDelDia(?string $fecha = null): ?Turno
     {
         $asignacion = $this->asignacionesTurno()

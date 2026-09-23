@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AsignacionTurno;
+use App\Models\CoberturaOperativa;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\QrToken;
@@ -69,12 +70,6 @@ class MarcacionController extends Controller
             ]);
         }
 
-        if (! $this->estacionPermitida($colaborador, $qrToken)) {
-            return view('marcacion.error', [
-                'mensaje' => 'Este código QR no corresponde a tu centro de trabajo.',
-            ]);
-        }
-
         // Un QR dinámico solo habilita una acción por colaborador. Así no
         // puede reutilizarse al volver atrás en el navegador para confirmar
         // una salida sin escanear nuevamente la estación.
@@ -92,6 +87,12 @@ class MarcacionController extends Controller
             ]);
         }
 
+        if (! $this->estacionPermitida($colaborador, $qrToken, $asignacion)) {
+            return view('marcacion.error', [
+                'mensaje' => 'No tienes un turno activo para marcar en este momento.',
+            ]);
+        }
+
         return view('marcacion.show', [
             'colaborador' => $colaborador,
             'token' => $qrToken->token,
@@ -100,6 +101,7 @@ class MarcacionController extends Controller
             'ultimaMarcacion' => JornadaMarcacion::ultimaMarcacion($colaborador, $asignacion),
             'retornoEsperado' => JornadaMarcacion::retornoRefrigerioEsperado($colaborador, $asignacion),
             'resumenJornada' => JornadaMarcacion::resumen($colaborador, $asignacion),
+            'estacion' => $qrToken,
         ]);
     }
 
@@ -126,10 +128,6 @@ class MarcacionController extends Controller
             return back()->withErrors(['tipo' => 'El código QR expiró. Vuelve a escanearlo desde la pantalla.']);
         }
 
-        if (! $this->estacionPermitida($colaborador, $qrToken)) {
-            return back()->withErrors(['tipo' => 'Este código QR no corresponde a tu centro de trabajo.']);
-        }
-
         $marcacion = DB::transaction(function () use ($colaborador, $data, $qrToken, $request): Marcacion {
             // El bloqueo evita doble marcación por doble toque en el celular.
             $colaboradorBloqueado = Colaborador::query()->lockForUpdate()->findOrFail($colaborador->id);
@@ -142,6 +140,10 @@ class MarcacionController extends Controller
 
             if (! $asignacion) {
                 throw ValidationException::withMessages(['tipo' => 'No tienes un turno activo para marcar en este momento.']);
+            }
+
+            if (! $this->estacionPermitida($colaboradorBloqueado, $qrToken, $asignacion)) {
+                throw ValidationException::withMessages(['tipo' => 'La estación no está habilitada para tu jornada actual.']);
             }
 
             // Se repite dentro de la transacción, después de bloquear al
@@ -157,6 +159,7 @@ class MarcacionController extends Controller
 
             $fechaHora = now();
             $controlRefrigerio = null;
+            $cobertura = $this->registrarCoberturaAutomatica($colaboradorBloqueado, $asignacion, $qrToken, $fechaHora);
 
             if ($data['tipo'] === Marcacion::TIPO_REGRESO_REFRIGERIO) {
                 $salidaRefrigerio = JornadaMarcacion::ultimaMarcacion($colaboradorBloqueado, $asignacion);
@@ -184,6 +187,7 @@ class MarcacionController extends Controller
                 'qr_token_id' => $qrToken->id,
                 'sucursal_id' => $qrToken->sucursal_id,
                 'punto_venta_id' => $qrToken->punto_venta_id,
+                'cobertura_operativa_id' => $cobertura?->id,
                 'ip_origen' => $request->ip(),
                 'user_agent' => (string) $request->userAgent(),
             ]);
@@ -210,10 +214,16 @@ class MarcacionController extends Controller
 
     private function asignacionDeMarcacion(Marcacion $marcacion): AsignacionTurno
     {
+        $fechaMarcacion = $marcacion->fecha_hora->toDateString();
+        $fechaAnterior = $marcacion->fecha_hora->copy()->subDay()->toDateString();
+
         $asignacion = $marcacion->colaborador->asignacionesTurno()
             ->with('turno')
             ->where('turno_id', $marcacion->turno_id)
-            ->whereIn('fecha', [$marcacion->fecha_hora->toDateString(), $marcacion->fecha_hora->copy()->subDay()->toDateString()])
+            ->where(function ($query) use ($fechaMarcacion, $fechaAnterior): void {
+                $query->whereDate('fecha', $fechaMarcacion)
+                    ->orWhereDate('fecha', $fechaAnterior);
+            })
             ->get()
             ->first(fn (AsignacionTurno $candidata): bool => $marcacion->fecha_hora->betweenIncluded(
                 JornadaMarcacion::limites($candidata)['ventana_inicio'],
@@ -227,17 +237,47 @@ class MarcacionController extends Controller
         return $asignacion;
     }
 
-    private function estacionPermitida(Colaborador $colaborador, QrToken $qrToken): bool
+    private function estacionPermitida(Colaborador $colaborador, QrToken $qrToken, ?AsignacionTurno $asignacion = null): bool
     {
         if (! $qrToken->sucursal?->activo || ($qrToken->punto_venta_id && ! $qrToken->puntoVenta?->activo)) {
             return false;
         }
 
-        if ($qrToken->sucursal_id !== $colaborador->sucursal_id) {
-            return false;
+        if ($this->esEstacionBase($colaborador, $qrToken)) {
+            return true;
         }
 
-        return ! $qrToken->punto_venta_id || $qrToken->punto_venta_id === $colaborador->punto_venta_id;
+        // Un turno vigente permite cubrir temporalmente una estación activa
+        // sin alterar la sede base del colaborador. La cobertura se persiste
+        // recién al confirmar la marcación, no al previsualizar el QR.
+        return $asignacion !== null;
+    }
+
+    private function esEstacionBase(Colaborador $colaborador, QrToken $qrToken): bool
+    {
+        return (int) $qrToken->sucursal_id === (int) $colaborador->sucursal_id
+            && (! $qrToken->punto_venta_id || (int) $qrToken->punto_venta_id === (int) $colaborador->punto_venta_id);
+    }
+
+    private function registrarCoberturaAutomatica(Colaborador $colaborador, AsignacionTurno $asignacion, QrToken $qrToken, \Carbon\Carbon $detectadaEn): ?CoberturaOperativa
+    {
+        if ($this->esEstacionBase($colaborador, $qrToken)) {
+            return null;
+        }
+
+        return CoberturaOperativa::firstOrCreate(
+            [
+                'asignacion_turno_id' => $asignacion->id,
+                'sucursal_id' => $qrToken->sucursal_id,
+                'punto_venta_id' => $qrToken->punto_venta_id,
+            ],
+            [
+                'colaborador_id' => $colaborador->id,
+                'origen' => CoberturaOperativa::ORIGEN_AUTOMATICA,
+                'estado' => CoberturaOperativa::ESTADO_PENDIENTE,
+                'detectada_en' => $detectadaEn,
+            ],
+        );
     }
 
     private function qrYaUsadoPorColaborador(Colaborador $colaborador, QrToken $qrToken): bool

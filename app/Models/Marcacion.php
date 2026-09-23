@@ -59,6 +59,11 @@ class Marcacion extends Model
         return $this->belongsTo(PuntoVenta::class);
     }
 
+    public function coberturaOperativa(): BelongsTo
+    {
+        return $this->belongsTo(CoberturaOperativa::class);
+    }
+
     /** @return array{etiqueta: string, estado: string, esperado: \Carbon\Carbon}|null */
     public function resumenRetornoRefrigerio(): ?array
     {
