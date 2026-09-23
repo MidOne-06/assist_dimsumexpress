@@ -17,7 +17,7 @@ class ListColaboradors extends ListRecords
             CreateAction::make()
                 ->modal()
                 ->modalHeading('Crear colaborador')
-                ->modalWidth(Width::TwoExtraLarge)
+                ->modalWidth(Width::FiveExtraLarge)
                 ->createAnother(false),
         ];
     }

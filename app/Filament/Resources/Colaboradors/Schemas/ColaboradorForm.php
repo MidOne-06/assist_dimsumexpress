@@ -25,7 +25,7 @@ class ColaboradorForm
         return $schema
             ->components([
                 Section::make('Cuenta de acceso')
-                    ->columns(2)
+                    ->columns(['default' => 1, 'md' => 2])
                     ->schema([
                         TextInput::make('email')
                             ->label('Correo')
@@ -44,29 +44,19 @@ class ColaboradorForm
                     ]),
 
                 Section::make('Datos del colaborador')
-                    ->columns(3)
+                    ->columns(['default' => 1, 'md' => 2, 'xl' => 12])
                     ->schema([
                         TextInput::make('nombre_completo')
                             ->label('Nombre completo')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->columnSpan(['default' => 'full', 'md' => 2, 'xl' => 6]),
                         TextInput::make('documento_identidad')
                             ->label('Documento de identidad')
                             ->required()
                             ->maxLength(20)
-                            ->unique(ignoreRecord: true),
-                        Select::make('empresa_id')
-                            ->label('Empresa')
-                            ->options(fn (): array => Empresa::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-                        Select::make('area_id')
-                            ->label('Área')
-                            ->options(fn (): array => Area::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
-                            ->searchable()
-                            ->preload()
-                            ->required(),
+                            ->unique(ignoreRecord: true)
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 3]),
                         TextInput::make('codigo_empresa')
                             ->label('Código interno')
                             ->required()
@@ -76,10 +66,26 @@ class ColaboradorForm
                                 column: 'codigo_empresa',
                                 ignoreRecord: true,
                                 modifyRuleUsing: fn (Unique $rule, Get $get): Unique => $rule->where('empresa_id', $get('empresa_id')),
-                            ),
+                            )
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 3]),
+                        Select::make('empresa_id')
+                            ->label('Empresa')
+                            ->options(fn (): array => Empresa::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
+                        Select::make('area_id')
+                            ->label('Área')
+                            ->options(fn (): array => Area::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
                         TextInput::make('cargo')
                             ->label('Cargo')
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->columnSpan(['default' => 'full', 'md' => 2, 'xl' => 4]),
                         Select::make('sucursal_id')
                             ->label('Sucursal')
                             ->options(fn () => Sucursal::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id'))
@@ -87,7 +93,8 @@ class ColaboradorForm
                             ->optionsLimit(8)
                             ->required()
                             ->live()
-                            ->afterStateUpdated(fn (Set $set) => $set('punto_venta_id', null)),
+                            ->afterStateUpdated(fn (Set $set) => $set('punto_venta_id', null))
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
                         Select::make('punto_venta_id')
                             ->label('Punto de venta')
                             ->options(function (Get $get) {
@@ -103,15 +110,18 @@ class ColaboradorForm
                             })
                             ->searchable()
                             ->optionsLimit(8)
-                            ->required(),
+                            ->required()
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
                         DatePicker::make('fecha_ingreso')
                             ->label('Fecha de ingreso')
                             ->default(now())
-                            ->native(false),
+                            ->native(false)
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 2]),
                         Toggle::make('activo')
                             ->label('Activo')
                             ->default(true)
-                            ->required(),
+                            ->required()
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 2]),
                     ]),
             ]);
     }

@@ -145,7 +145,7 @@ class ColaboradorsTable
                 EditAction::make()
                     ->modal()
                     ->modalHeading('Actualizar colaborador')
-                    ->modalWidth(Width::TwoExtraLarge),
+                    ->modalWidth(Width::FiveExtraLarge),
             ])
             ->toolbarActions([]);
     }
