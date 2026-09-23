@@ -267,7 +267,6 @@ return [
         'View:EstacionesQr',
 
         // Acciones sensibles que revelan el enlace privado de una estación.
-        'VerEnlace:Sucursal',
         'VerEnlace:PuntoVenta',
 
         // Acción de negocio dentro del módulo de asignación de turnos.

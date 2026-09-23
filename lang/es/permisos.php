@@ -19,7 +19,6 @@ return [
     'restore_any' => 'Restaurar varios',
     'update' => 'Actualizar',
     'ver_enlace_punto_venta' => 'Ver enlace de estación',
-    'ver_enlace_sucursal' => 'Ver enlace de sucursal',
     'view' => 'Ver',
     'view_any' => 'Ver listado',
     'view_asignar_turnos' => 'Asignación masiva de turnos',
