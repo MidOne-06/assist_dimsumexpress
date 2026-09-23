@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class CoberturaOperativa extends Model
 {
+    protected $table = 'coberturas_operativas';
+
     public const ORIGEN_AUTOMATICA = 'automatica';
 
     public const ESTADO_PENDIENTE = 'pendiente';
