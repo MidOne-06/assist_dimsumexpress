@@ -5,6 +5,7 @@ namespace App\Filament\Resources\AsignacionTurnos\Pages;
 use App\Filament\Resources\AsignacionTurnos\AsignacionTurnoResource;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
+use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Support\AlcanceSupervisor;
@@ -79,15 +80,15 @@ class ListAsignacionTurnos extends ListRecords
                             DatePicker::make('fecha_inicio')
                                 ->label('Desde')
                                 ->native(false)
-                                ->minDate(today()->addDay())
-                                ->default(today()->addDay())
+                                ->minDate(today())
+                                ->default(today())
                                 ->required()
                                 ->columnSpan(['default' => 6, 'lg' => 3]),
                             DatePicker::make('fecha_fin')
                                 ->label('Hasta')
                                 ->native(false)
-                                ->minDate(today()->addDay())
-                                ->default(today()->addDay())
+                                ->minDate(today())
+                                ->default(today())
                                 ->required()
                                 ->columnSpan(['default' => 6, 'lg' => 3]),
                             CheckboxList::make('dias_semana')
@@ -130,9 +131,9 @@ class ListAsignacionTurnos extends ListRecords
         $fechaFin = Carbon::parse($data['fecha_fin'])->startOfDay();
         $sucursalId = (int) $data['sucursal_id'];
 
-        if ($fechaInicio->lte(today())) {
+        if ($fechaInicio->lt(today())) {
             throw ValidationException::withMessages([
-                'fecha_inicio' => 'Solo se pueden programar turnos futuros.',
+                'fecha_inicio' => 'No se pueden programar turnos en fechas pasadas.',
             ]);
         }
 
@@ -164,6 +165,18 @@ class ListAsignacionTurnos extends ListRecords
             ->count();
 
         abort_unless($colaboradoresPermitidos === count($colaboradorIds), 403);
+
+        // La programación del día actual es válida hasta que el colaborador
+        // registra una marcación. Desde ese momento se preserva el turno que
+        // dio origen a la trazabilidad de esa jornada.
+        if ($fechaInicio->isToday() && Marcacion::query()
+            ->whereIn('colaborador_id', $colaboradorIds)
+            ->whereDate('fecha_hora', today())
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'fecha_inicio' => 'No se puede cambiar el turno de hoy porque ya existen marcaciones.',
+            ]);
+        }
 
         $diasSemana = array_map('intval', $data['dias_semana']);
         $creadas = 0;

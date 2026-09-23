@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
+use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Support\AlcanceSupervisor;
@@ -55,8 +56,8 @@ class AsignarTurnos extends Page
     public function mount(): void
     {
         $this->form->fill([
-            'fecha_inicio' => today()->addDay()->toDateString(),
-            'fecha_fin' => today()->addDay()->toDateString(),
+            'fecha_inicio' => today()->toDateString(),
+            'fecha_fin' => today()->toDateString(),
             'dias_semana' => ['1', '2', '3', '4', '5', '6', '7'],
         ]);
     }
@@ -103,13 +104,13 @@ class AsignarTurnos extends Page
                             ->label('Desde')
                             ->required()
                             ->native(false)
-                            ->minDate(today()->addDay())
+                            ->minDate(today())
                             ->columnSpan(3),
                         DatePicker::make('fecha_fin')
                             ->label('Hasta')
                             ->required()
                             ->native(false)
-                            ->minDate(today()->addDay())
+                            ->minDate(today())
                             ->columnSpan(3),
                         CheckboxList::make('dias_semana')
                             ->label('Días')
@@ -156,9 +157,9 @@ class AsignarTurnos extends Page
             403,
         );
 
-        if ($fechaInicio->lte(today())) {
+        if ($fechaInicio->lt(today())) {
             Notification::make()
-                ->title('Solo se pueden programar turnos futuros')
+                ->title('No se pueden programar turnos en fechas pasadas')
                 ->danger()
                 ->send();
 
@@ -195,6 +196,18 @@ class AsignarTurnos extends Page
             ->count();
 
         abort_unless($colaboradoresPermitidos === count($colaboradorIds), 403);
+
+        if ($fechaInicio->isToday() && Marcacion::query()
+            ->whereIn('colaborador_id', $colaboradorIds)
+            ->whereDate('fecha_hora', today())
+            ->exists()) {
+            Notification::make()
+                ->title('No se puede cambiar el turno de hoy porque ya existen marcaciones')
+                ->danger()
+                ->send();
+
+            return;
+        }
 
         $creadas = 0;
         $actualizadas = 0;
