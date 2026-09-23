@@ -9,7 +9,7 @@ class Login extends BaseLogin
 {
     public function getTitle(): string
     {
-        return 'Administración — ' . config('app.name');
+        return 'Administración';
     }
 
     public function getHeading(): ?string
