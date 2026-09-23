@@ -13,6 +13,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\Rules\Password;
 
 class ColaboradorForm
 {
@@ -34,7 +35,8 @@ class ColaboradorForm
                             ->label('Contraseña')
                             ->password()
                             ->revealable()
-                            ->minLength(8)
+                            ->minLength(12)
+                            ->rules([Password::min(12)->mixedCase()->numbers()->symbols()])
                             ->required(fn (string $operation) => $operation === 'create')
                             ->dehydrated(fn (?string $state) => filled($state))
                             ->helperText(fn (string $operation) => $operation === 'edit' ? 'Déjalo en blanco para no cambiar la contraseña actual.' : null),

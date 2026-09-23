@@ -6,6 +6,7 @@ use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\User;
 use App\Models\Sucursal;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Role;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -75,7 +76,8 @@ class UserResource extends Resource
                             ->label('Contraseña')
                             ->password()
                             ->revealable()
-                            ->minLength(8)
+                            ->minLength(12)
+                            ->rules([Password::min(12)->mixedCase()->numbers()->symbols()])
                             ->required(fn (string $operation): bool => $operation === 'create')
                             ->visible(fn (string $operation): bool => $operation === 'create')
                             ->columnSpanFull(),
@@ -157,7 +159,8 @@ class UserResource extends Resource
                             ->password()
                             ->revealable()
                             ->required()
-                            ->minLength(8)
+                            ->minLength(12)
+                            ->rules([Password::min(12)->mixedCase()->numbers()->symbols()])
                             ->confirmed(),
                         TextInput::make('password_confirmation')
                             ->label('Confirmar contraseña')
@@ -166,9 +169,7 @@ class UserResource extends Resource
                             ->required(),
                     ])
                     ->action(function (User $record, array $data): void {
-                        // El cast "hashed" del modelo convierte la clave a hash
-                        // antes de persistirla; nunca se almacena en texto plano.
-                        $record->update(['password' => $data['password']]);
+                        $record->restablecerContrasena($data['password'], auth()->id());
                     }),
                 DeleteAction::make()
                     ->visible(fn (User $record): bool => auth()->user()->can('delete', $record)),

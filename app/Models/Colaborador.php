@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 #[Fillable(['user_id', 'sucursal_id', 'punto_venta_id', 'nombre_completo', 'documento_identidad', 'cargo', 'fecha_ingreso', 'activo'])]
 class Colaborador extends Model
@@ -69,8 +68,7 @@ class Colaborador extends Model
                 return;
             }
 
-            $this->user?->forceFill(['remember_token' => Str::random(60)])->save();
-            DB::table('sessions')->where('user_id', $this->user_id)->delete();
+            $this->user?->invalidarSesiones();
         });
     }
 

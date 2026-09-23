@@ -6,13 +6,16 @@ use App\Models\Colaborador;
 use App\Models\Sucursal;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Validation\Rules\Password;
 
 class ColaboradorsTable
 {
@@ -59,6 +62,39 @@ class ColaboradorsTable
                     ->label('Activo'),
             ])
             ->recordActions([
+                Action::make('restablecerContrasena')
+                    ->label('Restablecer contraseña')
+                    ->icon(Heroicon::OutlinedKey)
+                    ->color('warning')
+                    ->visible(fn (Colaborador $record): bool => $record->user !== null)
+                    ->authorize(fn (): bool => auth()->user()?->can('ResetPassword:User') ?? false)
+                    ->modal()
+                    ->modalHeading(fn (Colaborador $record): string => "Restablecer contraseña: {$record->nombre_completo}")
+                    ->modalWidth(Width::Medium)
+                    ->modalSubmitActionLabel('Actualizar contraseña')
+                    ->schema([
+                        TextInput::make('password')
+                            ->label('Nueva contraseña')
+                            ->password()
+                            ->revealable()
+                            ->required()
+                            ->minLength(12)
+                            ->rules([Password::min(12)->mixedCase()->numbers()->symbols()])
+                            ->confirmed(),
+                        TextInput::make('password_confirmation')
+                            ->label('Confirmar contraseña')
+                            ->password()
+                            ->revealable()
+                            ->required(),
+                    ])
+                    ->action(function (Colaborador $record, array $data): void {
+                        $record->user?->restablecerContrasena($data['password'], auth()->id());
+
+                        Notification::make()
+                            ->title('Contraseña actualizada')
+                            ->success()
+                            ->send();
+                    }),
                 Action::make('cambiarEstado')
                     ->label(fn (Colaborador $record): string => $record->activo ? 'Dar de baja' : 'Reactivar')
                     ->icon(fn (Colaborador $record): Heroicon => $record->activo ? Heroicon::OutlinedNoSymbol : Heroicon::OutlinedCheckCircle)
