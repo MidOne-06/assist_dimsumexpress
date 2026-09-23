@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -262,6 +263,13 @@ class MarcacionController extends Controller
     private function registrarCoberturaAutomatica(Colaborador $colaborador, AsignacionTurno $asignacion, QrToken $qrToken, \Carbon\Carbon $detectadaEn): ?CoberturaOperativa
     {
         if ($this->esEstacionBase($colaborador, $qrToken)) {
+            return null;
+        }
+
+        // La marcación no debe quedar indisponible si una instancia web se
+        // inicia mientras aún se aplica la migración de coberturas. La sede y
+        // el punto de venta reales igualmente quedan guardados en Marcacion.
+        if (! Schema::hasTable('coberturas_operativas')) {
             return null;
         }
 
