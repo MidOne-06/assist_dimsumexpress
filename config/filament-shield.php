@@ -264,8 +264,6 @@ return [
         'Reportar:IncidenciaMarcacion',
         'Resolver:IncidenciaMarcacion',
         'View:MiHorario',
-        'View:EstacionesQr',
-
         // Acciones sensibles que revelan el enlace privado de una estación.
         'VerEnlace:PuntoVenta',
 
