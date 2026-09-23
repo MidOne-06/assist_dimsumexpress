@@ -15,9 +15,9 @@ class EstacionMarcadoController extends Controller
 {
     /**
      * Segundos de vigencia de cada código QR. Coincide con el rango
-     * recomendado por el usuario (15-30s) para el refresco de la pantalla.
+     * suficiente para abrir la cámara y cargar la confirmación móvil.
      */
-    private const VIGENCIA_SEGUNDOS = 20;
+    private const VIGENCIA_SEGUNDOS = 60;
 
     public function show(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): View
     {

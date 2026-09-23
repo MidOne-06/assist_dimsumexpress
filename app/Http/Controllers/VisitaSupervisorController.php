@@ -17,7 +17,7 @@ use Illuminate\View\View;
 
 class VisitaSupervisorController extends Controller
 {
-    private const VIGENCIA_SEGUNDOS = 20;
+    private const VIGENCIA_SEGUNDOS = 60;
 
     /** Punto de entrada móvil para un supervisor, antes de escanear el QR. */
     public function esperando(Request $request): View
