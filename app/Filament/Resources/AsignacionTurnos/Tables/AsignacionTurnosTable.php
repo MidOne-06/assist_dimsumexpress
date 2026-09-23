@@ -10,6 +10,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Filament\Support\Enums\Width;
 use Illuminate\Database\Eloquent\Builder;
 
 class AsignacionTurnosTable
@@ -75,7 +76,10 @@ class AsignacionTurnosTable
                     }),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->modal()
+                    ->modalHeading('Actualizar asignación de turno')
+                    ->modalWidth(Width::Large),
             ])
             ->toolbarActions([]);
     }

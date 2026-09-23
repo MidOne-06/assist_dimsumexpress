@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Filament\Resources\Roles\Pages\ListRoles;
 use App\Filament\Resources\Users\UserResource;
+use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\User;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -28,6 +29,20 @@ class SeguridadModalTest extends TestCase
 
         Livewire::actingAs($usuario)
             ->test(ListRoles::class)
+            ->mountAction('create')
+            ->assertHasNoErrors();
+    }
+
+    public function test_user_modal_renders_supervisor_locations_without_a_legacy_form_utility(): void
+    {
+        $usuario = User::factory()->create();
+        $usuario->givePermissionTo(
+            Permission::findOrCreate('ViewAny:User', 'web'),
+            Permission::findOrCreate('Create:User', 'web'),
+        );
+
+        Livewire::actingAs($usuario)
+            ->test(ListUsers::class)
             ->mountAction('create')
             ->assertHasNoErrors();
     }

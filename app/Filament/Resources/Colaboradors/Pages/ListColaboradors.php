@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Colaboradors\Pages;
 use App\Filament\Resources\Colaboradors\ColaboradorResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Support\Enums\Width;
 
 class ListColaboradors extends ListRecords
 {
@@ -13,7 +14,11 @@ class ListColaboradors extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->modal()
+                ->modalHeading('Crear colaborador')
+                ->modalWidth(Width::TwoExtraLarge)
+                ->createAnother(false),
         ];
     }
 }

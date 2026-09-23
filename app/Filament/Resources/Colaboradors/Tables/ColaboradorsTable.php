@@ -142,7 +142,10 @@ class ColaboradorsTable
                             ->success()
                             ->send();
                     }),
-                EditAction::make(),
+                EditAction::make()
+                    ->modal()
+                    ->modalHeading('Actualizar colaborador')
+                    ->modalWidth(Width::TwoExtraLarge),
             ])
             ->toolbarActions([]);
     }

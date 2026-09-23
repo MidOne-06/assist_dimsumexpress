@@ -21,6 +21,7 @@ use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Support\Enums\Width;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -112,7 +113,11 @@ class ListAsignacionTurnos extends ListRecords
                 ])
                 ->action(fn (array $data) => $this->asignarPorRango($data)),
             CreateAction::make()
-                ->label('Asignar a un colaborador'),
+                ->label('Asignar a un colaborador')
+                ->modal()
+                ->modalHeading('Asignar turno individual')
+                ->modalWidth(Width::Large)
+                ->createAnother(false),
         ];
     }
 

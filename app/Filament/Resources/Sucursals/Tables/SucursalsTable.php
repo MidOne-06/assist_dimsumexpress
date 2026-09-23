@@ -10,6 +10,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Filament\Support\Enums\Width;
 
 class SucursalsTable
 {
@@ -55,7 +56,10 @@ class SucursalsTable
                     ->label('Activa'),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->modal()
+                    ->modalHeading('Actualizar sucursal')
+                    ->modalWidth(Width::Large),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
