@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Colaboradors\Tables;
 
+use App\Actions\ActualizarColaborador;
 use App\Models\Colaborador;
 use App\Models\Area;
 use App\Models\Empresa;
@@ -143,6 +144,11 @@ class ColaboradorsTable
                             ->send();
                     }),
                 EditAction::make()
+                    ->fillForm(fn (Colaborador $record): array => [
+                        ...$record->attributesToArray(),
+                        'email' => $record->user?->email,
+                    ])
+                    ->using(fn (Colaborador $record, array $data) => app(ActualizarColaborador::class)->handle($record, $data, auth()->id()))
                     ->modal()
                     ->modalHeading('Actualizar colaborador')
                     ->modalWidth(Width::FiveExtraLarge),

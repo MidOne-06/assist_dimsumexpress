@@ -16,7 +16,6 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Validation\Rules\Unique;
 
 class ColaboradorForm
 {
@@ -57,31 +56,20 @@ class ColaboradorForm
                             ->maxLength(20)
                             ->unique(ignoreRecord: true)
                             ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 3]),
-                        TextInput::make('codigo_empresa')
-                            ->label('Código interno')
-                            ->required()
-                            ->maxLength(60)
-                            ->unique(
-                                table: 'colaboradores',
-                                column: 'codigo_empresa',
-                                ignoreRecord: true,
-                                modifyRuleUsing: fn (Unique $rule, Get $get): Unique => $rule->where('empresa_id', $get('empresa_id')),
-                            )
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 3]),
                         Select::make('empresa_id')
                             ->label('Empresa')
                             ->options(fn (): array => Empresa::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 6]),
                         Select::make('area_id')
                             ->label('Área')
                             ->options(fn (): array => Area::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
+                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 6]),
                         TextInput::make('cargo')
                             ->label('Cargo')
                             ->maxLength(255)
@@ -97,6 +85,16 @@ class ColaboradorForm
                             ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
                         Select::make('punto_venta_id')
                             ->label('Punto de venta')
+                            ->visible(function (Get $get): bool {
+                                if (! $get('sucursal_id')) {
+                                    return false;
+                                }
+
+                                return PuntoVenta::query()
+                                    ->where('sucursal_id', $get('sucursal_id'))
+                                    ->where('activo', true)
+                                    ->exists();
+                            })
                             ->options(function (Get $get) {
                                 if (! $get('sucursal_id')) {
                                     return [];
@@ -110,7 +108,6 @@ class ColaboradorForm
                             })
                             ->searchable()
                             ->optionsLimit(8)
-                            ->required()
                             ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
                         DatePicker::make('fecha_ingreso')
                             ->label('Fecha de ingreso')

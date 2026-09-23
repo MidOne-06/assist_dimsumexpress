@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Models\Colaborador;
 use App\Models\User;
+use App\Support\CodigoInternoColaborador;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
@@ -26,6 +27,7 @@ final class CrearColaborador
 
             unset($data['email'], $data['password']);
             $data['user_id'] = $user->id;
+            $data['codigo_empresa'] = CodigoInternoColaborador::siguienteParaEmpresa((int) $data['empresa_id']);
 
             if (empty($data['punto_venta_id'])) {
                 $data['punto_venta_id'] = null;

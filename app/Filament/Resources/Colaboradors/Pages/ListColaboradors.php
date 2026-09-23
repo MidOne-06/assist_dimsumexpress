@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Colaboradors\Pages;
 
+use App\Actions\CrearColaborador;
 use App\Filament\Resources\Colaboradors\ColaboradorResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
@@ -15,6 +16,7 @@ class ListColaboradors extends ListRecords
     {
         return [
             CreateAction::make()
+                ->using(fn (array $data) => app(CrearColaborador::class)->handle($data))
                 ->modal()
                 ->modalHeading('Crear colaborador')
                 ->modalWidth(Width::FiveExtraLarge)
