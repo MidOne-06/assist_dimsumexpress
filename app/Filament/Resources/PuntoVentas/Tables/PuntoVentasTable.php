@@ -8,6 +8,7 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -29,6 +30,16 @@ class PuntoVentasTable
                     ->label('Nombre')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('tipo')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'caja' => 'Caja',
+                        'produccion' => 'Producción',
+                        'oficina' => 'Oficina',
+                        'almacen' => 'Almacén',
+                        default => 'Otro',
+                    }),
                 IconColumn::make('activo')
                     ->label('Activo')
                     ->boolean(),
@@ -42,7 +53,10 @@ class PuntoVentasTable
             ->filters([
                 SelectFilter::make('sucursal_id')
                     ->label('Sucursal')
-                    ->options(fn () => Sucursal::query()->where('tipo', 'tienda')->orderBy('nombre')->pluck('nombre', 'id')),
+                    ->options(fn () => Sucursal::query()->orderBy('nombre')->pluck('nombre', 'id')),
+                SelectFilter::make('tipo')
+                    ->label('Tipo')
+                    ->options(['caja' => 'Caja', 'produccion' => 'Producción', 'oficina' => 'Oficina', 'almacen' => 'Almacén', 'otro' => 'Otro']),
                 TernaryFilter::make('activo')
                     ->label('Activo'),
             ])
@@ -60,7 +74,10 @@ class PuntoVentasTable
                     ->modalContent(fn (PuntoVenta $record) => view('filament.actions.enlace-estacion', ['url' => $record->enlaceEstacion()]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
-                EditAction::make(),
+                EditAction::make()
+                    ->modal()
+                    ->modalHeading('Actualizar punto de marcado')
+                    ->modalWidth(Width::Large),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

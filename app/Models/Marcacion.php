@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['colaborador_id', 'tipo', 'fecha_hora', 'turno_id', 'qr_token_id', 'sucursal_id', 'punto_venta_id', 'ip_origen', 'user_agent', 'refrigerio_retorno_esperado_en', 'refrigerio_diferencia_segundos'])]
+#[Fillable(['colaborador_id', 'empresa_id', 'area_id', 'tipo', 'fecha_hora', 'turno_id', 'qr_token_id', 'sucursal_id', 'punto_venta_id', 'ip_origen', 'user_agent', 'refrigerio_retorno_esperado_en', 'refrigerio_diferencia_segundos'])]
 class Marcacion extends Model
 {
     protected $table = 'marcaciones';
@@ -27,6 +27,16 @@ class Marcacion extends Model
     public function colaborador(): BelongsTo
     {
         return $this->belongsTo(Colaborador::class);
+    }
+
+    public function empresa(): BelongsTo
+    {
+        return $this->belongsTo(Empresa::class);
+    }
+
+    public function area(): BelongsTo
+    {
+        return $this->belongsTo(Area::class);
     }
 
     public function turno(): BelongsTo

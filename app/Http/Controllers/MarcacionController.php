@@ -174,6 +174,8 @@ class MarcacionController extends Controller
 
             return Marcacion::create([
                 'colaborador_id' => $colaboradorBloqueado->id,
+                'empresa_id' => $colaboradorBloqueado->empresa_id,
+                'area_id' => $colaboradorBloqueado->area_id,
                 'tipo' => $data['tipo'],
                 'fecha_hora' => $fechaHora,
                 'refrigerio_retorno_esperado_en' => $controlRefrigerio['esperado'] ?? null,

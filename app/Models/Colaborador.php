@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
-#[Fillable(['user_id', 'sucursal_id', 'punto_venta_id', 'nombre_completo', 'documento_identidad', 'cargo', 'fecha_ingreso', 'activo'])]
+#[Fillable(['user_id', 'empresa_id', 'area_id', 'sucursal_id', 'punto_venta_id', 'nombre_completo', 'documento_identidad', 'codigo_empresa', 'cargo', 'fecha_ingreso', 'activo'])]
 class Colaborador extends Model
 {
     protected $table = 'colaboradores';
@@ -24,6 +24,16 @@ class Colaborador extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function empresa(): BelongsTo
+    {
+        return $this->belongsTo(Empresa::class);
+    }
+
+    public function area(): BelongsTo
+    {
+        return $this->belongsTo(Area::class);
     }
 
     public function sucursal(): BelongsTo

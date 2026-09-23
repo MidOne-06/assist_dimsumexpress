@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Colaboradors\Schemas;
 
+use App\Models\Area;
+use App\Models\Empresa;
 use App\Models\PuntoVenta;
 use App\Models\Sucursal;
 use Filament\Forms\Components\DatePicker;
@@ -14,6 +16,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rules\Unique;
 
 class ColaboradorForm
 {
@@ -41,7 +44,7 @@ class ColaboradorForm
                     ]),
 
                 Section::make('Datos del colaborador')
-                    ->columns(2)
+                    ->columns(3)
                     ->schema([
                         TextInput::make('nombre_completo')
                             ->label('Nombre completo')
@@ -52,6 +55,28 @@ class ColaboradorForm
                             ->required()
                             ->maxLength(20)
                             ->unique(ignoreRecord: true),
+                        Select::make('empresa_id')
+                            ->label('Empresa')
+                            ->options(fn (): array => Empresa::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+                        Select::make('area_id')
+                            ->label('Área')
+                            ->options(fn (): array => Area::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+                        TextInput::make('codigo_empresa')
+                            ->label('Código interno')
+                            ->required()
+                            ->maxLength(60)
+                            ->unique(
+                                table: 'colaboradores',
+                                column: 'codigo_empresa',
+                                ignoreRecord: true,
+                                modifyRuleUsing: fn (Unique $rule, Get $get): Unique => $rule->where('empresa_id', $get('empresa_id')),
+                            ),
                         TextInput::make('cargo')
                             ->label('Cargo')
                             ->maxLength(255),
@@ -78,9 +103,7 @@ class ColaboradorForm
                             })
                             ->searchable()
                             ->optionsLimit(8)
-                            ->visible(fn (Get $get) => static::sucursalEsTienda($get('sucursal_id')))
-                            ->required(fn (Get $get) => static::sucursalEsTienda($get('sucursal_id')))
-                            ->dehydrated(fn (Get $get) => static::sucursalEsTienda($get('sucursal_id'))),
+                            ->required(),
                         DatePicker::make('fecha_ingreso')
                             ->label('Fecha de ingreso')
                             ->default(now())
@@ -93,12 +116,4 @@ class ColaboradorForm
             ]);
     }
 
-    protected static function sucursalEsTienda(?int $sucursalId): bool
-    {
-        if (! $sucursalId) {
-            return false;
-        }
-
-        return Sucursal::query()->whereKey($sucursalId)->where('tipo', 'tienda')->exists();
-    }
 }

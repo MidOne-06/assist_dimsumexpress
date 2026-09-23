@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 // token_pantalla NO está en Fillable a propósito: es el secreto de la
 // estación física, se genera solo (ver booted()) y nunca debe poder
 // llegar por un formulario ni por mass-assignment.
-#[Fillable(['sucursal_id', 'nombre', 'activo'])]
+#[Fillable(['sucursal_id', 'nombre', 'tipo', 'activo'])]
 class PuntoVenta extends Model
 {
     protected $table = 'puntos_venta';

@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Marcacions\Tables;
 
 use App\Models\Marcacion;
+use App\Models\Area;
+use App\Models\Empresa;
 use App\Models\Sucursal;
 use App\Models\AsignacionTurno;
 use App\Support\JornadaMarcacion;
@@ -28,6 +30,17 @@ class MarcacionsTable
                     ->label('Colaborador')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('empresa.nombre')
+                    ->label('Empresa')
+                    ->badge()
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('area.nombre')
+                    ->label('Área')
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('tipo')
                     ->label('Tipo')
                     ->badge()
@@ -98,6 +111,12 @@ class MarcacionsTable
                 SelectFilter::make('sucursal_id')
                     ->label('Sucursal')
                     ->options(fn () => Sucursal::query()->orderBy('nombre')->pluck('nombre', 'id')),
+                SelectFilter::make('empresa_id')
+                    ->label('Empresa')
+                    ->options(fn () => Empresa::query()->orderBy('nombre')->pluck('nombre', 'id')),
+                SelectFilter::make('area_id')
+                    ->label('Área')
+                    ->options(fn () => Area::query()->orderBy('nombre')->pluck('nombre', 'id')),
                 Filter::make('fecha')
                     ->schema([
                         \Filament\Forms\Components\DatePicker::make('desde')->native(false),

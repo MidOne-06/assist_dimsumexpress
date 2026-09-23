@@ -18,7 +18,7 @@ class PuntoVentaForm
                 Select::make('sucursal_id')
                     ->label('Sucursal')
                     ->options(fn () => Sucursal::query()
-                        ->where('tipo', 'tienda')
+                        ->where('activo', true)
                         ->orderBy('nombre')
                         ->pluck('nombre', 'id'))
                     ->searchable()
@@ -28,6 +28,17 @@ class PuntoVentaForm
                     ->label('Nombre')
                     ->required()
                     ->maxLength(255),
+                Select::make('tipo')
+                    ->label('Tipo')
+                    ->options([
+                        'caja' => 'Caja',
+                        'produccion' => 'Producción',
+                        'oficina' => 'Oficina',
+                        'almacen' => 'Almacén',
+                        'otro' => 'Otro',
+                    ])
+                    ->required()
+                    ->default('caja'),
                 Toggle::make('activo')
                     ->label('Activo')
                     ->default(true)

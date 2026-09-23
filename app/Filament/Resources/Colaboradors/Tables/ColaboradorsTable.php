@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Colaboradors\Tables;
 
 use App\Models\Colaborador;
+use App\Models\Area;
+use App\Models\Empresa;
 use App\Models\Sucursal;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -29,9 +31,28 @@ class ColaboradorsTable
                     ->sortable(),
                 TextColumn::make('documento_identidad')
                     ->label('Documento')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('user.email')
                     ->label('Correo')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('empresa.nombre')
+                    ->label('Empresa')
+                    ->badge()
+                    ->placeholder('—')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('area.nombre')
+                    ->label('Área')
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('—')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('codigo_empresa')
+                    ->label('Código')
+                    ->placeholder('—')
                     ->searchable(),
                 TextColumn::make('sucursal.nombre')
                     ->label('Sucursal')
@@ -58,6 +79,12 @@ class ColaboradorsTable
                 SelectFilter::make('sucursal_id')
                     ->label('Sucursal')
                     ->options(fn () => Sucursal::query()->orderBy('nombre')->pluck('nombre', 'id')),
+                SelectFilter::make('empresa_id')
+                    ->label('Empresa')
+                    ->options(fn () => Empresa::query()->orderBy('nombre')->pluck('nombre', 'id')),
+                SelectFilter::make('area_id')
+                    ->label('Área')
+                    ->options(fn () => Area::query()->orderBy('nombre')->pluck('nombre', 'id')),
                 TernaryFilter::make('activo')
                     ->label('Activo'),
             ])
