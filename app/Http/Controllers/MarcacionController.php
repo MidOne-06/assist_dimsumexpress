@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\QrToken;
 use App\Support\JornadaMarcacion;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -204,13 +206,23 @@ class MarcacionController extends Controller
         ]);
     }
 
-    private function asignacionDeMarcacion(Marcacion $marcacion): \App\Models\AsignacionTurno
+    private function asignacionDeMarcacion(Marcacion $marcacion): AsignacionTurno
     {
-        return $marcacion->colaborador->asignacionesTurno()
+        $asignacion = $marcacion->colaborador->asignacionesTurno()
             ->with('turno')
             ->where('turno_id', $marcacion->turno_id)
             ->whereIn('fecha', [$marcacion->fecha_hora->toDateString(), $marcacion->fecha_hora->copy()->subDay()->toDateString()])
-            ->firstOrFail();
+            ->get()
+            ->first(fn (AsignacionTurno $candidata): bool => $marcacion->fecha_hora->betweenIncluded(
+                JornadaMarcacion::limites($candidata)['ventana_inicio'],
+                JornadaMarcacion::limites($candidata)['jornada_fin_maximo'],
+            ));
+
+        if (! $asignacion) {
+            throw (new ModelNotFoundException())->setModel(AsignacionTurno::class);
+        }
+
+        return $asignacion;
     }
 
     private function estacionPermitida(Colaborador $colaborador, QrToken $qrToken): bool

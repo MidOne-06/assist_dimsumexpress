@@ -51,6 +51,28 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame(['regreso_refrigerio'], JornadaMarcacion::siguientesTipos($colaborador, $asignacion));
     }
 
+    public function test_final_confirmation_uses_the_assignment_that_contains_an_overnight_mark(): void
+    {
+        Carbon::setTestNow('2026-09-21 22:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('22:00:00', '06:00:00', true, '2026-09-21');
+        AsignacionTurno::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $asignacion->turno_id,
+            'fecha' => '2026-09-22',
+        ]);
+        $colaborador->user->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+        Carbon::setTestNow('2026-09-22 06:00:00');
+        $salida = $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA);
+
+        $this->actingAs($colaborador->user)
+            ->get(route('marcacion.confirmacion', $salida))
+            ->assertOk()
+            ->assertSee('Horas efectivas trabajadas')
+            ->assertSee('8 h 0 min · Meta 7 h');
+    }
+
     public function test_shift_can_only_be_marked_within_its_configured_tolerances(): void
     {
         Carbon::setTestNow('2026-09-21 07:49:00');
