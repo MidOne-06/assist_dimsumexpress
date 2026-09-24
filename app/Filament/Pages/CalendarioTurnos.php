@@ -10,6 +10,7 @@ use App\Models\Turno;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
@@ -100,10 +101,21 @@ class CalendarioTurnos extends Page
             return new Collection();
         }
 
+        $inicio = Carbon::parse("{$this->mes}-01")->toDateString();
+        $fin = Carbon::parse("{$this->mes}-01")->endOfMonth()->toDateString();
+
         return Colaborador::query()
             ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
             ->where('sucursal_id', $this->sucursalId)
-            ->where('activo', true)
+            // Un colaborador desactivado no se muestra como disponible en
+            // meses futuros, pero sus asignaciones ya realizadas siguen
+            // siendo consultables al revisar un periodo histórico.
+            ->where(function (Builder $query) use ($inicio, $fin): void {
+                $query
+                    ->where('activo', true)
+                    ->orWhereHas('asignacionesTurno', fn (Builder $asignaciones) => $asignaciones
+                        ->whereBetween('fecha', [$inicio, $fin]));
+            })
             ->orderBy('nombre_completo')
             ->get();
     }
@@ -119,11 +131,10 @@ class CalendarioTurnos extends Page
         $inicio = Carbon::parse("{$this->mes}-01")->toDateString();
         $fin = Carbon::parse("{$this->mes}-01")->endOfMonth()->toDateString();
 
-        // Un supervisor no necesita ver filas de turnos que solo existen en
-        // otros locales. La grilla muestra exclusivamente turnos asignados a
-        // colaboradores dentro de su alcance y en el mes que está consultando.
+        // La grilla muestra solo turnos que tienen asignaciones dentro del
+        // alcance y el mes consultado. No se filtran por "activo": un turno
+        // desactivado debe permanecer visible al revisar su historial.
         return Turno::query()
-            ->where('activo', true)
             ->whereIn('id', AsignacionTurno::query()
                 ->whereIn('colaborador_id', $colaboradores->pluck('id'))
                 ->whereBetween('fecha', [$inicio, $fin])
@@ -175,10 +186,10 @@ class CalendarioTurnos extends Page
 
     /**
      * Marcaciones reales de tipo "entrada" del mes, indexadas por
-     * colaborador+fecha, para no hacer una consulta por celda al calcular si
-     * cada asignación se cumplió a tiempo.
+     * colaborador+fecha+turno, para no hacer una consulta por celda al
+     * calcular si cada asignación se cumplió con el turno programado.
      *
-     * @return array<int, array<string, Marcacion>>
+     * @return array<int, array<string, array<int, Marcacion>>>
      */
     public function getEntradasProperty(): array
     {
@@ -200,24 +211,30 @@ class CalendarioTurnos extends Page
             ->orderBy('fecha_hora')
             ->get()
             ->each(function (Marcacion $marcacion) use (&$mapa) {
-                // Si por algún motivo hay más de una "entrada" el mismo día,
-                // se queda con la primera (orderBy fecha_hora asc arriba).
-                $mapa[$marcacion->colaborador_id][$marcacion->fecha_hora->toDateString()] ??= $marcacion;
+                // Si por algún motivo hay más de una entrada para el mismo
+                // turno, se conserva la primera. Las entradas de otro turno
+                // se mantienen separadas para no validar erróneamente una
+                // asignación que no les corresponde.
+                $fecha = $marcacion->fecha_hora->toDateString();
+                $turnoId = $marcacion->turno_id ?? 0;
+                $mapa[$marcacion->colaborador_id][$fecha][$turnoId] ??= $marcacion;
             });
 
         return $mapa;
     }
 
     /**
-     * Cruza lo planificado (AsignacionTurno) con lo realmente marcado
-     * (Marcacion tipo entrada) usando la tolerancia de entrada configurada
-     * en el turno, para saber si el turno se cumplió, llegó tarde, o faltó.
+     * Cruza lo planificado (AsignacionTurno) con la entrada registrada para
+     * ese mismo turno, usando su tolerancia de entrada. Una entrada de otro
+     * turno se informa como tal y nunca se interpreta como asistencia a
+     * tiempo, tardanza o falta de la programación actual.
      *
      * @return array{estado: string, label: string, hora: ?string}
      */
     public function estadoAsignacion(AsignacionTurno $asignacion): array
     {
-        $entrada = $this->entradas[$asignacion->colaborador_id][$asignacion->fecha->toDateString()] ?? null;
+        $entradasDelDia = $this->entradas[$asignacion->colaborador_id][$asignacion->fecha->toDateString()] ?? [];
+        $entrada = $entradasDelDia[$asignacion->turno_id] ?? null;
         $turno = $asignacion->turno;
 
         $limite = Carbon::parse($asignacion->fecha->toDateString() . ' ' . $turno->hora_inicio)
@@ -225,12 +242,22 @@ class CalendarioTurnos extends Page
 
         if ($entrada) {
             if ($entrada->fecha_hora->lte($limite)) {
-                return ['estado' => 'a_tiempo', 'label' => 'A tiempo', 'hora' => $entrada->fecha_hora->format('H:i')];
+                return ['estado' => 'a_tiempo', 'label' => 'A tiempo', 'hora' => $entrada->fecha_hora->format('H:i:s')];
             }
 
-            $minutosTarde = $limite->diffInMinutes($entrada->fecha_hora);
+            $minutosTarde = (int) ceil($limite->diffInSeconds($entrada->fecha_hora) / 60);
 
-            return ['estado' => 'tardanza', 'label' => "Tardanza de {$minutosTarde} min", 'hora' => $entrada->fecha_hora->format('H:i')];
+            return ['estado' => 'tardanza', 'label' => "Tardanza de {$minutosTarde} min", 'hora' => $entrada->fecha_hora->format('H:i:s')];
+        }
+
+        if ($entradasDelDia !== []) {
+            $entradaOtroTurno = reset($entradasDelDia);
+
+            return [
+                'estado' => 'turno_distinto',
+                'label' => 'Marcó otro turno',
+                'hora' => $entradaOtroTurno->fecha_hora->format('H:i:s'),
+            ];
         }
 
         // Sin marcación todavía: si el límite de tolerancia de hoy aún no
@@ -287,6 +314,7 @@ class CalendarioTurnos extends Page
             'a_tiempo' => 'heroicon-s-check-circle',
             'tardanza' => 'heroicon-s-exclamation-triangle',
             'falta' => 'heroicon-s-x-circle',
+            'turno_distinto' => 'heroicon-s-arrow-path',
             default => null, // pendiente: aún no corresponde marcar, sin ícono
         };
     }
@@ -297,6 +325,7 @@ class CalendarioTurnos extends Page
             'a_tiempo' => '#16a34a',
             'tardanza' => '#f59e0b',
             'falta' => '#dc2626',
+            'turno_distinto' => '#7c3aed',
             default => '#9ca3af',
         };
     }
@@ -309,7 +338,7 @@ class CalendarioTurnos extends Page
      */
     public function peorEstado(\Illuminate\Support\Collection $asignaciones): string
     {
-        $prioridad = ['falta' => 3, 'tardanza' => 2, 'pendiente' => 1, 'a_tiempo' => 0];
+        $prioridad = ['falta' => 4, 'turno_distinto' => 3, 'tardanza' => 2, 'pendiente' => 1, 'a_tiempo' => 0];
 
         return $asignaciones
             ->map(fn (AsignacionTurno $a) => $this->estadoAsignacion($a)['estado'])

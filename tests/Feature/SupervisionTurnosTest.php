@@ -7,6 +7,7 @@ use App\Filament\Pages\CalendarioTurnos;
 use App\Filament\Resources\AsignacionTurnos\Pages\ListAsignacionTurnos;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
+use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Models\User;
@@ -87,6 +88,61 @@ class SupervisionTurnosTest extends TestCase
             ->assertDontSee('Turno ajeno')
             ->assertSee($colaboradorPropio->nombre_completo)
             ->assertDontSee($colaboradorAjeno->nombre_completo);
+    }
+
+    public function test_calendar_matches_an_entry_to_its_assigned_shift_and_keeps_historical_rows(): void
+    {
+        $sucursal = $this->sucursal('Local propio');
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(Permission::findOrCreate('View:CalendarioTurnos', 'web'));
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+        $colaborador = $this->colaborador($sucursal);
+        $turnoProgramado = Turno::create(['nombre' => 'Apertura', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'tolerancia_entrada_minutos' => 10, 'activo' => true]);
+        $turnoDistinto = Turno::create(['nombre' => 'Cierre', 'hora_inicio' => '14:00', 'hora_fin' => '22:00', 'activo' => true]);
+        $asignacion = AsignacionTurno::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $turnoProgramado->id,
+            'fecha' => now()->toDateString(),
+        ]);
+
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $turnoDistinto->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now()->setTime(14, 0, 1),
+        ]);
+
+        $this->actingAs($supervisor);
+        $calendario = app(CalendarioTurnos::class);
+        $calendario->mount();
+
+        $estado = $calendario->estadoAsignacion($asignacion->fresh('turno'));
+        $this->assertSame('turno_distinto', $estado['estado']);
+        $this->assertSame('14:00:01', $estado['hora']);
+
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $turnoProgramado->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now()->setTime(8, 10, 1),
+        ]);
+
+        $calendario = app(CalendarioTurnos::class);
+        $calendario->mount();
+        $estado = $calendario->estadoAsignacion($asignacion->fresh('turno'));
+        $this->assertSame('tardanza', $estado['estado']);
+        $this->assertSame('Tardanza de 1 min', $estado['label']);
+        $this->assertSame('08:10:01', $estado['hora']);
+
+        $colaborador->update(['activo' => false]);
+        $turnoProgramado->update(['activo' => false]);
+
+        $calendario = app(CalendarioTurnos::class);
+        $calendario->mount();
+        $this->assertCount(1, $calendario->colaboradores);
+        $this->assertCount(1, $calendario->turnosActivos);
     }
 
     public function test_supervisor_assigns_a_date_range_from_the_assignments_list(): void

@@ -112,6 +112,7 @@
             $dias = $this->dias;
             $mapa = $this->mapaPorTurno;
             $hoy = now()->toDateString();
+            $puedeEditarAsignaciones = auth()->user()?->can('Update:AsignacionTurno') ?? false;
             // max-content en la primera columna: se ajusta exactamente al
             // ancho real del nombre de turno más largo + su horario, en vez
             // de un ancho fijo sobrado.
@@ -124,7 +125,7 @@
             </div>
         @elseif ($turnos->isEmpty())
             <div class="cal-empty" style="margin-top: 1.5rem;">
-                No hay turnos activos configurados.
+                No hay turnos configurados para este mes.
             </div>
         @else
             <div class="cal-scroll">
@@ -164,8 +165,8 @@
                                             $tooltipTexto = $asignacion->colaborador->nombre_completo . ' — ' . $estado['label'] . ($estado['hora'] ? " ({$estado['hora']})" : '');
                                         @endphp
                                         <x-filament::badge
-                                            tag="a"
-                                            :href="\App\Filament\Resources\AsignacionTurnos\AsignacionTurnoResource::getUrl('edit', ['record' => $asignacion])"
+                                            :tag="$puedeEditarAsignaciones ? 'a' : 'span'"
+                                            :href="$puedeEditarAsignaciones ? \App\Filament\Resources\AsignacionTurnos\AsignacionTurnoResource::getUrl('edit', ['record' => $asignacion]) : null"
                                             :color="null"
                                             :tooltip="$tooltipTexto"
                                             style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }}; cursor: pointer; position: relative; display: inline-flex; align-items: center; gap: 0.2rem;"
@@ -226,13 +227,19 @@
                     <x-heroicon-s-x-circle style="width: 0.85rem; height: 0.85rem; color: #dc2626;" />
                     Falta
                 </span>
+                <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                    <x-heroicon-s-arrow-path style="width: 0.85rem; height: 0.85rem; color: #7c3aed;" />
+                    Otro turno
+                </span>
             </div>
         @endif
     </x-filament::section>
 
-    <div class="cal-actions">
-        <x-filament::button tag="a" href="{{ \App\Filament\Pages\AsignarTurnos::getUrl() }}" icon="heroicon-o-plus">
-            Nueva asignación masiva
-        </x-filament::button>
-    </div>
+    @if (auth()->user()?->can('View:AsignarTurnos') && auth()->user()?->can('AsignarMasivo:AsignarTurnos'))
+        <div class="cal-actions">
+            <x-filament::button tag="a" href="{{ \App\Filament\Pages\AsignarTurnos::getUrl() }}" icon="heroicon-o-plus">
+                Nueva asignación masiva
+            </x-filament::button>
+        </div>
+    @endif
 </x-filament-panels::page>
