@@ -12,7 +12,6 @@
                 <x-filament::button wire:click="mesAnterior" icon="heroicon-m-chevron-left" color="gray" size="sm" aria-label="Mes anterior" />
                 <div>
                     <p>{{ $mes->translatedFormat('F Y') }}</p>
-                    <span>Calendario de visitas</span>
                 </div>
                 <x-filament::button wire:click="mesSiguiente" icon="heroicon-m-chevron-right" color="gray" size="sm" aria-label="Mes siguiente" />
                 <x-filament::button wire:click="irAHoy" color="gray" size="sm">Hoy</x-filament::button>
@@ -37,7 +36,7 @@
     </x-filament::section>
 
     <x-filament::section>
-        <div class="visitas-calendario-scroll">
+        <div class="visitas-calendario-scroll" role="region" aria-label="Calendario de visitas de supervisión" tabindex="0">
             <div class="visitas-calendario" style="--dias: {{ count($dias) }}">
                 <div class="visitas-esquina">Supervisora</div>
                 @foreach ($dias as $dia)
@@ -77,21 +76,26 @@
         .visitas-toolbar { display:flex; gap:1rem; justify-content:space-between; align-items:center; flex-wrap:wrap; }
         .visitas-periodo, .visitas-filtros { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
         .visitas-periodo p { margin:0; font-size:1rem; font-weight:700; text-transform:capitalize; }
-        .visitas-periodo span { color:var(--gray-500); font-size:.75rem; }
         .visitas-filtros select { min-width:12rem; }
-        .visitas-calendario-scroll { overflow-x:auto; padding-bottom:.25rem; }
-        .visitas-calendario { display:grid; grid-template-columns:minmax(10rem, 13rem) repeat(var(--dias), minmax(5.25rem, 1fr)); min-width:max-content; border:1px solid var(--gray-200); border-radius:.75rem; overflow:hidden; }
+        .visitas-calendario-scroll { max-height:min(68vh, 44rem); overflow:auto; border:1px solid var(--gray-200); border-radius:.75rem; }
+        .dark .visitas-calendario-scroll { border-color:var(--gray-700); }
+        .visitas-calendario { display:grid; grid-template-columns:minmax(11rem, 14rem) repeat(var(--dias), minmax(5.5rem, 1fr)); min-width:max-content; }
         .dark .visitas-calendario { border-color:var(--gray-700); }
         .visitas-esquina, .visitas-dia-cabecera, .visitas-supervisora, .visitas-celda { padding:.55rem; border-right:1px solid var(--gray-200); border-bottom:1px solid var(--gray-200); }
         .dark .visitas-esquina, .dark .visitas-dia-cabecera, .dark .visitas-supervisora, .dark .visitas-celda { border-color:var(--gray-700); }
         .visitas-esquina, .visitas-dia-cabecera { background:var(--gray-50); color:var(--gray-600); font-size:.72rem; font-weight:700; }
         .dark .visitas-esquina, .dark .visitas-dia-cabecera { background:var(--gray-900); color:var(--gray-300); }
+        .visitas-esquina { position:sticky; inset-block-start:0; inset-inline-start:0; z-index:30; box-shadow:1px 0 0 var(--gray-200); }
+        .visitas-dia-cabecera { position:sticky; inset-block-start:0; z-index:20; box-shadow:0 1px 0 var(--gray-200); }
+        .dark .visitas-esquina { box-shadow:1px 0 0 var(--gray-700); }
+        .dark .visitas-dia-cabecera { box-shadow:0 1px 0 var(--gray-700); }
         .visitas-dia-cabecera { text-align:center; padding:.4rem; }
         .visitas-dia-cabecera span, .visitas-dia-cabecera strong { display:block; }
         .visitas-dia-cabecera strong { color:var(--gray-950); font-size:.9rem; }
         .dark .visitas-dia-cabecera strong { color:var(--gray-100); }
-        .visitas-supervisora { align-content:center; background:var(--gray-50); color:var(--gray-950); font-size:.82rem; font-weight:600; }
+        .visitas-supervisora { position:sticky; inset-inline-start:0; z-index:10; align-content:center; background:var(--gray-50); color:var(--gray-950); font-size:.82rem; font-weight:600; box-shadow:1px 0 0 var(--gray-200); }
         .dark .visitas-supervisora { background:var(--gray-900); color:var(--gray-100); }
+        .dark .visitas-supervisora { box-shadow:1px 0 0 var(--gray-700); }
         .visitas-celda { min-height:4.4rem; display:flex; flex-direction:column; gap:.25rem; background:var(--gray-0, #fff); }
         .dark .visitas-celda { background:var(--gray-950); }
         .es-hoy { background:color-mix(in srgb, var(--primary-50) 72%, transparent) !important; }
