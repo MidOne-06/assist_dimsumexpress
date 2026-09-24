@@ -138,9 +138,13 @@ final class JornadaMarcacion
             return false;
         }
 
+        // Una jornada abierta puede extenderse por necesidad operativa sin
+        // reasignar el turno. El refrigerio conserva su duración configurada
+        // y se permite mientras su retorno no supere el límite seguro de la
+        // jornada, no solo el fin planificado más su tolerancia.
         return $momento->copy()
             ->addMinutes(static::minutosRefrigerio($asignacion))
-            ->lte($limites['ventana_fin']);
+            ->lte($limites['jornada_fin_maximo']);
     }
 
     /** @return array{estado:string, efectivos_minutos:?int, objetivo_minutos:int, extras_minutos:?int, diferencia_minutos:?int} */
