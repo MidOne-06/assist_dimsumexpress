@@ -36,7 +36,7 @@
     </x-filament::section>
 
     <x-filament::section>
-        <div class="visitas-calendario-scroll" role="region" aria-label="Calendario de visitas de supervisión" tabindex="0">
+        <div class="visitas-calendario-scroll" x-init="$el.scrollLeft = 0" role="region" aria-label="Calendario de visitas de supervisión" tabindex="0">
             <div class="visitas-calendario" style="--dias: {{ count($dias) }}">
                 <div class="visitas-esquina">Supervisora</div>
                 @foreach ($dias as $dia)
