@@ -87,6 +87,27 @@ class JornadaMarcacionTest extends TestCase
         $this->assertNull(JornadaMarcacion::asignacionVigente($colaborador));
     }
 
+    public function test_an_open_shift_can_be_completed_after_its_shift_definition_is_deactivated(): void
+    {
+        Carbon::setTestNow('2026-09-21 10:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+        $asignacion->turno->update(['activo' => false]);
+
+        $vigente = JornadaMarcacion::asignacionVigente($colaborador);
+
+        $this->assertSame($asignacion->id, $vigente?->id);
+        $this->assertSame(
+            [Marcacion::TIPO_SALIDA_REFRIGERIO, Marcacion::TIPO_SALIDA],
+            JornadaMarcacion::siguientesTipos($colaborador, $vigente),
+        );
+
+        $sinEntrada = $this->crearJornada('08:00:00', '17:00:00')[0];
+        $sinEntrada->asignacionesTurno()->first()->turno->update(['activo' => false]);
+
+        $this->assertNull(JornadaMarcacion::asignacionVigente($sinEntrada));
+    }
+
     public function test_refrigerio_is_one_hour_and_early_or_late_returns_are_classified(): void
     {
         Carbon::setTestNow('2026-09-21 12:00:00');

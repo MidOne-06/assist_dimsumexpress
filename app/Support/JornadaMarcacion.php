@@ -49,14 +49,20 @@ final class JornadaMarcacion
             })
             ->get()
             ->filter(function (AsignacionTurno $asignacion) use ($momento, $colaborador): bool {
-                if (! $asignacion->turno?->activo) {
+                $jornadaAbierta = static::jornadaAbierta($colaborador, $asignacion);
+
+                // Desactivar o versionar un turno no puede dejar sin salida
+                // ni refrigerio a quien ya inició esa jornada. El turno
+                // inactivo sigue bloqueando nuevos ingresos, pero permite
+                // completar exclusivamente una secuencia ya abierta.
+                if (! $asignacion->turno?->activo && ! $jornadaAbierta) {
                     return false;
                 }
 
                 $limites = static::limites($asignacion);
 
                 return $momento->betweenIncluded($limites['ventana_inicio'], $limites['ventana_fin'])
-                    || ($momento->lte($limites['jornada_fin_maximo']) && static::jornadaAbierta($colaborador, $asignacion));
+                    || ($momento->lte($limites['jornada_fin_maximo']) && $jornadaAbierta);
             })
             ->sortByDesc(fn (AsignacionTurno $asignacion) => static::limites($asignacion)['inicio']->getTimestamp())
             ->first();
