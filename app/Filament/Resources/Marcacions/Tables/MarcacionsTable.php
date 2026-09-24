@@ -44,13 +44,13 @@ class MarcacionsTable
                     ->label('Empresa')
                     ->badge()
                     ->placeholder('—')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('area.nombre')
                     ->label('Área')
                     ->badge()
                     ->color('info')
                     ->placeholder('—')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('tipo')
                     ->label('Tipo')
                     ->badge()
