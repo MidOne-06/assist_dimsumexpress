@@ -92,7 +92,10 @@ final class ColaboradorSpreadsheetService
             } finally {
                 @unlink($archivo);
             }
-        }, 'plantilla-colaboradores.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+        }, 'plantilla-colaboradores-'.now()->format('Ymd-His').'.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
     }
 
     /**

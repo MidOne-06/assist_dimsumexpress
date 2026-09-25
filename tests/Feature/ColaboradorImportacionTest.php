@@ -36,6 +36,8 @@ class ColaboradorImportacionTest extends TestCase
 
         $this->assertStringStartsWith('PK', $contenido);
         $this->assertSame('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $respuesta->headers->get('content-type'));
+        $this->assertStringContainsString('attachment; filename=plantilla-colaboradores-', (string) $respuesta->headers->get('content-disposition'));
+        $this->assertStringContainsString('no-store', (string) $respuesta->headers->get('cache-control'));
 
         $archivo = tempnam(sys_get_temp_dir(), 'plantilla-');
         file_put_contents($archivo, $contenido);
