@@ -15,6 +15,9 @@ use App\Models\User;
 use App\Support\AlcanceSupervisor;
 use Carbon\Carbon;
 use DateTimeInterface;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -22,7 +25,9 @@ use OpenSpout\Common\Entity\Row;
 use OpenSpout\Reader\CSV\Reader as CsvReader;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipArchive;
 
 final class ColaboradorSpreadsheetService
 {
@@ -50,9 +55,244 @@ final class ColaboradorSpreadsheetService
 
     public function plantilla(): StreamedResponse
     {
-        return $this->descargar('plantilla-colaboradores.xlsx', function (XlsxWriter $writer): void {
-            $writer->addRow(Row::fromValues(self::COLUMNAS));
-        });
+        $archivo = tempnam(sys_get_temp_dir(), 'plantilla-colaboradores-');
+        if ($archivo === false) {
+            throw new RuntimeException('No se pudo generar la plantilla.');
+        }
+
+        try {
+            $catalogos = $this->catalogosPlantilla();
+            $writer = new XlsxWriter();
+            $writer->openToFile($archivo);
+
+            try {
+                $writer->getCurrentSheet()->setName('Colaboradores');
+                $writer->addRow(Row::fromValues(self::COLUMNAS));
+
+                $writer->addNewSheetAndMakeItCurrent()->setName('Catálogos');
+                $writer->addRow(Row::fromValues($catalogos['encabezados']));
+
+                foreach ($catalogos['filas'] as $fila) {
+                    $writer->addRow(Row::fromValues($fila));
+                }
+            } finally {
+                $writer->close();
+            }
+
+            $this->agregarListasDesplegables($archivo, $catalogos['rangos']);
+        } catch (\Throwable $exception) {
+            @unlink($archivo);
+
+            throw $exception;
+        }
+
+        return response()->streamDownload(function () use ($archivo): void {
+            try {
+                readfile($archivo);
+            } finally {
+                @unlink($archivo);
+            }
+        }, 'plantilla-colaboradores.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    /**
+     * @return array{
+     *     encabezados: list<string>,
+     *     filas: list<list<string|null>>,
+     *     rangos: array{empresas: string, areas: string, sucursales: string, estados: string, puntos: list<string>}
+     * }
+     */
+    private function catalogosPlantilla(): array
+    {
+        $empresas = Empresa::query()->where('activo', true)->orderBy('codigo')->pluck('codigo')->map(fn ($valor): string => (string) $valor)->all();
+        $areas = Area::query()->where('activo', true)->orderBy('codigo')->pluck('codigo')->map(fn ($valor): string => (string) $valor)->all();
+        $sucursales = Sucursal::query()
+            ->where('activo', true)
+            ->with(['puntosVenta' => fn ($query) => $query->where('activo', true)->orderBy('nombre')])
+            ->orderBy('nombre')
+            ->get();
+
+        $encabezados = ['Empresas', 'Áreas', 'Sucursales', 'Estados'];
+        foreach ($sucursales as $indice => $sucursal) {
+            $encabezados[] = 'Puntos '.($indice + 1);
+        }
+
+        $puntos = [];
+        foreach ($sucursales as $sucursal) {
+            $puntos[] = $sucursal->puntosVenta->pluck('nombre')->map(fn ($valor): string => (string) $valor)->all();
+        }
+
+        $filas = [];
+        $cantidad = max(1, count($empresas), count($areas), count($sucursales), 2, ...array_map(count(...), $puntos));
+        for ($indice = 0; $indice < $cantidad; ++$indice) {
+            $fila = [
+                $empresas[$indice] ?? null,
+                $areas[$indice] ?? null,
+                isset($sucursales[$indice]) ? (string) $sucursales[$indice]->nombre : null,
+                ['si', 'no'][$indice] ?? null,
+            ];
+
+            foreach ($puntos as $puntosSucursal) {
+                $fila[] = $puntosSucursal[$indice] ?? null;
+            }
+
+            $filas[] = $fila;
+        }
+
+        return [
+            'encabezados' => $encabezados,
+            'filas' => $filas,
+            'rangos' => [
+                'empresas' => $this->rangoCatalogo('A', count($empresas)),
+                'areas' => $this->rangoCatalogo('B', count($areas)),
+                'sucursales' => $this->rangoCatalogo('C', $sucursales->count()),
+                'estados' => $this->rangoCatalogo('D', 2),
+                'puntos' => array_map(
+                    fn (int $indice, array $puntosSucursal): string => $this->rangoCatalogo($this->columnaExcel($indice + 5), count($puntosSucursal)),
+                    array_keys($puntos),
+                    $puntos,
+                ),
+            ],
+        ];
+    }
+
+    private function rangoCatalogo(string $columna, int $cantidad): string
+    {
+        $ultimaFila = max(2, $cantidad + 1);
+
+        return "'Catálogos'!\${$columna}\$2:\${$columna}\${$ultimaFila}";
+    }
+
+    private function columnaExcel(int $indice): string
+    {
+        $columna = '';
+        while ($indice > 0) {
+            --$indice;
+            $columna = chr(65 + ($indice % 26)).$columna;
+            $indice = intdiv($indice, 26);
+        }
+
+        return $columna;
+    }
+
+    /** @param array{empresas: string, areas: string, sucursales: string, estados: string, puntos: list<string>} $rangos */
+    private function agregarListasDesplegables(string $archivo, array $rangos): void
+    {
+        $zip = new ZipArchive();
+        if ($zip->open($archivo) !== true) {
+            throw new RuntimeException('No se pudo preparar la plantilla.');
+        }
+
+        try {
+            $this->actualizarLibro($zip, $rangos);
+            $this->actualizarHojaColaboradores($zip);
+        } finally {
+            $zip->close();
+        }
+    }
+
+    /** @param array{empresas: string, areas: string, sucursales: string, estados: string, puntos: list<string>} $rangos */
+    private function actualizarLibro(ZipArchive $zip, array $rangos): void
+    {
+        $documento = $this->cargarXml($zip, 'xl/workbook.xml');
+        $xpath = new DOMXPath($documento);
+        $xpath->registerNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+
+        /** @var DOMElement|null $hojaCatalogos */
+        $hojaCatalogos = $xpath->query('//x:sheet[@name="Catálogos"]')->item(0);
+        $hojaCatalogos?->setAttribute('state', 'hidden');
+
+        $espacio = $documento->documentElement?->namespaceURI;
+        $nombres = $documento->createElementNS($espacio, 'definedNames');
+        foreach (['empresas', 'areas', 'sucursales', 'estados'] as $nombre) {
+            $this->agregarNombreDefinido($documento, $nombres, $nombre, $rangos[$nombre]);
+        }
+        foreach ($rangos['puntos'] as $indice => $rango) {
+            $this->agregarNombreDefinido($documento, $nombres, 'punto_'.($indice + 1), $rango);
+        }
+
+        /** @var DOMElement|null $hojas */
+        $hojas = $xpath->query('//x:sheets')->item(0);
+        if ($hojas === null) {
+            throw new RuntimeException('La plantilla no contiene hojas.');
+        }
+        $hojas->parentNode?->insertBefore($nombres, $hojas->nextSibling);
+
+        $this->guardarXml($zip, 'xl/workbook.xml', $documento);
+    }
+
+    private function agregarNombreDefinido(DOMDocument $documento, DOMElement $nombres, string $nombre, string $rango): void
+    {
+        $elemento = $documento->createElementNS($documento->documentElement?->namespaceURI, 'definedName');
+        $elemento->setAttribute('name', $nombre);
+        $elemento->nodeValue = $rango;
+        $nombres->appendChild($elemento);
+    }
+
+    private function actualizarHojaColaboradores(ZipArchive $zip): void
+    {
+        $documento = $this->cargarXml($zip, 'xl/worksheets/sheet1.xml');
+        $xpath = new DOMXPath($documento);
+        $xpath->registerNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        $espacio = $documento->documentElement?->namespaceURI;
+        $listas = [
+            ['E2:E5001', '=empresas'],
+            ['F2:F5001', '=areas'],
+            ['G2:G5001', '=sucursales'],
+            ['H2:H5001', '=IFERROR(INDIRECT("punto_"&MATCH($G2,sucursales,0)),"")'],
+            ['K2:K5001', '=estados'],
+        ];
+
+        $validaciones = $documento->createElementNS($espacio, 'dataValidations');
+        $validaciones->setAttribute('count', (string) count($listas));
+        foreach ($listas as [$rango, $formula]) {
+            $validacion = $documento->createElementNS($espacio, 'dataValidation');
+            $validacion->setAttribute('type', 'list');
+            $validacion->setAttribute('allowBlank', '1');
+            $validacion->setAttribute('showErrorMessage', '1');
+            $validacion->setAttribute('errorStyle', 'stop');
+            $validacion->setAttribute('errorTitle', 'Valor no válido');
+            $validacion->setAttribute('error', 'Seleccione una opción de la lista.');
+            $validacion->setAttribute('showDropDown', '0');
+            $validacion->setAttribute('sqref', $rango);
+            $formulaUno = $documento->createElementNS($espacio, 'formula1');
+            $formulaUno->appendChild($documento->createTextNode($formula));
+            $validacion->appendChild($formulaUno);
+            $validaciones->appendChild($validacion);
+        }
+
+        /** @var DOMElement|null $margenes */
+        $margenes = $xpath->query('//x:pageMargins')->item(0);
+        if ($margenes !== null) {
+            $margenes->parentNode?->insertBefore($validaciones, $margenes);
+        } else {
+            $documento->documentElement?->appendChild($validaciones);
+        }
+
+        $this->guardarXml($zip, 'xl/worksheets/sheet1.xml', $documento);
+    }
+
+    private function cargarXml(ZipArchive $zip, string $ruta): DOMDocument
+    {
+        $contenido = $zip->getFromName($ruta);
+        if ($contenido === false) {
+            throw new RuntimeException('No se pudo leer la plantilla.');
+        }
+
+        $documento = new DOMDocument();
+        $documento->preserveWhiteSpace = false;
+        if (! $documento->loadXML($contenido)) {
+            throw new RuntimeException('No se pudo procesar la plantilla.');
+        }
+
+        return $documento;
+    }
+
+    private function guardarXml(ZipArchive $zip, string $ruta, DOMDocument $documento): void
+    {
+        if ($zip->addFromString($ruta, $documento->saveXML()) === false) {
+            throw new RuntimeException('No se pudo guardar la plantilla.');
+        }
     }
 
     /**

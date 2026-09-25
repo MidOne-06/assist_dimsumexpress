@@ -10,19 +10,24 @@ use App\Models\Sucursal;
 use App\Models\User;
 use App\Services\ColaboradorSpreadsheetService;
 use App\Filament\Resources\Colaboradors\Pages\ListColaboradors;
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use ZipArchive;
 
 class ColaboradorImportacionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_template_is_a_valid_xlsx_download_without_sensitive_columns(): void
+    public function test_template_uses_current_catalogs_as_dependent_dropdowns(): void
     {
+        [, $empresa, $area, $sucursal] = $this->datosBase();
+        PuntoVenta::create(['sucursal_id' => $sucursal->id, 'nombre' => 'Caja de prueba', 'activo' => true]);
         $respuesta = app(ColaboradorSpreadsheetService::class)->plantilla();
 
         ob_start();
@@ -31,6 +36,39 @@ class ColaboradorImportacionTest extends TestCase
 
         $this->assertStringStartsWith('PK', $contenido);
         $this->assertSame('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $respuesta->headers->get('content-type'));
+
+        $archivo = tempnam(sys_get_temp_dir(), 'plantilla-');
+        file_put_contents($archivo, $contenido);
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($archivo) === true);
+
+        try {
+            $libro = $this->xml((string) $zip->getFromName('xl/workbook.xml'));
+            $libroXpath = new DOMXPath($libro);
+            $libroXpath->registerNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+            $this->assertSame('hidden', $libroXpath->evaluate('string(//x:sheet[@name="Catálogos"]/@state)'));
+            $this->assertMatchesRegularExpression("/^'Catálogos'!\\\$A\\\$2:\\\$A\\\$[2-9][0-9]*$/", $libroXpath->evaluate('string(//x:definedName[@name="empresas"])'));
+            $this->assertMatchesRegularExpression("/^'Catálogos'!\\\$B\\\$2:\\\$B\\\$[2-9][0-9]*$/", $libroXpath->evaluate('string(//x:definedName[@name="areas"])'));
+            $this->assertMatchesRegularExpression("/^'Catálogos'!\\\$C\\\$2:\\\$C\\\$[2-9][0-9]*$/", $libroXpath->evaluate('string(//x:definedName[@name="sucursales"])'));
+            $this->assertMatchesRegularExpression("/^'Catálogos'!\\\$E\\\$2:\\\$E\\\$[2-9][0-9]*$/", $libroXpath->evaluate('string(//x:definedName[@name="punto_1"])'));
+            $catalogos = (string) $zip->getFromName('xl/worksheets/sheet2.xml');
+            $this->assertStringContainsString($empresa->codigo, $catalogos);
+            $this->assertStringContainsString($area->codigo, $catalogos);
+            $this->assertStringContainsString($sucursal->nombre, $catalogos);
+            $this->assertStringContainsString('Caja de prueba', $catalogos);
+
+            $hoja = $this->xml((string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+            $hojaXpath = new DOMXPath($hoja);
+            $hojaXpath->registerNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+            $this->assertSame('5', $hojaXpath->evaluate('string(//x:dataValidations/@count)'));
+            $this->assertSame('=empresas', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="E2:E5001"]/x:formula1)'));
+            $this->assertSame('=sucursales', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="G2:G5001"]/x:formula1)'));
+            $this->assertSame('=IFERROR(INDIRECT("punto_"&MATCH($G2,sucursales,0)),"")', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="H2:H5001"]/x:formula1)'));
+            $this->assertSame('=estados', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="K2:K5001"]/x:formula1)'));
+        } finally {
+            $zip->close();
+            @unlink($archivo);
+        }
     }
 
     public function test_authorized_user_can_start_the_export_from_the_filament_list(): void
@@ -129,6 +167,14 @@ class ColaboradorImportacionTest extends TestCase
         Storage::disk('local')->put($archivo, $contenido);
 
         return Storage::disk('local')->path($archivo);
+    }
+
+    private function xml(string $contenido): DOMDocument
+    {
+        $documento = new DOMDocument();
+        $this->assertTrue($documento->loadXML($contenido));
+
+        return $documento;
     }
 
     /** @return array{creados: int, actualizados: int, errores: list<string>} */
