@@ -41,6 +41,15 @@ class ColaboradorImportacionTest extends TestCase
             Permission::findOrCreate('ViewAny:Colaborador', 'web'),
             Permission::findOrCreate('Exportar:Colaborador', 'web'),
         );
+        $sucursal = Sucursal::create(['nombre' => 'Sucursal exportable', 'tipo' => 'tienda', 'activo' => true]);
+        $usuarioColaborador = User::factory()->create(['email' => 'exportable@example.test']);
+        Colaborador::create([
+            'user_id' => $usuarioColaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador exportable',
+            'documento_identidad' => '99887766',
+            'activo' => true,
+        ]);
 
         Livewire::actingAs($actor)
             ->test(ListColaboradors::class)

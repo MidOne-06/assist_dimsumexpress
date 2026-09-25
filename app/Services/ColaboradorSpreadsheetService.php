@@ -44,7 +44,7 @@ final class ColaboradorSpreadsheetService
                     foreach ($colaboradores as $colaborador) {
                         $writer->addRow(Row::fromValues($this->filaExportacion($colaborador)));
                     }
-                }, 'colaboradores.id');
+                }, 'colaboradores.id', 'id');
         });
     }
 
