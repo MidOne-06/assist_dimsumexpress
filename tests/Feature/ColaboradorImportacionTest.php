@@ -24,7 +24,7 @@ class ColaboradorImportacionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_template_uses_current_catalogs_as_dependent_dropdowns(): void
+    public function test_template_uses_current_catalogs_as_dropdowns(): void
     {
         [, $empresa, $area, $sucursal] = $this->datosBase();
         PuntoVenta::create(['sucursal_id' => $sucursal->id, 'nombre' => 'Caja de prueba', 'activo' => true]);
@@ -52,7 +52,7 @@ class ColaboradorImportacionTest extends TestCase
             $this->assertMatchesRegularExpression("/^'Catálogos'!\\\$A\\\$2:\\\$A\\\$[2-9][0-9]*$/", $libroXpath->evaluate('string(//x:definedName[@name="empresas"])'));
             $this->assertMatchesRegularExpression("/^'Catálogos'!\\\$B\\\$2:\\\$B\\\$[2-9][0-9]*$/", $libroXpath->evaluate('string(//x:definedName[@name="areas"])'));
             $this->assertMatchesRegularExpression("/^'Catálogos'!\\\$C\\\$2:\\\$C\\\$[2-9][0-9]*$/", $libroXpath->evaluate('string(//x:definedName[@name="sucursales"])'));
-            $this->assertMatchesRegularExpression("/^'Catálogos'!\\\$E\\\$2:\\\$E\\\$[2-9][0-9]*$/", $libroXpath->evaluate('string(//x:definedName[@name="punto_1"])'));
+            $this->assertMatchesRegularExpression("/^'Catálogos'!\\\$D\\\$2:\\\$D\\\$[2-9][0-9]*$/", $libroXpath->evaluate('string(//x:definedName[@name="cajas"])'));
             $catalogos = (string) $zip->getFromName('xl/worksheets/sheet2.xml');
             $this->assertStringContainsString($empresa->codigo, $catalogos);
             $this->assertStringContainsString($area->codigo, $catalogos);
@@ -69,7 +69,7 @@ class ColaboradorImportacionTest extends TestCase
             );
             $this->assertSame('=empresas', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="E2:E5001"]/x:formula1)'));
             $this->assertSame('=sucursales', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="G2:G5001"]/x:formula1)'));
-            $this->assertSame('=IFERROR(INDIRECT("punto_"&MATCH($G2,sucursales,0)),"")', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="H2:H5001"]/x:formula1)'));
+            $this->assertSame('=cajas', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="H2:H5001"]/x:formula1)'));
             $this->assertSame('=estados', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="K2:K5001"]/x:formula1)'));
         } finally {
             $zip->close();

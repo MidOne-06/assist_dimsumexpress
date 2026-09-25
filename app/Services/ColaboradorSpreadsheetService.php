@@ -34,7 +34,7 @@ final class ColaboradorSpreadsheetService
     /** @var list<string> */
     private const COLUMNAS = [
         'codigo_interno', 'nombre_completo', 'documento_identidad', 'correo',
-        'empresa_codigo', 'area_codigo', 'sucursal', 'punto_venta', 'cargo',
+        'empresa_codigo', 'area_codigo', 'sucursal', 'caja', 'cargo',
         'fecha_ingreso', 'activo',
     ];
 
@@ -102,42 +102,27 @@ final class ColaboradorSpreadsheetService
      * @return array{
      *     encabezados: list<string>,
      *     filas: list<list<string|null>>,
-     *     rangos: array{empresas: string, areas: string, sucursales: string, estados: string, puntos: list<string>}
+     *     rangos: array{empresas: string, areas: string, sucursales: string, cajas: string, estados: string}
      * }
      */
     private function catalogosPlantilla(): array
     {
         $empresas = Empresa::query()->where('activo', true)->orderBy('codigo')->pluck('codigo')->map(fn ($valor): string => (string) $valor)->all();
         $areas = Area::query()->where('activo', true)->orderBy('codigo')->pluck('codigo')->map(fn ($valor): string => (string) $valor)->all();
-        $sucursales = Sucursal::query()
-            ->where('activo', true)
-            ->with(['puntosVenta' => fn ($query) => $query->where('activo', true)->orderBy('nombre')])
-            ->orderBy('nombre')
-            ->get();
-
-        $encabezados = ['Empresas', 'Áreas', 'Sucursales', 'Estados'];
-        foreach ($sucursales as $indice => $sucursal) {
-            $encabezados[] = 'Puntos '.($indice + 1);
-        }
-
-        $puntos = [];
-        foreach ($sucursales as $sucursal) {
-            $puntos[] = $sucursal->puntosVenta->pluck('nombre')->map(fn ($valor): string => (string) $valor)->all();
-        }
+        $sucursales = Sucursal::query()->where('activo', true)->orderBy('nombre')->pluck('nombre')->map(fn ($valor): string => (string) $valor)->all();
+        $cajas = PuntoVenta::query()->where('activo', true)->orderBy('nombre')->pluck('nombre')->unique()->values()->map(fn ($valor): string => (string) $valor)->all();
+        $encabezados = ['Empresas', 'Áreas', 'Sucursales', 'Cajas', 'Estados'];
 
         $filas = [];
-        $cantidad = max(1, count($empresas), count($areas), count($sucursales), 2, ...array_map(count(...), $puntos));
+        $cantidad = max(1, count($empresas), count($areas), count($sucursales), count($cajas), 2);
         for ($indice = 0; $indice < $cantidad; ++$indice) {
             $fila = [
                 $empresas[$indice] ?? null,
                 $areas[$indice] ?? null,
-                isset($sucursales[$indice]) ? (string) $sucursales[$indice]->nombre : null,
+                $sucursales[$indice] ?? null,
+                $cajas[$indice] ?? null,
                 ['si', 'no'][$indice] ?? null,
             ];
-
-            foreach ($puntos as $puntosSucursal) {
-                $fila[] = $puntosSucursal[$indice] ?? null;
-            }
 
             $filas[] = $fila;
         }
@@ -148,13 +133,9 @@ final class ColaboradorSpreadsheetService
             'rangos' => [
                 'empresas' => $this->rangoCatalogo('A', count($empresas)),
                 'areas' => $this->rangoCatalogo('B', count($areas)),
-                'sucursales' => $this->rangoCatalogo('C', $sucursales->count()),
-                'estados' => $this->rangoCatalogo('D', 2),
-                'puntos' => array_map(
-                    fn (int $indice, array $puntosSucursal): string => $this->rangoCatalogo($this->columnaExcel($indice + 5), count($puntosSucursal)),
-                    array_keys($puntos),
-                    $puntos,
-                ),
+                'sucursales' => $this->rangoCatalogo('C', count($sucursales)),
+                'cajas' => $this->rangoCatalogo('D', count($cajas)),
+                'estados' => $this->rangoCatalogo('E', 2),
             ],
         ];
     }
@@ -166,19 +147,7 @@ final class ColaboradorSpreadsheetService
         return "'Catálogos'!\${$columna}\$2:\${$columna}\${$ultimaFila}";
     }
 
-    private function columnaExcel(int $indice): string
-    {
-        $columna = '';
-        while ($indice > 0) {
-            --$indice;
-            $columna = chr(65 + ($indice % 26)).$columna;
-            $indice = intdiv($indice, 26);
-        }
-
-        return $columna;
-    }
-
-    /** @param array{empresas: string, areas: string, sucursales: string, estados: string, puntos: list<string>} $rangos */
+    /** @param array{empresas: string, areas: string, sucursales: string, cajas: string, estados: string} $rangos */
     private function agregarListasDesplegables(string $archivo, array $rangos): void
     {
         $zip = new ZipArchive();
@@ -194,7 +163,7 @@ final class ColaboradorSpreadsheetService
         }
     }
 
-    /** @param array{empresas: string, areas: string, sucursales: string, estados: string, puntos: list<string>} $rangos */
+    /** @param array{empresas: string, areas: string, sucursales: string, cajas: string, estados: string} $rangos */
     private function actualizarLibro(ZipArchive $zip, array $rangos): void
     {
         $documento = $this->cargarXml($zip, 'xl/workbook.xml');
@@ -207,11 +176,8 @@ final class ColaboradorSpreadsheetService
 
         $espacio = $documento->documentElement?->namespaceURI;
         $nombres = $documento->createElementNS($espacio, 'definedNames');
-        foreach (['empresas', 'areas', 'sucursales', 'estados'] as $nombre) {
+        foreach (['empresas', 'areas', 'sucursales', 'cajas', 'estados'] as $nombre) {
             $this->agregarNombreDefinido($documento, $nombres, $nombre, $rangos[$nombre]);
-        }
-        foreach ($rangos['puntos'] as $indice => $rango) {
-            $this->agregarNombreDefinido($documento, $nombres, 'punto_'.($indice + 1), $rango);
         }
 
         /** @var DOMElement|null $hojas */
@@ -242,7 +208,7 @@ final class ColaboradorSpreadsheetService
             ['E2:E5001', '=empresas'],
             ['F2:F5001', '=areas'],
             ['G2:G5001', '=sucursales'],
-            ['H2:H5001', '=IFERROR(INDIRECT("punto_"&MATCH($G2,sucursales,0)),"")'],
+            ['H2:H5001', '=cajas'],
             ['K2:K5001', '=estados'],
         ];
 
@@ -582,6 +548,7 @@ final class ColaboradorSpreadsheetService
             'correo_electronico', 'email' => 'correo',
             'empresa' => 'empresa_codigo',
             'area' => 'area_codigo',
+            'caja', 'punto_de_venta' => 'punto_venta',
             default => $valor,
         };
     }
