@@ -155,7 +155,7 @@ class EstacionesQr extends Page implements HasTable
             $needle = Str::lower($search);
 
             $estaciones = $estaciones->filter(fn (array $estacion): bool => Str::contains(
-                Str::lower(implode(' ', [$estacion['nombre'], $estacion['tipo_label'], $estacion['sucursal'], $estacion['ubicacion']])),
+                Str::lower(implode(' ', [$estacion['nombre'], $estacion['sucursal'], $estacion['ubicacion']])),
                 $needle,
             ));
         }
