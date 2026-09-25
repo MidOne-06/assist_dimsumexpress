@@ -35,6 +35,8 @@ class RolesYPermisosSeeder extends Seeder
             'VerEnlace:PuntoVenta',
             'AsignarMasivo:AsignarTurnos',
             'ResetPassword:User',
+            'Exportar:Colaborador',
+            'Importar:Colaborador',
             'ViewAny:Empresa',
             'View:Empresa',
             'Create:Empresa',
