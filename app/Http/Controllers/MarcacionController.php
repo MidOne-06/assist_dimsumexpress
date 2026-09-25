@@ -159,6 +159,15 @@ class MarcacionController extends Controller
             }
 
             $fechaHora = now();
+
+            // La primera entrada puede detectar que la operación cambió el
+            // turno del día. El ajuste se guarda aquí, después de validar el
+            // flujo y dentro del mismo bloqueo transaccional; abrir un QR no
+            // modifica por sí solo la programación semanal.
+            if ($data['tipo'] === Marcacion::TIPO_ENTRADA) {
+                JornadaMarcacion::confirmarAjusteAutomatico($colaboradorBloqueado, $asignacion, $fechaHora);
+            }
+
             $controlRefrigerio = null;
             $cobertura = $this->registrarCoberturaAutomatica($colaboradorBloqueado, $asignacion, $qrToken, $fechaHora);
 

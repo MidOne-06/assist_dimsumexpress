@@ -194,6 +194,88 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame('extendida', $resumen['estado']);
     }
 
+    public function test_first_entry_automatically_uses_the_shift_that_matches_the_operational_start_time(): void
+    {
+        $this->withoutMiddleware();
+        $sucursal = Sucursal::create(['nombre' => 'Sucursal dinámica', 'tipo' => 'tienda', 'activo' => true]);
+        $apertura = Turno::create(['nombre' => 'Apertura dinámica', 'hora_inicio' => '06:00', 'hora_fin' => '15:00', 'tolerancia_entrada_minutos' => 10, 'activo' => true]);
+        $cierre = Turno::create(['nombre' => 'Cierre dinámico', 'hora_inicio' => '15:00', 'hora_fin' => '23:00', 'tolerancia_entrada_minutos' => 10, 'incluye_refrigerio' => false, 'refrigerio_minutos' => 0, 'activo' => true]);
+        $qr = QrToken::create([
+            'sucursal_id' => $sucursal->id,
+            'token' => 'turno-dinamico-' . uniqid(),
+            'proposito' => QrToken::PROPOSITO_ASISTENCIA,
+            'expira_en' => Carbon::parse('2026-09-30 23:59:59'),
+        ]);
+
+        Carbon::setTestNow('2026-09-21 06:00:00');
+        $usuarioApertura = User::factory()->create();
+        $usuarioApertura->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $colaboradorApertura = Colaborador::create([
+            'user_id' => $usuarioApertura->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador cierre a apertura',
+            'documento_identidad' => 'DIN-1',
+            'activo' => true,
+        ]);
+        $asignacionCierre = AsignacionTurno::create([
+            'colaborador_id' => $colaboradorApertura->id,
+            'turno_id' => $cierre->id,
+            'fecha' => today(),
+        ]);
+
+        $this->actingAs($usuarioApertura)
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_ENTRADA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('asignaciones_turno', ['id' => $asignacionCierre->id, 'turno_id' => $apertura->id]);
+        $this->assertDatabaseHas('ajustes_turno_automaticos', [
+            'asignacion_turno_id' => $asignacionCierre->id,
+            'colaborador_id' => $colaboradorApertura->id,
+            'turno_programado_id' => $cierre->id,
+            'turno_efectivo_id' => $apertura->id,
+        ]);
+        $this->assertDatabaseHas('marcaciones', [
+            'colaborador_id' => $colaboradorApertura->id,
+            'turno_id' => $apertura->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+        ]);
+
+        Carbon::setTestNow('2026-09-22 15:00:00');
+        $usuarioCierre = User::factory()->create();
+        $usuarioCierre->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $colaboradorCierre = Colaborador::create([
+            'user_id' => $usuarioCierre->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador apertura a cierre',
+            'documento_identidad' => 'DIN-2',
+            'activo' => true,
+        ]);
+        $asignacionApertura = AsignacionTurno::create([
+            'colaborador_id' => $colaboradorCierre->id,
+            'turno_id' => $apertura->id,
+            'fecha' => today(),
+        ]);
+
+        $this->actingAs($usuarioCierre)
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_ENTRADA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('asignaciones_turno', ['id' => $asignacionApertura->id, 'turno_id' => $cierre->id]);
+        $this->assertDatabaseHas('ajustes_turno_automaticos', [
+            'asignacion_turno_id' => $asignacionApertura->id,
+            'colaborador_id' => $colaboradorCierre->id,
+            'turno_programado_id' => $apertura->id,
+            'turno_efectivo_id' => $cierre->id,
+        ]);
+        $this->assertDatabaseHas('marcaciones', [
+            'colaborador_id' => $colaboradorCierre->id,
+            'turno_id' => $cierre->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+        ]);
+    }
+
     public function test_qr_return_persists_the_one_hour_refrigerio_audit(): void
     {
         $this->withoutMiddleware();

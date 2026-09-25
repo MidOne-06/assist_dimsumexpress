@@ -2,9 +2,11 @@
 
 namespace App\Support;
 
+use App\Models\AjusteTurnoAutomatico;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
+use App\Models\Turno;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -41,13 +43,46 @@ final class JornadaMarcacion
         $fechaActual = $momento->toDateString();
         $fechaAnterior = $momento->copy()->subDay()->toDateString();
 
-        return $colaborador->asignacionesTurno()
+        $asignaciones = $colaborador->asignacionesTurno()
             ->with('turno')
             ->where(function ($query) use ($fechaActual, $fechaAnterior): void {
                 $query->whereDate('fecha', $fechaActual)
                     ->orWhereDate('fecha', $fechaAnterior);
             })
-            ->get()
+            ->get();
+
+        // Una jornada ya iniciada siempre conserva su turno efectivo. No se
+        // vuelve a inferir otro turno durante refrigerio o salida final.
+        $jornadaAbierta = $asignaciones
+            ->filter(function (AsignacionTurno $asignacion) use ($momento, $colaborador): bool {
+                return static::jornadaAbierta($colaborador, $asignacion)
+                    && $momento->lte(static::limites($asignacion)['jornada_fin_maximo']);
+            })
+            ->sortByDesc(fn (AsignacionTurno $asignacion) => static::limites($asignacion)['inicio']->getTimestamp())
+            ->first();
+
+        if ($jornadaAbierta) {
+            return $jornadaAbierta;
+        }
+
+        $asignacionHoy = $asignaciones->first(
+            fn (AsignacionTurno $asignacion): bool => $asignacion->fecha->isSameDay($momento),
+        );
+
+        // La primera marcación puede revelar un cambio operativo de turno.
+        // Si coincide de forma inequívoca con la ventana de entrada de otro
+        // turno activo, se presenta ese turno efectivo sin tocar todavía la
+        // programación. El ajuste se persiste únicamente al confirmar la
+        // entrada dentro de la transacción del controlador.
+        if ($asignacionHoy && ! static::tieneMarcacionesEnFecha($colaborador, $momento)) {
+            $turnoAlternativo = static::turnoAlternativoParaEntrada($asignacionHoy, $momento);
+
+            if ($turnoAlternativo) {
+                return static::asignacionConTurnoEfectivo($asignacionHoy, $turnoAlternativo);
+            }
+        }
+
+        return $asignaciones
             ->filter(function (AsignacionTurno $asignacion) use ($momento, $colaborador): bool {
                 $jornadaAbierta = static::jornadaAbierta($colaborador, $asignacion);
 
@@ -66,6 +101,68 @@ final class JornadaMarcacion
             })
             ->sortByDesc(fn (AsignacionTurno $asignacion) => static::limites($asignacion)['inicio']->getTimestamp())
             ->first();
+    }
+
+    /** Persiste el turno detectado solo al confirmar la primera entrada. */
+    public static function confirmarAjusteAutomatico(Colaborador $colaborador, AsignacionTurno $asignacion, Carbon $detectadoEn): void
+    {
+        $turnoProgramadoId = (int) $asignacion->getOriginal('turno_id');
+        $turnoEfectivoId = (int) $asignacion->turno_id;
+
+        if ($turnoProgramadoId === $turnoEfectivoId) {
+            return;
+        }
+
+        AjusteTurnoAutomatico::firstOrCreate(
+            ['asignacion_turno_id' => $asignacion->id],
+            [
+                'colaborador_id' => $colaborador->id,
+                'turno_programado_id' => $turnoProgramadoId,
+                'turno_efectivo_id' => $turnoEfectivoId,
+                'detectado_en' => $detectadoEn,
+            ],
+        );
+
+        $asignacion->save();
+    }
+
+    private static function tieneMarcacionesEnFecha(Colaborador $colaborador, Carbon $momento): bool
+    {
+        return $colaborador->marcaciones()
+            ->whereBetween('fecha_hora', [$momento->copy()->startOfDay(), $momento->copy()->endOfDay()])
+            ->exists();
+    }
+
+    private static function turnoAlternativoParaEntrada(AsignacionTurno $asignacion, Carbon $momento): ?Turno
+    {
+        $fecha = $asignacion->fecha->toDateString();
+        $turnoProgramadoId = (int) $asignacion->getOriginal('turno_id');
+
+        $coincidencias = Turno::query()
+            ->where('activo', true)
+            ->where('id', '!=', $turnoProgramadoId)
+            ->where('hora_inicio', '!=', $asignacion->turno->hora_inicio)
+            ->orderBy('hora_inicio')
+            ->get()
+            ->filter(function (Turno $turno) use ($fecha, $momento): bool {
+                $inicio = Carbon::parse("{$fecha} {$turno->hora_inicio}", config('app.timezone'));
+
+                return $momento->betweenIncluded(
+                    $inicio->copy()->subMinutes($turno->tolerancia_entrada_minutos),
+                    $inicio->copy()->addMinutes($turno->tolerancia_entrada_minutos),
+                );
+            })
+            ->values();
+
+        return $coincidencias->count() === 1 ? $coincidencias->first() : null;
+    }
+
+    private static function asignacionConTurnoEfectivo(AsignacionTurno $asignacion, Turno $turno): AsignacionTurno
+    {
+        $asignacion->turno_id = $turno->id;
+        $asignacion->setRelation('turno', $turno);
+
+        return $asignacion;
     }
 
     /** @return Collection<int, Marcacion> */

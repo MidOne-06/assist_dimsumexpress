@@ -46,11 +46,11 @@ class SupervisionTurnosTest extends TestCase
             ->call('asignar')
             ->assertHasNoErrors();
 
-        $this->assertDatabaseHas('asignaciones_turno', [
-            'colaborador_id' => $colaboradorPropio->id,
-            'turno_id' => $turno->id,
-            'fecha' => $fecha,
-        ]);
+        $this->assertTrue(AsignacionTurno::query()
+            ->where('colaborador_id', $colaboradorPropio->id)
+            ->where('turno_id', $turno->id)
+            ->whereDate('fecha', $fecha)
+            ->exists());
     }
 
     public function test_calendar_resets_an_out_of_scope_location_for_a_supervisor(): void
@@ -177,11 +177,11 @@ class SupervisionTurnosTest extends TestCase
             ->assertHasNoErrors();
 
         foreach (range(1, 3) as $diasDesdeManana) {
-            $this->assertDatabaseHas('asignaciones_turno', [
-                'colaborador_id' => $colaborador->id,
-                'turno_id' => $turno->id,
-                'fecha' => now()->addDays($diasDesdeManana)->toDateString(),
-            ]);
+            $this->assertTrue(AsignacionTurno::query()
+                ->where('colaborador_id', $colaborador->id)
+                ->where('turno_id', $turno->id)
+                ->whereDate('fecha', now()->addDays($diasDesdeManana)->toDateString())
+                ->exists());
         }
     }
 
