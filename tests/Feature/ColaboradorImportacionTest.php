@@ -61,6 +61,10 @@ class ColaboradorImportacionTest extends TestCase
             $hojaXpath = new DOMXPath($hoja);
             $hojaXpath->registerNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
             $this->assertSame('5', $hojaXpath->evaluate('string(//x:dataValidations/@count)'));
+            $this->assertLessThan(
+                strpos((string) $zip->getFromName('xl/worksheets/sheet1.xml'), '<legacyDrawing'),
+                strpos((string) $zip->getFromName('xl/worksheets/sheet1.xml'), '<dataValidations'),
+            );
             $this->assertSame('=empresas', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="E2:E5001"]/x:formula1)'));
             $this->assertSame('=sucursales', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="G2:G5001"]/x:formula1)'));
             $this->assertSame('=IFERROR(INDIRECT("punto_"&MATCH($G2,sucursales,0)),"")', $hojaXpath->evaluate('string(//x:dataValidation[@sqref="H2:H5001"]/x:formula1)'));

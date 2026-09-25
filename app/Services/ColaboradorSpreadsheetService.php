@@ -261,9 +261,16 @@ final class ColaboradorSpreadsheetService
             $validaciones->appendChild($validacion);
         }
 
+        // En XLSX las validaciones deben declararse antes de los dibujos y
+        // elementos heredados. OpenSpout agrega legacyDrawing para comentarios,
+        // por lo que añadirlas al final hace que Excel repare el libro.
+        /** @var DOMElement|null $ancla */
+        $ancla = $xpath->query('//x:drawing | //x:legacyDrawing | //x:legacyDrawingHF')->item(0);
         /** @var DOMElement|null $margenes */
         $margenes = $xpath->query('//x:pageMargins')->item(0);
-        if ($margenes !== null) {
+        if ($ancla !== null) {
+            $ancla->parentNode?->insertBefore($validaciones, $ancla);
+        } elseif ($margenes !== null) {
             $margenes->parentNode?->insertBefore($validaciones, $margenes);
         } else {
             $documento->documentElement?->appendChild($validaciones);
