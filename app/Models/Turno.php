@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-#[Fillable(['nombre', 'hora_inicio', 'hora_fin', 'cruza_medianoche', 'tolerancia_entrada_minutos', 'tolerancia_salida_minutos', 'solo_entrada', 'incluye_refrigerio', 'refrigerio_minutos', 'horas_efectivas_objetivo_minutos', 'horas_efectivas_jornada_completa_minutos', 'activo'])]
+#[Fillable(['nombre', 'hora_inicio', 'hora_fin', 'cruza_medianoche', 'tolerancia_entrada_minutos', 'tolerancia_salida_minutos', 'solo_entrada', 'jornada_abierta', 'incluye_refrigerio', 'refrigerio_minutos', 'horas_efectivas_objetivo_minutos', 'horas_efectivas_jornada_completa_minutos', 'activo'])]
 class Turno extends Model
 {
     protected $attributes = [
@@ -23,6 +23,7 @@ class Turno extends Model
         return [
             'cruza_medianoche' => 'boolean',
             'solo_entrada' => 'boolean',
+            'jornada_abierta' => 'boolean',
             'incluye_refrigerio' => 'boolean',
             'refrigerio_minutos' => 'integer',
             'horas_efectivas_objetivo_minutos' => 'integer',
@@ -42,10 +43,22 @@ class Turno extends Model
                 $turno->hora_fin = null;
                 $turno->cruza_medianoche = false;
                 $turno->tolerancia_salida_minutos = 0;
+                $turno->jornada_abierta = false;
                 $turno->incluye_refrigerio = false;
                 $turno->refrigerio_minutos = 0;
                 $turno->horas_efectivas_objetivo_minutos = 0;
                 $turno->horas_efectivas_jornada_completa_minutos = null;
+
+                return;
+            }
+
+            // La jornada abierta conserva el flujo completo de marcaciones,
+            // pero no fija una hora de salida. El límite técnico se aplica en
+            // JornadaMarcacion para evitar jornadas indefinidas.
+            if ($turno->jornada_abierta) {
+                $turno->hora_fin = null;
+                $turno->cruza_medianoche = false;
+                $turno->tolerancia_salida_minutos = 0;
 
                 return;
             }

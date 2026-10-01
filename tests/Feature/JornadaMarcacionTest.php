@@ -162,6 +162,41 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame([], JornadaMarcacion::siguientesTipos($colaborador, $asignacion->fresh('turno')));
     }
 
+    public function test_open_shift_without_scheduled_exit_keeps_the_complete_marking_flow(): void
+    {
+        Carbon::setTestNow('2026-09-21 08:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $asignacion->turno->update([
+            'jornada_abierta' => true,
+            'incluye_refrigerio' => true,
+            'refrigerio_minutos' => 60,
+            'horas_efectivas_objetivo_minutos' => 480,
+        ]);
+
+        $abierta = $asignacion->fresh('turno');
+        $this->assertNull($abierta->turno->hora_fin);
+        $this->assertSame([Marcacion::TIPO_ENTRADA], JornadaMarcacion::siguientesTipos($colaborador, $abierta));
+
+        $this->marcar($colaborador, $abierta, Marcacion::TIPO_ENTRADA);
+        $this->assertSame([Marcacion::TIPO_SALIDA_REFRIGERIO, Marcacion::TIPO_SALIDA], JornadaMarcacion::siguientesTipos($colaborador, $abierta));
+
+        Carbon::setTestNow('2026-09-21 12:00:00');
+        $this->marcar($colaborador, $abierta, Marcacion::TIPO_SALIDA_REFRIGERIO);
+        $this->assertSame([Marcacion::TIPO_REGRESO_REFRIGERIO], JornadaMarcacion::siguientesTipos($colaborador, $abierta));
+
+        Carbon::setTestNow('2026-09-21 13:00:00');
+        $this->marcar($colaborador, $abierta, Marcacion::TIPO_REGRESO_REFRIGERIO);
+        $this->assertSame([Marcacion::TIPO_SALIDA], JornadaMarcacion::siguientesTipos($colaborador, $abierta));
+
+        Carbon::setTestNow('2026-09-21 17:00:00');
+        $this->assertSame($abierta->id, JornadaMarcacion::asignacionVigente($colaborador)?->id);
+        $this->marcar($colaborador, $abierta, Marcacion::TIPO_SALIDA);
+
+        $resumen = JornadaMarcacion::resumen($colaborador, $abierta);
+        $this->assertSame(480, $resumen['efectivos_minutos']);
+        $this->assertSame('cumplida', $resumen['estado']);
+    }
+
     public function test_turn_without_refrigerio_only_offers_final_exit(): void
     {
         Carbon::setTestNow('2026-09-21 14:00:00');

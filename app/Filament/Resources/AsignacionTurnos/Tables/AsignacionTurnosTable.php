@@ -42,7 +42,9 @@ class AsignacionTurnosTable
                     ->time('H:i'),
                 TextColumn::make('turno.hora_fin')
                     ->label('Fin')
-                    ->time('H:i'),
+                    ->formatStateUsing(fn (?string $state, $record): string => $record->turno?->solo_entrada
+                        ? '—'
+                        : ($record->turno?->jornada_abierta ? 'Sin horario' : ($state ? \Carbon\Carbon::parse($state)->format('H:i') : '—'))),
                 TextColumn::make('observacion')
                     ->label('Observación')
                     ->limit(30)

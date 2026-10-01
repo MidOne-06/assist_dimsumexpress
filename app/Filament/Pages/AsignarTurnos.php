@@ -79,7 +79,9 @@ class AsignarTurnos extends Page implements HasTable
                     ->time('H:i'),
                 TextColumn::make('turno.hora_fin')
                     ->label('Fin')
-                    ->time('H:i'),
+                    ->formatStateUsing(fn (?string $state, AsignacionTurno $record): string => $record->turno?->solo_entrada
+                        ? '—'
+                        : ($record->turno?->jornada_abierta ? 'Sin horario' : ($state ? \Carbon\Carbon::parse($state)->format('H:i') : '—'))),
                 TextColumn::make('asignadoPor.name')
                     ->label('Asignado por')
                     ->toggleable(isToggledHiddenByDefault: true),

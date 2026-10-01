@@ -27,9 +27,11 @@ class TurnosTable
                     ->sortable(),
                 TextColumn::make('hora_fin')
                     ->label('Fin')
-                    ->formatStateUsing(fn (?string $state, Turno $record): string => $record->solo_entrada || ! $state
+                    ->formatStateUsing(fn (?string $state, Turno $record): string => $record->solo_entrada
                         ? '—'
-                        : \Carbon\Carbon::parse($state)->format('H:i'))
+                        : ($record->jornada_abierta
+                            ? 'Sin horario'
+                            : (! $state ? '—' : \Carbon\Carbon::parse($state)->format('H:i'))))
                     ->sortable(),
                 IconColumn::make('cruza_medianoche')
                     ->label('Nocturno')
@@ -59,6 +61,9 @@ class TurnosTable
                 IconColumn::make('solo_entrada')
                     ->label('Solo entrada')
                     ->boolean(),
+                IconColumn::make('jornada_abierta')
+                    ->label('Jornada abierta')
+                    ->boolean(),
                 IconColumn::make('activo')
                     ->label('Activo')
                     ->boolean(),
@@ -80,6 +85,8 @@ class TurnosTable
                     ->label('Activo'),
                 TernaryFilter::make('solo_entrada')
                     ->label('Solo entrada'),
+                TernaryFilter::make('jornada_abierta')
+                    ->label('Jornada abierta'),
                 TernaryFilter::make('incluye_refrigerio')
                     ->label('Incluye refrigerio'),
             ])

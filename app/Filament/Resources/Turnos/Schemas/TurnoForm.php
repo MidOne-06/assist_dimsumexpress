@@ -28,32 +28,21 @@ class TurnoForm
                 TimePicker::make('hora_fin')
                     ->label('Hora de fin')
                     ->seconds(false)
-                    ->required(fn (Get $get): bool => ! (bool) $get('solo_entrada'))
-                    ->visible(fn (Get $get): bool => ! (bool) $get('solo_entrada'))
-                    ->dehydrated(fn (Get $get): bool => ! (bool) $get('solo_entrada')),
-                Toggle::make('cruza_medianoche')
-                    ->label('Cruza medianoche')
-                    ->default(false)
-                    ->visible(fn (Get $get): bool => ! (bool) $get('solo_entrada'))
-                    ->dehydrated(fn (Get $get): bool => ! (bool) $get('solo_entrada')),
+                    ->required(fn (Get $get): bool => ! (bool) $get('solo_entrada') && ! (bool) $get('jornada_abierta'))
+                    ->visible(fn (Get $get): bool => ! (bool) $get('solo_entrada') && ! (bool) $get('jornada_abierta'))
+                    ->dehydrated(fn (Get $get): bool => ! (bool) $get('solo_entrada') && ! (bool) $get('jornada_abierta')),
                 Toggle::make('solo_entrada')
                     ->label('Solo entrada')
                     ->live()
                     ->default(false)
                     ->afterStateUpdated(function (Set $set, bool $state): void {
                         if (! $state) {
-                            // Al volver a un turno regular, la hora de fin se
-                            // solicita al usuario; solo restauramos valores
-                            // seguros para que no herede los ceros del modo
-                            // "Solo entrada".
                             $set('tolerancia_salida_minutos', 10);
-                            $set('incluye_refrigerio', true);
-                            $set('refrigerio_minutos', 60);
-                            $set('horas_efectivas_objetivo_minutos', 480);
 
                             return;
                         }
 
+                        $set('jornada_abierta', false);
                         $set('hora_fin', null);
                         $set('cruza_medianoche', false);
                         $set('tolerancia_salida_minutos', 0);
@@ -62,6 +51,27 @@ class TurnoForm
                         $set('horas_efectivas_objetivo_minutos', 0);
                         $set('horas_efectivas_jornada_completa_minutos', null);
                     }),
+                Toggle::make('jornada_abierta')
+                    ->label('Jornada abierta (sin hora de salida)')
+                    ->live()
+                    ->default(false)
+                    ->afterStateUpdated(function (Set $set, bool $state): void {
+                        if (! $state) {
+                            $set('tolerancia_salida_minutos', 10);
+
+                            return;
+                        }
+
+                        $set('solo_entrada', false);
+                        $set('hora_fin', null);
+                        $set('cruza_medianoche', false);
+                        $set('tolerancia_salida_minutos', 0);
+                    }),
+                Toggle::make('cruza_medianoche')
+                    ->label('Cruza medianoche')
+                    ->default(false)
+                    ->visible(fn (Get $get): bool => ! (bool) $get('solo_entrada') && ! (bool) $get('jornada_abierta'))
+                    ->dehydrated(fn (Get $get): bool => ! (bool) $get('solo_entrada') && ! (bool) $get('jornada_abierta')),
                 TextInput::make('tolerancia_entrada_minutos')
                     ->label('Tolerancia de entrada (min)')
                     ->required()
@@ -71,13 +81,13 @@ class TurnoForm
                     ->default(10),
                 TextInput::make('tolerancia_salida_minutos')
                     ->label('Tolerancia de salida (min)')
-                    ->required(fn (Get $get): bool => ! (bool) $get('solo_entrada'))
+                    ->required(fn (Get $get): bool => ! (bool) $get('solo_entrada') && ! (bool) $get('jornada_abierta'))
                     ->numeric()
                     ->minValue(0)
                     ->maxValue(120)
                     ->default(10)
-                    ->visible(fn (Get $get): bool => ! (bool) $get('solo_entrada'))
-                    ->dehydrated(fn (Get $get): bool => ! (bool) $get('solo_entrada')),
+                    ->visible(fn (Get $get): bool => ! (bool) $get('solo_entrada') && ! (bool) $get('jornada_abierta'))
+                    ->dehydrated(fn (Get $get): bool => ! (bool) $get('solo_entrada') && ! (bool) $get('jornada_abierta')),
                 Toggle::make('incluye_refrigerio')
                     ->label('Incluye refrigerio')
                     ->live()

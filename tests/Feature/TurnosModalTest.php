@@ -107,5 +107,22 @@ class TurnosModalTest extends TestCase
         ]);
         $this->assertFalse($soloEntrada->incluye_refrigerio);
         $this->assertSame(0, $soloEntrada->horas_efectivas_objetivo_minutos);
+
+        $jornadaAbierta = app(TurnoService::class)->crear($usuario, [
+            'nombre' => 'Jornada abierta de operación',
+            'hora_inicio' => '08:00',
+            'jornada_abierta' => true,
+            'solo_entrada' => false,
+            'tolerancia_entrada_minutos' => 10,
+            'incluye_refrigerio' => true,
+            'refrigerio_minutos' => 60,
+            'horas_efectivas_objetivo_minutos' => 480,
+            'horas_efectivas_jornada_completa_minutos' => 540,
+            'activo' => true,
+        ]);
+        $this->assertTrue($jornadaAbierta->jornada_abierta);
+        $this->assertFalse($jornadaAbierta->solo_entrada);
+        $this->assertNull($jornadaAbierta->hora_fin);
+        $this->assertTrue($jornadaAbierta->incluye_refrigerio);
     }
 }

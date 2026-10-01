@@ -20,10 +20,10 @@ final class JornadaMarcacion
     {
         $turno = $asignacion->turno;
         $inicio = Carbon::parse($asignacion->fecha->toDateString() . ' ' . $turno->hora_inicio, config('app.timezone'));
-        // Las estaciones de solo entrada solo aceptan la primera marcación;
-        // el límite técnico de la jornada evita que esa asignación quede
-        // vigente indefinidamente sin inventar una hora de salida.
-        if ($turno->solo_entrada || ! $turno->hora_fin) {
+        // Las jornadas sin salida programada conservan un límite técnico para
+        // no quedar vigentes indefinidamente. Solo entrada termina su flujo
+        // después del ingreso; jornada abierta permite todas las marcaciones.
+        if ($turno->solo_entrada || $turno->jornada_abierta || ! $turno->hora_fin) {
             $fin = $inicio->copy()->addMinutes(static::MAXIMO_JORNADA_MINUTOS);
         } else {
             $fin = Carbon::parse($asignacion->fecha->toDateString() . ' ' . $turno->hora_fin, config('app.timezone'));
@@ -37,7 +37,7 @@ final class JornadaMarcacion
             'inicio' => $inicio,
             'fin' => $fin,
             'ventana_inicio' => $inicio->copy()->subMinutes($turno->tolerancia_entrada_minutos),
-            'ventana_fin' => $turno->solo_entrada
+            'ventana_fin' => ($turno->solo_entrada || $turno->jornada_abierta)
                 ? $inicio->copy()->addMinutes($turno->tolerancia_entrada_minutos)
                 : $fin->copy()->addMinutes($turno->tolerancia_salida_minutos),
             'jornada_fin_maximo' => $inicio->copy()->addMinutes(static::MAXIMO_JORNADA_MINUTOS),

@@ -36,6 +36,7 @@ class TurnoService
         $inicio = $this->hora($data['hora_inicio'] ?? null, 'hora_inicio');
         $cruzaMedianoche = $this->booleano($data['cruza_medianoche'] ?? false);
         $soloEntrada = $this->booleano($data['solo_entrada'] ?? false);
+        $jornadaAbierta = $this->booleano($data['jornada_abierta'] ?? false);
 
         if ($nombre === '') {
             throw ValidationException::withMessages(['nombre' => 'Ingresa el nombre del turno.']);
@@ -56,10 +57,38 @@ class TurnoService
                 'tolerancia_entrada_minutos' => $toleranciaEntrada,
                 'tolerancia_salida_minutos' => 0,
                 'solo_entrada' => true,
+                'jornada_abierta' => false,
                 'incluye_refrigerio' => false,
                 'refrigerio_minutos' => 0,
                 'horas_efectivas_objetivo_minutos' => 0,
                 'horas_efectivas_jornada_completa_minutos' => null,
+                'activo' => $this->booleano($data['activo'] ?? true),
+            ];
+        }
+
+        $incluyeRefrigerio = $this->booleano($data['incluye_refrigerio'] ?? true);
+        $refrigerio = $incluyeRefrigerio
+            ? $this->entero($data['refrigerio_minutos'] ?? 60, 'refrigerio_minutos', 1, 240)
+            : 0;
+        $objetivo = $this->entero($data['horas_efectivas_objetivo_minutos'] ?? 480, 'horas_efectivas_objetivo_minutos', 1, 1440);
+        $objetivoJornadaCompleta = filled($data['horas_efectivas_jornada_completa_minutos'] ?? null)
+            ? $this->entero($data['horas_efectivas_jornada_completa_minutos'], 'horas_efectivas_jornada_completa_minutos', $objetivo + 1, 1440)
+            : null;
+
+        if ($jornadaAbierta) {
+            return [
+                'nombre' => $nombre,
+                'hora_inicio' => $inicio,
+                'hora_fin' => null,
+                'cruza_medianoche' => false,
+                'tolerancia_entrada_minutos' => $toleranciaEntrada,
+                'tolerancia_salida_minutos' => 0,
+                'solo_entrada' => false,
+                'jornada_abierta' => true,
+                'incluye_refrigerio' => $incluyeRefrigerio,
+                'refrigerio_minutos' => $refrigerio,
+                'horas_efectivas_objetivo_minutos' => $objetivo,
+                'horas_efectivas_jornada_completa_minutos' => $objetivoJornadaCompleta,
                 'activo' => $this->booleano($data['activo'] ?? true),
             ];
         }
@@ -75,15 +104,6 @@ class TurnoService
 
         $toleranciaSalida = $this->entero($data['tolerancia_salida_minutos'] ?? 10, 'tolerancia_salida_minutos', 0, 120);
 
-        $incluyeRefrigerio = $this->booleano($data['incluye_refrigerio'] ?? true);
-        $refrigerio = $incluyeRefrigerio
-            ? $this->entero($data['refrigerio_minutos'] ?? 60, 'refrigerio_minutos', 1, 240)
-            : 0;
-        $objetivo = $this->entero($data['horas_efectivas_objetivo_minutos'] ?? 480, 'horas_efectivas_objetivo_minutos', 1, 1440);
-        $objetivoJornadaCompleta = filled($data['horas_efectivas_jornada_completa_minutos'] ?? null)
-            ? $this->entero($data['horas_efectivas_jornada_completa_minutos'], 'horas_efectivas_jornada_completa_minutos', $objetivo + 1, 1440)
-            : null;
-
         return [
             'nombre' => $nombre,
             'hora_inicio' => $inicio,
@@ -92,6 +112,7 @@ class TurnoService
             'tolerancia_entrada_minutos' => $toleranciaEntrada,
             'tolerancia_salida_minutos' => $toleranciaSalida,
             'solo_entrada' => false,
+            'jornada_abierta' => false,
             'incluye_refrigerio' => $incluyeRefrigerio,
             'refrigerio_minutos' => $refrigerio,
             'horas_efectivas_objetivo_minutos' => $objetivo,
