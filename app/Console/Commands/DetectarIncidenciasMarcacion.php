@@ -30,6 +30,30 @@ class DetectarIncidenciasMarcacion extends Command
 
                 $limites = JornadaMarcacion::limites($asignacion);
 
+                $resumen = JornadaMarcacion::resumen($asignacion->colaborador, $asignacion);
+                if ($resumen['estado'] === 'inconsistente') {
+                    $ultimaInconsistente = JornadaMarcacion::ultimaMarcacion($asignacion->colaborador, $asignacion);
+                    $incidencia = IncidenciaMarcacion::firstOrCreate(
+                        [
+                            'asignacion_turno_id' => $asignacion->id,
+                            'tipo' => IncidenciaMarcacion::TIPO_SECUENCIA_INCONSISTENTE,
+                        ],
+                        [
+                            'colaborador_id' => $asignacion->colaborador_id,
+                            'detectada_en' => $momento,
+                            'sucursal_id' => $ultimaInconsistente?->sucursal_id ?? $asignacion->colaborador->sucursal_id,
+                            'punto_venta_id' => $ultimaInconsistente?->punto_venta_id,
+                            'observacion_reporte' => implode(', ', $resumen['inconsistencias']),
+                        ],
+                    );
+
+                    if ($incidencia->wasRecentlyCreated) {
+                        $detectadas++;
+                    }
+
+                    return;
+                }
+
                 // Una jornada abierta puede cerrar fuera del turno programado
                 // por operación. La incidencia solo nace al vencer el máximo
                 // de jornada, nunca al terminar el horario base.
@@ -51,11 +75,15 @@ class DetectarIncidenciasMarcacion extends Command
                 }
 
                 $incidencia = IncidenciaMarcacion::firstOrCreate(
-                    ['asignacion_turno_id' => $asignacion->id],
+                    [
+                        'asignacion_turno_id' => $asignacion->id,
+                        'tipo' => $tipo,
+                    ],
                     [
                         'colaborador_id' => $asignacion->colaborador_id,
-                        'tipo' => $tipo,
                         'detectada_en' => $momento,
+                        'sucursal_id' => $ultima?->sucursal_id ?? $asignacion->colaborador->sucursal_id,
+                        'punto_venta_id' => $ultima?->punto_venta_id,
                     ],
                 );
 

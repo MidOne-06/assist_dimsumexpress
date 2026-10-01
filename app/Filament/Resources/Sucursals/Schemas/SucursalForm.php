@@ -16,9 +16,10 @@ class SucursalForm
             ->columns(['default' => 1, 'md' => 2])
             ->components([
                 TextInput::make('nombre')
-                    ->label('Nombre')
+                    ->label('Sucursal')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->columnSpanFull(),
                 Select::make('tipo')
                     ->label('Tipo')
                     ->options([
@@ -26,7 +27,8 @@ class SucursalForm
                         'planta' => 'Planta',
                     ])
                     ->required()
-                    ->default('tienda'),
+                    ->default('tienda')
+                    ->native(),
                 Textarea::make('direccion')
                     ->label('Dirección')
                     ->rows(2)
@@ -34,8 +36,7 @@ class SucursalForm
                 Toggle::make('activo')
                     ->label('Activa')
                     ->default(true)
-                    ->required()
-                    ->columnSpanFull(),
+                    ->required(),
             ]);
     }
 }

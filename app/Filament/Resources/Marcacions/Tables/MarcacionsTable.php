@@ -2,11 +2,17 @@
 
 namespace App\Filament\Resources\Marcacions\Tables;
 
-use App\Models\Marcacion;
 use App\Models\Area;
-use App\Models\Empresa;
-use App\Models\Sucursal;
 use App\Models\AsignacionTurno;
+use App\Models\CoberturaOperativa;
+use App\Models\Colaborador;
+use App\Models\Empresa;
+use App\Models\IncidenciaMarcacion;
+use App\Models\Marcacion;
+use App\Models\PuntoVenta;
+use App\Models\Sucursal;
+use App\Models\Turno;
+use App\Support\AlcanceSupervisor;
 use App\Support\JornadaMarcacion;
 use Filament\Actions\Action;
 use Filament\Infolists\Components\TextEntry;
@@ -23,6 +29,8 @@ class MarcacionsTable
 {
     public static function configure(Table $table): Table
     {
+        $sucursalIds = AlcanceSupervisor::sucursalIds(auth()->user());
+
         return $table
             ->columns([
                 TextColumn::make('fecha_hora')
@@ -86,20 +94,9 @@ class MarcacionsTable
                         return $resumen ? 'Retorno esperado: ' . $resumen['esperado']->format('d/m/Y H:i:s') : null;
                     }),
                 TextColumn::make('sucursal.nombre')
-                    ->label('Estación')
+                    ->label('Local')
                     ->description(fn (Marcacion $record): ?string => $record->puntoVenta?->nombre)
                     ->sortable(),
-                TextColumn::make('horas_efectivas')
-                    ->label('Horas efectivas')
-                    ->getStateUsing(function (Marcacion $record): string {
-                        if ($record->tipo !== Marcacion::TIPO_SALIDA) {
-                            return '—';
-                        }
-                        $asignacion = AsignacionTurno::query()->with('turno')->where('colaborador_id', $record->colaborador_id)->where('turno_id', $record->turno_id)->whereIn('fecha', [$record->fecha_hora->toDateString(), $record->fecha_hora->copy()->subDay()->toDateString()])->first();
-                        $resumen = $asignacion ? JornadaMarcacion::resumen($record->colaborador, $asignacion) : null;
-                        return $resumen && $resumen['efectivos_minutos'] !== null ? sprintf('%dh %02dm', intdiv($resumen['efectivos_minutos'], 60), $resumen['efectivos_minutos'] % 60) : '—';
-                    })
-                    ->alignEnd(),
                 TextColumn::make('ip_origen')
                     ->label('IP')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -116,17 +113,54 @@ class MarcacionsTable
                     ]),
                 SelectFilter::make('sucursal_id')
                     ->label('Sucursal')
-                    ->options(fn () => Sucursal::query()->orderBy('nombre')->pluck('nombre', 'id')),
+                    ->options(fn (): array => Sucursal::query()
+                        ->whereIn('id', $sucursalIds)
+                        ->orderBy('nombre')
+                        ->pluck('nombre', 'id')
+                        ->all())
+                    ->searchable(),
+                SelectFilter::make('punto_venta_id')
+                    ->label('Punto de venta')
+                    ->options(fn (): array => PuntoVenta::query()
+                        ->whereIn('sucursal_id', $sucursalIds)
+                        ->where('activo', true)
+                        ->orderBy('nombre')
+                        ->pluck('nombre', 'id')
+                        ->all())
+                    ->searchable(),
+                SelectFilter::make('colaborador_id')
+                    ->label('Colaborador')
+                    ->options(fn (): array => self::opcionesColaborador($sucursalIds))
+                    ->searchable(),
+                SelectFilter::make('turno_id')
+                    ->label('Turno')
+                    ->options(fn (): array => Turno::query()
+                        ->orderBy('nombre')
+                        ->pluck('nombre', 'id')
+                        ->all())
+                    ->searchable(),
                 SelectFilter::make('empresa_id')
                     ->label('Empresa')
-                    ->options(fn () => Empresa::query()->orderBy('nombre')->pluck('nombre', 'id')),
+                    ->options(fn (): array => Empresa::query()
+                        ->whereIn('id', Marcacion::query()->whereIn('sucursal_id', $sucursalIds)->whereNotNull('empresa_id')->distinct()->pluck('empresa_id'))
+                        ->orderBy('nombre')
+                        ->pluck('nombre', 'id')
+                        ->all()),
                 SelectFilter::make('area_id')
                     ->label('Área')
-                    ->options(fn () => Area::query()->orderBy('nombre')->pluck('nombre', 'id')),
+                    ->options(fn (): array => Area::query()
+                        ->whereIn('id', Marcacion::query()->whereIn('sucursal_id', $sucursalIds)->whereNotNull('area_id')->distinct()->pluck('area_id'))
+                        ->orderBy('nombre')
+                        ->pluck('nombre', 'id')
+                        ->all()),
                 Filter::make('fecha')
+                    ->default([
+                        'desde' => now()->toDateString(),
+                        'hasta' => now()->toDateString(),
+                    ])
                     ->schema([
-                        \Filament\Forms\Components\DatePicker::make('desde')->native(false),
-                        \Filament\Forms\Components\DatePicker::make('hasta')->native(false),
+                        \Filament\Forms\Components\DatePicker::make('desde')->label('Desde')->native(false),
+                        \Filament\Forms\Components\DatePicker::make('hasta')->label('Hasta')->native(false),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
@@ -134,9 +168,26 @@ class MarcacionsTable
                             ->when($data['hasta'] ?? null, fn (Builder $q, $fecha) => $q->whereDate('fecha_hora', '<=', $fecha));
                     }),
             ])
-            ->filtersFormColumns(3)
-            ->filtersFormWidth(Width::FourExtraLarge)
+            ->filtersFormColumns(4)
+            ->filtersFormWidth(Width::FiveExtraLarge)
+            ->persistFiltersInSession()
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(25)
+            ->emptyStateHeading('Sin marcaciones')
             ->recordActions([
+                Action::make('jornada')
+                    ->label('Jornada')
+                    ->icon(Heroicon::OutlinedClock)
+                    ->color('gray')
+                    ->button()
+                    ->authorize(fn (): bool => auth()->user()->can('View:Marcacion'))
+                    ->modalHeading('Control de jornada')
+                    ->modalWidth(Width::FourExtraLarge)
+                    ->schema(fn (Marcacion $record): array => self::jornadaSchema(
+                        $record->loadMissing(['colaborador', 'turno', 'sucursal', 'puntoVenta', 'coberturaOperativa'])
+                    ))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
                 Action::make('trazabilidad')
                     ->label('Trazabilidad')
                     ->icon(Heroicon::OutlinedDocumentMagnifyingGlass)
@@ -146,12 +197,247 @@ class MarcacionsTable
                     ->modalHeading('Trazabilidad de marcación')
                     ->modalWidth(Width::FourExtraLarge)
                     ->schema(fn (Marcacion $record): array => self::trazabilidadSchema(
-                        $record->loadMissing(['colaborador', 'turno', 'sucursal', 'puntoVenta', 'qrToken', 'empresa', 'area'])
+                        $record->loadMissing(['colaborador', 'turno', 'sucursal', 'puntoVenta', 'qrToken', 'empresa', 'area', 'coberturaOperativa'])
                     ))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
             ])
             ->toolbarActions([]);
+    }
+
+    /** @param array<int, int> $sucursalIds
+     *  @return array<int, string>
+     */
+    public static function opcionesColaborador(array $sucursalIds): array
+    {
+        return Colaborador::query()
+            ->where(function (Builder $query) use ($sucursalIds): void {
+                // El colaborador puede estar cubriendo una estación distinta
+                // a su sede base. Debe poder encontrarse por el filtro cuando
+                // ya tiene una marcación en cualquiera de los locales visibles.
+                $query->whereIn('sucursal_id', $sucursalIds)
+                    ->orWhereIn('id', Marcacion::query()
+                        ->whereIn('sucursal_id', $sucursalIds)
+                        ->select('colaborador_id'));
+            })
+            ->where('activo', true)
+            ->orderBy('nombre_completo')
+            ->pluck('nombre_completo', 'id')
+            ->all();
+    }
+
+    /** @return array<Section> */
+    private static function jornadaSchema(Marcacion $marcacion): array
+    {
+        $asignacion = self::asignacionDeMarcacion($marcacion);
+
+        if ($asignacion === null || $marcacion->colaborador === null) {
+            return [
+                Section::make()
+                    ->compact()
+                    ->schema([
+                        TextEntry::make('estado')->label('Estado')->state('Sin asignación de turno vinculada')->badge()->color('warning'),
+                    ]),
+            ];
+        }
+
+        $marcaciones = JornadaMarcacion::marcaciones($marcacion->colaborador, $asignacion);
+        $resumen = JornadaMarcacion::resumen($marcacion->colaborador, $asignacion, $marcaciones);
+        $limites = JornadaMarcacion::limites($asignacion);
+        $entrada = $marcaciones->firstWhere('tipo', Marcacion::TIPO_ENTRADA);
+        $salidaRefrigerio = $marcaciones->firstWhere('tipo', Marcacion::TIPO_SALIDA_REFRIGERIO);
+        $regresoRefrigerio = $marcaciones->firstWhere('tipo', Marcacion::TIPO_REGRESO_REFRIGERIO);
+        $salida = $marcaciones->filter(fn (Marcacion $evento): bool => $evento->tipo === Marcacion::TIPO_SALIDA)->last();
+        $ultima = $marcaciones->last();
+        $incidencias = IncidenciaMarcacion::query()
+            ->where('asignacion_turno_id', $asignacion->id)
+            ->orderBy('detectada_en')
+            ->get();
+
+        $estado = self::estadoJornada($resumen['estado'], $ultima?->tipo);
+        $cobertura = $marcacion->coberturaOperativa;
+
+        return [
+            Section::make()
+                ->compact()
+                ->columns(['default' => 1, 'md' => 3])
+                ->schema([
+                    TextEntry::make('estado')->label('Estado')->state($estado['etiqueta'])->badge()->color($estado['color']),
+                    TextEntry::make('turno')->label('Turno')->state($asignacion->turno?->nombre ?? '—'),
+                    TextEntry::make('programado')->label('Programado')->state($limites['inicio']->format('d/m/Y H:i:s').' · '.$limites['fin']->format('H:i:s')),
+                ]),
+            Section::make('Marcaciones')
+                ->compact()
+                ->columns(['default' => 1, 'md' => 2])
+                ->schema([
+                    TextEntry::make('entrada')->label('Entrada')->state($entrada?->fecha_hora)->dateTime('d/m/Y H:i:s')->placeholder('—'),
+                    TextEntry::make('salida')->label('Salida')->state($salida?->fecha_hora)->dateTime('d/m/Y H:i:s')->placeholder('—'),
+                    TextEntry::make('salida_refrigerio')->label('Salida a refrigerio')->state($salidaRefrigerio?->fecha_hora)->dateTime('d/m/Y H:i:s')->placeholder('—'),
+                    TextEntry::make('regreso_refrigerio')->label('Regreso de refrigerio')->state($regresoRefrigerio?->fecha_hora)->dateTime('d/m/Y H:i:s')->placeholder('—'),
+                ]),
+            Section::make('Horas')
+                ->compact()
+                ->columns(['default' => 1, 'md' => 3])
+                ->schema([
+                    TextEntry::make('efectivas')->label('Efectivas')->state(self::formatearSegundos($resumen['efectivos_segundos'])),
+                    TextEntry::make('objetivo')->label('Objetivo')->state(self::formatearSegundos($resumen['objetivo_segundos'])),
+                    TextEntry::make('diferencia')->label('Diferencia')->state(self::formatearDiferenciaSegundos($resumen['diferencia_segundos']))->badge()->color(($resumen['diferencia_segundos'] ?? 0) < 0 ? 'danger' : (($resumen['diferencia_segundos'] ?? 0) > 0 ? 'warning' : 'success')),
+                ]),
+            Section::make('Cumplimiento')
+                ->compact()
+                ->columns(['default' => 1, 'md' => 2])
+                ->schema([
+                    TextEntry::make('entrada_estado')->label('Entrada')->state(self::estadoEntrada($entrada, $limites['inicio'], (int) $asignacion->turno->tolerancia_entrada_minutos)['etiqueta'])->badge()->color(self::estadoEntrada($entrada, $limites['inicio'], (int) $asignacion->turno->tolerancia_entrada_minutos)['color']),
+                    TextEntry::make('salida_estado')->label('Salida')->state(self::estadoSalida($salida, $limites['fin'], (int) $asignacion->turno->tolerancia_salida_minutos)['etiqueta'])->badge()->color(self::estadoSalida($salida, $limites['fin'], (int) $asignacion->turno->tolerancia_salida_minutos)['color']),
+                ]),
+            Section::make('Estación')
+                ->compact()
+                ->columns(['default' => 1, 'md' => 2])
+                ->schema([
+                    TextEntry::make('local')->label('Local marcado')->state(collect([$marcacion->sucursal?->nombre, $marcacion->puntoVenta?->nombre])->filter()->join(' · ') ?: '—'),
+                    TextEntry::make('cobertura')->label('Cobertura')->state($cobertura ? self::etiquetaCobertura($cobertura->estado) : 'Local habitual')->badge()->color($cobertura ? match ($cobertura->estado) {
+                        CoberturaOperativa::ESTADO_REVISADA => 'success',
+                        CoberturaOperativa::ESTADO_OBSERVADA => 'danger',
+                        default => 'warning',
+                    } : 'gray'),
+                ]),
+            Section::make('Incidencias')
+                ->compact()
+                ->visible($incidencias->isNotEmpty())
+                ->schema([
+                    TextEntry::make('incidencias')->label('Registro')->state($incidencias->map(fn (IncidenciaMarcacion $incidencia): string => IncidenciaMarcacion::etiquetaTipo($incidencia->tipo).' · '.($incidencia->estaPendiente() ? 'Pendiente' : 'Resuelta'))->implode("\n"))->wrap(),
+                ]),
+        ];
+    }
+
+    private static function asignacionDeMarcacion(Marcacion $marcacion): ?AsignacionTurno
+    {
+        if ($marcacion->turno_id === null) {
+            return null;
+        }
+
+        return AsignacionTurno::query()
+            ->with('turno')
+            ->where('colaborador_id', $marcacion->colaborador_id)
+            ->where('turno_id', $marcacion->turno_id)
+            ->whereIn('fecha', [$marcacion->fecha_hora->toDateString(), $marcacion->fecha_hora->copy()->subDay()->toDateString()])
+            ->get()
+            ->first(fn (AsignacionTurno $asignacion): bool => $marcacion->fecha_hora->betweenIncluded(
+                JornadaMarcacion::limites($asignacion)['ventana_inicio'],
+                JornadaMarcacion::limites($asignacion)['jornada_fin_maximo'],
+            ));
+    }
+
+    /** @return array{etiqueta: string, color: string} */
+    private static function estadoJornada(string $estado, ?string $ultimoTipo): array
+    {
+        if ($ultimoTipo === Marcacion::TIPO_SALIDA_REFRIGERIO) {
+            return ['etiqueta' => 'En refrigerio', 'color' => 'warning'];
+        }
+
+        return match ($estado) {
+            'cumplida' => ['etiqueta' => 'Cumplida', 'color' => 'success'],
+            'extendida' => ['etiqueta' => 'Extendida', 'color' => 'warning'],
+            'pendiente' => ['etiqueta' => 'Pendiente', 'color' => 'danger'],
+            'inconsistente' => ['etiqueta' => 'Observada', 'color' => 'danger'],
+            default => ['etiqueta' => 'En curso', 'color' => 'info'],
+        };
+    }
+
+    private static function formatearMinutos(?int $minutos): string
+    {
+        return $minutos === null ? '—' : sprintf('%dh %02dm', intdiv($minutos, 60), $minutos % 60);
+    }
+
+    private static function formatearDiferencia(?int $minutos): string
+    {
+        if ($minutos === null) {
+            return 'En curso';
+        }
+
+        return ($minutos > 0 ? '+' : ($minutos < 0 ? '−' : '')).self::formatearMinutos(abs($minutos));
+    }
+
+    private static function formatearSegundos(?int $segundos): string
+    {
+        if ($segundos === null) {
+            return '—';
+        }
+
+        $absoluto = abs($segundos);
+        $horas = intdiv($absoluto, 3600);
+        $minutos = intdiv($absoluto % 3600, 60);
+        $restantes = $absoluto % 60;
+
+        return "{$horas} h {$minutos} min" . ($restantes ? " {$restantes} s" : '');
+    }
+
+    private static function formatearDiferenciaSegundos(?int $segundos): string
+    {
+        if ($segundos === null) {
+            return 'En curso';
+        }
+
+        return ($segundos > 0 ? '+' : ($segundos < 0 ? '−' : '')).self::formatearSegundos(abs($segundos));
+    }
+
+    /** @return array{etiqueta: string, color: string} */
+    private static function estadoEntrada(?Marcacion $entrada, \Carbon\Carbon $inicio, int $tolerancia): array
+    {
+        if ($entrada === null) {
+            return ['etiqueta' => 'Pendiente', 'color' => 'gray'];
+        }
+
+        $limite = $inicio->copy()->addMinutes($tolerancia);
+        if ($entrada->fecha_hora->lte($limite)) {
+            return ['etiqueta' => 'A tiempo', 'color' => 'success'];
+        }
+
+        return [
+            'etiqueta' => self::formatearDuracionSegundos($entrada->fecha_hora->getTimestamp() - $limite->getTimestamp()).' tarde',
+            'color' => 'danger',
+        ];
+    }
+
+    /** @return array{etiqueta: string, color: string} */
+    private static function estadoSalida(?Marcacion $salida, \Carbon\Carbon $fin, int $tolerancia): array
+    {
+        if ($salida === null) {
+            return ['etiqueta' => 'Pendiente', 'color' => 'gray'];
+        }
+
+        $limite = $fin->copy()->subMinutes($tolerancia);
+        if ($salida->fecha_hora->gte($limite)) {
+            return ['etiqueta' => 'Conforme', 'color' => 'success'];
+        }
+
+        return [
+            'etiqueta' => self::formatearDuracionSegundos($limite->getTimestamp() - $salida->fecha_hora->getTimestamp()).' antes',
+            'color' => 'danger',
+        ];
+    }
+
+    private static function formatearDuracionSegundos(int $segundos): string
+    {
+        $segundos = max(0, $segundos);
+        $horas = intdiv($segundos, 3600);
+        $minutos = intdiv($segundos % 3600, 60);
+        $restantes = $segundos % 60;
+
+        return collect([
+            $horas > 0 ? $horas.' h' : null,
+            $minutos > 0 ? $minutos.' min' : null,
+            $restantes > 0 ? $restantes.' s' : null,
+        ])->filter()->join(' ') ?: '0 s';
+    }
+
+    private static function etiquetaCobertura(string $estado): string
+    {
+        return match ($estado) {
+            CoberturaOperativa::ESTADO_REVISADA => 'Cobertura conforme',
+            CoberturaOperativa::ESTADO_OBSERVADA => 'Cobertura observada',
+            default => 'Cobertura pendiente',
+        };
     }
 
     /**
@@ -208,7 +494,9 @@ class MarcacionsTable
                         ->state($marcacion->turno?->nombre ?? '—'),
                     TextEntry::make('qr')
                         ->label('QR dinámico')
-                        ->state($marcacion->qrToken ? 'QR #' . $marcacion->qrToken->id : '—'),
+                        ->state($marcacion->qrToken ? 'Validado' : '—')
+                        ->badge()
+                        ->color($marcacion->qrToken ? 'success' : 'gray'),
                     TextEntry::make('expira_en')
                         ->label('Venció')
                         ->state($marcacion->qrToken?->expira_en)
@@ -256,6 +544,15 @@ class MarcacionsTable
                         ->wrap()
                         ->copyable()
                         ->columnSpanFull(),
+                    TextEntry::make('cobertura')
+                        ->label('Cobertura')
+                        ->state($marcacion->coberturaOperativa ? self::etiquetaCobertura($marcacion->coberturaOperativa->estado) : 'Local habitual')
+                        ->badge()
+                        ->color($marcacion->coberturaOperativa ? match ($marcacion->coberturaOperativa->estado) {
+                            CoberturaOperativa::ESTADO_REVISADA => 'success',
+                            CoberturaOperativa::ESTADO_OBSERVADA => 'danger',
+                            default => 'warning',
+                        } : 'gray'),
                 ]),
         ];
     }

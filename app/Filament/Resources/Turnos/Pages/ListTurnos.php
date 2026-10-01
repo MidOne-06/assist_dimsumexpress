@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Turnos\Pages;
 
 use App\Filament\Resources\Turnos\TurnoResource;
+use App\Services\TurnoService;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Enums\Width;
@@ -17,8 +18,9 @@ class ListTurnos extends ListRecords
             CreateAction::make()
                 ->modal()
                 ->modalHeading('Crear turno')
-                ->modalWidth(Width::TwoExtraLarge)
-                ->createAnother(false),
+                ->modalWidth(Width::ExtraLarge)
+                ->createAnother(false)
+                ->using(fn (array $data) => app(TurnoService::class)->crear(auth()->user(), $data)),
         ];
     }
 }

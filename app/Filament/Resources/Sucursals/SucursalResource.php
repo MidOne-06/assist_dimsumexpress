@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Sucursals;
 
-use App\Filament\Resources\Sucursals\Pages\CreateSucursal;
-use App\Filament\Resources\Sucursals\Pages\EditSucursal;
 use App\Filament\Resources\Sucursals\Pages\ListSucursals;
 use App\Filament\Resources\Sucursals\Schemas\SucursalForm;
 use App\Filament\Resources\Sucursals\Tables\SucursalsTable;
@@ -51,8 +49,6 @@ class SucursalResource extends Resource
     {
         return [
             'index' => ListSucursals::route('/'),
-            'create' => CreateSucursal::route('/create'),
-            'edit' => EditSucursal::route('/{record}/edit'),
         ];
     }
 }

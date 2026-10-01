@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 use BezhanSalleh\FilamentShield\Resources\Roles\RoleResource;
+use App\Support\CatalogoPermisos;
 use Filament\Pages\Dashboard;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
@@ -256,23 +257,7 @@ return [
     |
     */
 
-    'custom_permissions' => [
-        // Accesos funcionales fuera de los Resources y Pages de Filament.
-        'Access:AdminPanel',
-        'Registrar:Marcacion',
-        'Registrar:VisitaSupervisor',
-        'Reportar:IncidenciaMarcacion',
-        'Resolver:IncidenciaMarcacion',
-        'View:MiHorario',
-        // Acciones sensibles que revelan el enlace privado de una estación.
-        'VerEnlace:PuntoVenta',
-
-        // Acción de negocio dentro del módulo de asignación de turnos.
-        'AsignarMasivo:AsignarTurnos',
-        'ResetPassword:User',
-        'Exportar:Colaborador',
-        'Importar:Colaborador',
-    ],
+    'custom_permissions' => CatalogoPermisos::nombres(),
 
     /*
     |--------------------------------------------------------------------------

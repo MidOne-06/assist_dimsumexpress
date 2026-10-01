@@ -49,7 +49,15 @@ class ResumenOperativo extends StatsOverviewWidget
 
         $incidenciasPendientes = IncidenciaMarcacion::query()
             ->whereNull('resuelta_en')
-            ->whereHas('colaborador', fn ($query) => $query->whereIn('sucursal_id', $sucursalIds))
+            ->where(function ($query) use ($sucursalIds): void {
+                $query
+                    ->whereIn('sucursal_id', $sucursalIds)
+                    ->orWhere(function ($legacy) use ($sucursalIds): void {
+                        $legacy
+                            ->whereNull('sucursal_id')
+                            ->whereHas('colaborador', fn ($colaborador) => $colaborador->whereIn('sucursal_id', $sucursalIds));
+                    });
+            })
             ->count();
 
         return [

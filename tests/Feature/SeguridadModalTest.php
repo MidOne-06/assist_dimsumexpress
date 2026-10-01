@@ -7,12 +7,15 @@ use App\Filament\Resources\Roles\Pages\ListRoles;
 use App\Filament\Resources\Users\UserResource;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class SeguridadModalTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_security_resources_expose_only_their_list_routes_for_modal_management(): void
     {
         $this->assertSame(['index'], array_keys(UserResource::getPages()));
@@ -52,6 +55,7 @@ class SeguridadModalTest extends TestCase
         $this->assertTrue(config('filament-shield.localization.enabled'));
         $this->assertSame('Registrar marcación', __('permisos.registrar_marcacion'));
         $this->assertSame('Registrar visita de supervisión', __('permisos.registrar_visita_supervisor'));
+        $this->assertSame('Regenerar accesos de estación', __('permisos.regenerar_enlace_punto_venta'));
         $this->assertSame('Restablecer contraseña', __('permisos.reset_password_user'));
     }
 }

@@ -34,15 +34,7 @@ class UserPolicy
 
     public function delete(AuthUser $authUser, User $user): bool
     {
-        if (! $authUser->can('Delete:User') || $user->is($authUser)) {
-            return false;
-        }
-
-        $colaborador = $user->colaborador;
-
-        return ! $user->visitasSupervisor()->exists()
-            && (! $colaborador
-                || (! $colaborador->marcaciones()->exists() && ! $colaborador->asignacionesTurno()->exists()));
+        return false;
     }
 
     public function deleteAny(AuthUser $authUser): bool

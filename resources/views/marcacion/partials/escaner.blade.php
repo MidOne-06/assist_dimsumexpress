@@ -1,123 +1,43 @@
-{{-- Escáner de QR embebido en la misma vista (no abre ninguna app externa).
-     Usa la API nativa BarcodeDetector del navegador; si no está disponible,
-     cae de vuelta a la instrucción de usar la cámara del celular. --}}
+{{-- Lector QR local: valida el código en el servidor antes de abrir la confirmación. --}}
 <style>
-    button.mp-escanear { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.85rem; border: none; border-radius: 0.6rem; font-size: 1rem; font-weight: 600; color: #fff; background: #2563eb; cursor: pointer; margin-bottom: 0.75rem; }
-    button.mp-escanear:hover { background: #1d4ed8; }
-    .mp-aviso { display: none; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 0.65rem 0.85rem; border-radius: 0.5rem; font-size: 0.8rem; margin-bottom: 1rem; text-align: left; }
-
-    .mp-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 50; flex-direction: column; align-items: center; justify-content: center; }
-    .mp-overlay.activo { display: flex; }
-    .mp-overlay video { width: 100%; max-width: 26rem; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 0.75rem; }
-    .mp-overlay .mp-marco { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(70vw, 18rem); height: min(70vw, 18rem); border: 3px solid #fff; border-radius: 1rem; box-shadow: 0 0 0 999px rgba(0,0,0,0.45); pointer-events: none; }
-    .mp-overlay .mp-estado { color: #fff; margin-top: 1.25rem; font-size: 0.85rem; text-align: center; padding: 0 1.5rem; }
-    .mp-overlay button.mp-cancelar { margin-top: 1.5rem; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.4); border-radius: 0.5rem; padding: 0.6rem 1.5rem; font-size: 0.9rem; cursor: pointer; }
+    button.mp-escanear { display:flex; align-items:center; justify-content:center; gap:.5rem; width:100%; padding:.85rem; margin-bottom:.75rem; border:0; border-radius:.6rem; background:var(--primary,#2563eb); color:#fff; font-size:1rem; font-weight:700; cursor:pointer; }
+    .mp-aviso { display:none; margin-bottom:1rem; padding:.7rem .85rem; border:1px solid #fecaca; border-radius:.6rem; background:#fef2f2; color:#b91c1c; font-size:.8125rem; line-height:1.45; }
+    .mp-overlay { display:none; position:fixed; inset:0; z-index:100; flex-direction:column; align-items:center; justify-content:center; padding:1.25rem; background:#0f172a; }
+    .mp-overlay.activo { display:flex; }.mp-camara { position:relative; width:min(100%,26rem); }.mp-overlay video { width:100%; aspect-ratio:1/1; border-radius:1rem; object-fit:cover; }.mp-marco { position:absolute; inset:12%; border:3px solid #fff; border-radius:1rem; box-shadow:0 0 0 999px rgb(0 0 0 / .42); pointer-events:none; }.mp-estado { max-width:25rem; margin-top:1.1rem; color:#fff; font-size:.9rem; text-align:center; line-height:1.45; }.mp-overlay button { cursor:pointer; font:inherit; }.mp-cancelar { margin-top:1.1rem; padding:.65rem 1.3rem; border:1px solid rgb(255 255 255 / .45); border-radius:.6rem; background:rgb(255 255 255 / .12); color:#fff; }.mp-result { display:none; width:min(100%,26rem); padding:1.35rem; border-radius:1rem; background:#fff; color:#172033; text-align:center; box-shadow:0 1.25rem 3rem rgb(0 0 0 / .28); }.mp-result.activo { display:block; }.mp-result-icono { width:3rem; height:3rem; margin:0 auto .75rem; color:#16a34a; }.mp-result h2 { margin:0; font-size:1.125rem; }.mp-result p { margin:.35rem 0 0; color:#475467; font-size:.875rem; line-height:1.45; }.mp-result .mp-accion { margin:.85rem 0 1rem; padding:.75rem; border-radius:.65rem; background:#f0fdf4; color:#166534; font-size:.875rem; font-weight:700; }.mp-result-botones { display:grid; grid-template-columns:1fr 1fr; gap:.65rem; }.mp-result-botones button { min-height:2.75rem; border-radius:.6rem; font-weight:700; }.mp-continuar { border:0; background:var(--primary,#2563eb); color:#fff; }.mp-reintentar { border:1px solid #d0d5dd; background:#fff; color:#344054; }.mp-result.error .mp-result-icono { color:#dc2626; }.mp-result.error .mp-accion { background:#fef2f2; color:#b91c1c; }
 </style>
 
-<div class="mp-aviso" id="mp-aviso-sin-soporte">
-    Tu navegador no permite escanear directamente aquí. Abre la app de cámara de tu celular y apunta al código QR de la pantalla; se abrirá esta misma página automáticamente.
-</div>
-<div class="mp-aviso" id="mp-aviso-sin-permiso">
-    No se pudo acceder a la cámara. Revisa que le hayas dado permiso de cámara a este sitio en la configuración de tu navegador.
-</div>
+<div class="mp-aviso" id="mp-aviso-sin-soporte">Tu navegador no permite usar la cámara desde esta pantalla. Usa la cámara del celular para abrir el QR de la estación.</div>
+<div class="mp-aviso" id="mp-aviso-sin-permiso">No se pudo acceder a la cámara. Revisa el permiso de cámara de este sitio e inténtalo nuevamente.</div>
+<button type="button" class="mp-escanear" id="mp-btn-escanear"><x-heroicon-o-qr-code style="width:1.25rem;height:1.25rem;" />{{ $textoBoton ?? 'Escanear código QR' }}</button>
 
-<button type="button" class="mp-escanear" id="mp-btn-escanear">
-    <x-heroicon-o-qr-code style="width: 1.25rem; height: 1.25rem;" />
-    {{ $textoBoton ?? 'Escanear código QR' }}
-</button>
-
-<div class="mp-overlay" id="mp-overlay-camara">
-    <div style="position: relative;">
-        <video id="mp-video-camara" playsinline muted></video>
-        <div class="mp-marco"></div>
-    </div>
+<div class="mp-overlay" id="mp-overlay-camara" aria-live="polite">
+    <div class="mp-camara" id="mp-vista-camara"><video id="mp-video-camara" playsinline muted></video><div class="mp-marco"></div></div>
     <div class="mp-estado" id="mp-estado-camara">Apunta la cámara al código QR de la pantalla</div>
-    <button type="button" class="mp-cancelar" id="mp-btn-cancelar" style="display: flex; align-items: center; gap: 0.35rem;">
-        <x-heroicon-o-x-mark style="width: 1rem; height: 1rem;" />
-        Cancelar
-    </button>
+    <button type="button" class="mp-cancelar" id="mp-btn-cancelar">Cancelar</button>
+    <section class="mp-result" id="mp-result-qr">
+        <x-heroicon-s-check-circle class="mp-result-icono" id="mp-result-icono" />
+        <h2 id="mp-result-titulo">QR escaneado correctamente</h2>
+        <p id="mp-result-estacion"></p>
+        <div class="mp-accion" id="mp-result-accion"></div>
+        <div class="mp-result-botones"><button type="button" class="mp-reintentar" id="mp-btn-reintentar">Escanear nuevamente</button><button type="button" class="mp-continuar" id="mp-btn-continuar">Continuar</button></div>
+    </section>
 </div>
 
 <script>
-    (function () {
-        const btnEscanear = document.getElementById('mp-btn-escanear');
-        const btnCancelar = document.getElementById('mp-btn-cancelar');
-        const overlay = document.getElementById('mp-overlay-camara');
-        const video = document.getElementById('mp-video-camara');
-        const estado = document.getElementById('mp-estado-camara');
-        const avisoSinSoporte = document.getElementById('mp-aviso-sin-soporte');
-        const avisoSinPermiso = document.getElementById('mp-aviso-sin-permiso');
-        const rutaQrPermitida = @js($rutaQr ?? '/marcar?token=');
-
-        let stream = null;
-        let escaneando = false;
-
-        function detenerCamara() {
-            escaneando = false;
-            overlay.classList.remove('activo');
-            if (stream) {
-                stream.getTracks().forEach((track) => track.stop());
-                stream = null;
-            }
-        }
-
-        async function iniciarEscaneo() {
-            avisoSinSoporte.style.display = 'none';
-            avisoSinPermiso.style.display = 'none';
-
-            if (!('BarcodeDetector' in window)) {
-                avisoSinSoporte.style.display = 'block';
-                return;
-            }
-
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' },
-                });
-            } catch (e) {
-                avisoSinPermiso.style.display = 'block';
-                return;
-            }
-
-            video.srcObject = stream;
-            await video.play();
-            overlay.classList.add('activo');
-            estado.textContent = 'Apunta la cámara al código QR de la pantalla';
-
-            const detector = new BarcodeDetector({ formats: ['qr_code'] });
-            escaneando = true;
-
-            const loop = async () => {
-                if (!escaneando) return;
-
-                try {
-                    const codigos = await detector.detect(video);
-
-                    if (codigos.length > 0) {
-                        const valor = codigos[0].rawValue || '';
-
-                        // Solo navega si el QR realmente apunta al marcado de este
-                        // sistema -- evita que un QR ajeno/malicioso redirija a
-                        // otro sitio.
-                        if (valor.includes(rutaQrPermitida)) {
-                            estado.textContent = 'Código detectado, registrando...';
-                            detenerCamara();
-                            window.location.href = valor;
-                            return;
-                        }
-                    }
-                } catch (e) {
-                    // Ignora errores puntuales de detección y sigue intentando.
-                }
-
-                requestAnimationFrame(loop);
-            };
-
-            requestAnimationFrame(loop);
-        }
-
-        btnEscanear.addEventListener('click', iniciarEscaneo);
-        btnCancelar.addEventListener('click', detenerCamara);
-        window.addEventListener('pagehide', detenerCamara);
+    (() => {
+        const btnEscanear=document.getElementById('mp-btn-escanear'), btnCancelar=document.getElementById('mp-btn-cancelar'), btnReintentar=document.getElementById('mp-btn-reintentar'), btnContinuar=document.getElementById('mp-btn-continuar'), overlay=document.getElementById('mp-overlay-camara'), video=document.getElementById('mp-video-camara'), estado=document.getElementById('mp-estado-camara'), avisoSoporte=document.getElementById('mp-aviso-sin-soporte'), avisoPermiso=document.getElementById('mp-aviso-sin-permiso'), vistaCamara=document.getElementById('mp-vista-camara'), resultado=document.getElementById('mp-result-qr'), titulo=document.getElementById('mp-result-titulo'), estacion=document.getElementById('mp-result-estacion'), accion=document.getElementById('mp-result-accion');
+        const rutaMarcacion=@js(route('marcacion.show')), rutaValidacion=@js(route('marcacion.validar-qr')), rutaQrPermitida=@js($rutaQr ?? '/marcar?token=');
+        const rutaPermitida=new URL(rutaQrPermitida,window.location.origin), esQrAsistencia=rutaPermitida.pathname===new URL(rutaMarcacion).pathname;
+        let stream=null, escaneando=false, procesando=false, destino=null;
+        const detenerStream=()=>{ if(stream){stream.getTracks().forEach(track=>track.stop());stream=null;} };
+        const restaurarVista=()=>{ resultado.classList.remove('activo','error'); vistaCamara.style.display='block'; estado.style.display='block'; btnCancelar.style.display='inline-block'; };
+        const cerrar=()=>{ escaneando=false; procesando=false; destino=null; detenerStream(); restaurarVista(); overlay.classList.remove('activo'); };
+        const mostrarResultado=(ok,mensaje,detalle,acciones=[])=>{ detenerStream(); escaneando=false; procesando=true; vistaCamara.style.display='none'; estado.style.display='none'; btnCancelar.style.display='none'; resultado.classList.add('activo'); resultado.classList.toggle('error',!ok); document.getElementById('mp-result-icono').outerHTML=ok?'<svg id="mp-result-icono" class="mp-result-icono" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-3-3a1 1 0 011.414-1.414L9 11.586l6.293-6.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>':'<svg id="mp-result-icono" class="mp-result-icono" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.75 12A2 2 0 0115.743 18H4.257a2 2 0 01-1.75-2.901l6.75-12zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-8a1 1 0 00-.993.883L9 7v4a1 1 0 001.993.117L11 11V7a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+            titulo.textContent=ok?'QR escaneado correctamente':'No se pudo validar el QR'; estacion.textContent=detalle||''; accion.textContent=ok?(acciones.length>1?'Elige la acción que corresponde a tu jornada: '+acciones.join(' o '):'Acción disponible: '+(acciones[0]||'')):mensaje; btnContinuar.style.display=ok?'inline-block':'none';
+        };
+        const extraerDestino=(valor)=>{ try { const leido=new URL(valor,window.location.origin); if(leido.origin!==window.location.origin||leido.pathname!==rutaPermitida.pathname) return null; const token=leido.searchParams.get('token'); return token?{token,url:leido.toString()}:null; } catch(_){return null;} };
+        const validar=async(dato)=>{ try { const respuesta=await fetch(rutaValidacion+'?token='+encodeURIComponent(dato.token),{headers:{Accept:'application/json'},credentials:'same-origin'}); const cuerpo=await respuesta.json(); if(!respuesta.ok||!cuerpo.confirmado){ mostrarResultado(false,cuerpo.mensaje||'El QR no se pudo validar.',''); return; } destino=dato.url; const local=[cuerpo.estacion.sucursal,cuerpo.estacion.punto_venta].filter(Boolean).join(' · '); mostrarResultado(true,'',local,cuerpo.acciones.map(item=>item.etiqueta)); } catch(_){ mostrarResultado(false,'No se pudo validar el QR. Verifica tu conexión e inténtalo nuevamente.',''); } };
+        const iniciar=async()=>{ avisoSoporte.style.display='none'; avisoPermiso.style.display='none'; if(!('BarcodeDetector'in window)){avisoSoporte.style.display='block';return;} restaurarVista(); procesando=false; try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});}catch(_){avisoPermiso.style.display='block';return;} video.srcObject=stream; await video.play(); overlay.classList.add('activo'); estado.textContent='Apunta la cámara al código QR de la pantalla'; const detector=new BarcodeDetector({formats:['qr_code']}); escaneando=true; const loop=async()=>{if(!escaneando||procesando)return;try{const codigos=await detector.detect(video);if(codigos.length){const dato=extraerDestino(codigos[0].rawValue||'');if(dato){procesando=true;estado.textContent='QR leído correctamente…';if(!esQrAsistencia){detenerStream();window.location.assign(dato.url);return;}estado.textContent='QR leído. Validando estación y jornada…';await validar(dato);return;}estado.textContent='Este QR no corresponde a la estación solicitada.';}}catch(_){} requestAnimationFrame(loop);};requestAnimationFrame(loop);};
+        btnEscanear?.addEventListener('click',iniciar); btnCancelar?.addEventListener('click',cerrar); btnReintentar?.addEventListener('click',iniciar); btnContinuar?.addEventListener('click',()=>{if(destino)window.location.assign(destino);}); window.addEventListener('pagehide',detenerStream);
     })();
 </script>

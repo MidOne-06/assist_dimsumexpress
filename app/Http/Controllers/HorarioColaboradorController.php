@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AsignacionTurno;
+use App\Services\AparienciaSistemaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -50,6 +51,7 @@ class HorarioColaboradorController extends Controller
         }
 
         return view('horario.show', [
+            'apariencia' => app(AparienciaSistemaService::class),
             'colaborador' => $colaborador,
             'mes' => $mes,
             'mesLabel' => ucfirst($inicio->locale('es')->translatedFormat('F Y')),

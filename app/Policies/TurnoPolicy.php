@@ -34,8 +34,7 @@ class TurnoPolicy
 
     public function delete(AuthUser $authUser, Turno $turno): bool
     {
-        return $authUser->can('Delete:Turno')
-            && ! $turno->asignaciones()->where('fecha', '<=', today())->exists();
+        return false;
     }
 
     public function deleteAny(AuthUser $authUser): bool

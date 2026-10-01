@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Colaboradors\Pages;
 use App\Actions\CrearColaborador;
 use App\Filament\Resources\Colaboradors\ColaboradorResource;
 use App\Services\ColaboradorSpreadsheetService;
+use App\Support\PoliticaContrasena;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\FileUpload;
@@ -14,7 +15,6 @@ use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules\Password;
 
 class ListColaboradors extends ListRecords
 {
@@ -57,8 +57,8 @@ class ListColaboradors extends ListRecords
                         ->label('Contraseña inicial para nuevas cuentas')
                         ->password()
                         ->revealable()
-                        ->minLength(12)
-                        ->rules([Password::min(12)->mixedCase()->numbers()->symbols()]),
+                        ->minLength(PoliticaContrasena::MINIMO_CARACTERES)
+                        ->rules([PoliticaContrasena::regla()]),
                 ])
                 ->action(function (array $data): void {
                     $archivo = $data['archivo'];
@@ -91,10 +91,10 @@ class ListColaboradors extends ListRecords
                         ->send();
                 }),
             CreateAction::make()
-                ->using(fn (array $data) => app(CrearColaborador::class)->handle($data))
+                ->using(fn (array $data) => app(CrearColaborador::class)->handle($data, auth()->user()))
                 ->modal()
                 ->modalHeading('Crear colaborador')
-                ->modalWidth(Width::FiveExtraLarge)
+                ->modalWidth(Width::ThreeExtraLarge)
                 ->createAnother(false),
         ];
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AparienciaSistemaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,7 +14,9 @@ class ColaboradorLoginController extends Controller
 {
     public function show(): View
     {
-        return view('auth.login');
+        return view('auth.login', [
+            'apariencia' => app(AparienciaSistemaService::class),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -40,6 +43,7 @@ class ColaboradorLoginController extends Controller
         }
 
         $request->session()->regenerate();
+        $request->session()->forget('acceso_operativo_via_enlace');
 
         // Supervisión es un flujo operativo distinto de asistencia. Un
         // supervisor no necesita (ni debe tener) ficha de colaborador para

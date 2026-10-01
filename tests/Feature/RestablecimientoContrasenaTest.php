@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class RestablecimientoContrasenaTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_reset_hashes_the_new_password_and_invalidates_existing_sessions(): void
     {
         $user = User::factory()->create([

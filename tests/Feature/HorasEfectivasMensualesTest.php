@@ -61,6 +61,35 @@ class HorasEfectivasMensualesTest extends TestCase
             ->assertSee('1 h');
     }
 
+    public function test_it_keeps_closed_history_for_inactive_collaborators_and_exposes_the_native_detail(): void
+    {
+        $sucursal = Sucursal::create(['nombre' => 'Local histórico', 'tipo' => 'tienda', 'activo' => true]);
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(Permission::findOrCreate('View:HorasEfectivasMensuales', 'web'));
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+        $colaborador = $this->colaborador($sucursal, 'Colaborador dado de baja');
+        $turno = Turno::create([
+            'nombre' => 'Histórico',
+            'hora_inicio' => '08:00',
+            'hora_fin' => '17:00',
+            'incluye_refrigerio' => false,
+            'refrigerio_minutos' => 0,
+            'horas_efectivas_objetivo_minutos' => 480,
+            'activo' => true,
+        ]);
+        $fecha = now()->startOfMonth()->addDay()->toDateString();
+        $asignacion = AsignacionTurno::create(['colaborador_id' => $colaborador->id, 'turno_id' => $turno->id, 'fecha' => $fecha]);
+        Marcacion::create(['colaborador_id' => $colaborador->id, 'turno_id' => $turno->id, 'sucursal_id' => $sucursal->id, 'tipo' => Marcacion::TIPO_ENTRADA, 'fecha_hora' => "{$fecha} 08:00:05"]);
+        Marcacion::create(['colaborador_id' => $colaborador->id, 'turno_id' => $turno->id, 'sucursal_id' => $sucursal->id, 'tipo' => Marcacion::TIPO_SALIDA, 'fecha_hora' => "{$fecha} 17:00:15"]);
+        $colaborador->update(['activo' => false]);
+
+        Livewire::actingAs($supervisor)
+            ->test(HorasEfectivasMensuales::class)
+            ->assertSee('Colaborador dado de baja')
+            ->assertTableActionExists('detalle', record: 'colaborador-' . $colaborador->id)
+            ->mountTableAction('detalle', 'colaborador-' . $colaborador->id);
+    }
+
     private function colaborador(Sucursal $sucursal, string $nombre): Colaborador
     {
         return Colaborador::create([

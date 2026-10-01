@@ -1,84 +1,27 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Confirmar marcación</title>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Confirmar marcación — {{ $apariencia->nombre() }}</title><link rel="icon" href="{{ $apariencia->iconoUrl() }}">
+    <script>try { const tema=localStorage.getItem('theme'); if(tema==='dark'||tema==='light') document.documentElement.classList.add(tema); } catch (_) {}</script>
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; min-height: 100vh; background: #f3f4f6; color: #111827; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; align-items: center; justify-content: center; padding: 1.25rem; }
-        .card { background:#fff; border-radius:1rem; box-shadow:0 10px 25px rgba(0,0,0,.06); padding:1.5rem; width:100%; max-width:29rem; }
-        h1 { font-size:1.15rem; margin:0; } .sub { color:#6b7280; font-size:.83rem; margin:.2rem 0 1rem; }
-        .turno, .ultima, .estado { border-radius:.7rem; padding:.8rem .9rem; font-size:.82rem; line-height:1.45; }
-        .turno, .ultima { background:#f9fafb; border:1px solid #e5e7eb; color:#374151; margin-bottom:.7rem; }
-        .estado { background:#eff6ff; border:1px solid #bfdbfe; margin: .9rem 0; }
-        .estado strong { display:block; color:#1e3a8a; font-size:.98rem; margin-bottom:.16rem; }
-        .estado span { color:#475569; }
-        .errores { background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; padding:.65rem .8rem; border-radius:.6rem; font-size:.8rem; margin-bottom:.85rem; }
-        .acciones { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.7rem; margin-top:1rem; }
-        .acciones.unica { grid-template-columns:1fr; }
-        button.marca { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.22rem; min-height:5.1rem; width:100%; padding:.75rem; border:0; border-radius:.7rem; font-size:.92rem; font-weight:700; color:#fff; cursor:pointer; }
-        button.marca small { font-size:.72rem; font-weight:500; opacity:.92; text-align:center; line-height:1.3; }
-        .btn-entrada { background:#16a34a; } .btn-salida { background:#dc2626; } .btn-salida_refrigerio { background:#d97706; } .btn-regreso_refrigerio { background:#2563eb; }
-        .completo { text-align:center; padding:1rem .5rem .3rem; color:#166534; font-size:.9rem; }
-        .links { display:flex; justify-content:center; gap:1rem; margin-top:1.1rem; }
-        .links a, .links button { color:#4b5563; font-size:.8rem; text-decoration:none; background:none; border:0; padding:0; cursor:pointer; }
-        .link-item { display:inline-flex; align-items:center; gap:.3rem; }
-        @media (max-width: 360px) { .acciones { grid-template-columns:1fr; } }
+        :root { color-scheme:light; --primary:{{ $apariencia->colorPrimario() }}; --page:#f8fafc; --surface:#fff; --soft:#f8fafc; --ink:#111827; --muted:#667085; --line:#e4e7ec; }
+        @media(prefers-color-scheme:dark){:root{color-scheme:dark;--page:#0f172a;--surface:#18181b;--soft:#27272a;--ink:#f8fafc;--muted:#a1a1aa;--line:#3f3f46}}
+        html.dark{color-scheme:dark;--page:#0f172a;--surface:#18181b;--soft:#27272a;--ink:#f8fafc;--muted:#a1a1aa;--line:#3f3f46}html.light{color-scheme:light;--page:#f8fafc;--surface:#fff;--soft:#f8fafc;--ink:#111827;--muted:#667085;--line:#e4e7ec}
+        *{box-sizing:border-box} body{min-height:100dvh;margin:0;display:grid;place-items:center;padding:clamp(1rem,4vw,2rem);background:var(--page);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.card{width:100%;max-width:32rem;padding:1.25rem;background:var(--surface);border:1px solid var(--line);border-radius:1rem;box-shadow:0 1rem 2.5rem rgb(15 23 42 / .12)}.brand{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding-bottom:1rem;margin-bottom:1rem;border-bottom:1px solid var(--line)}.brand img{width:auto;height:2.25rem;max-width:8rem;object-fit:contain}.brand span{color:var(--muted);font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}h1{margin:0;font-size:1.25rem;line-height:1.3}.sub{margin:.25rem 0 1rem;color:var(--muted);font-size:.875rem;line-height:1.45}.lectura{display:flex;gap:.65rem;align-items:flex-start;padding:.8rem .875rem;margin:0 0 .85rem;border:1px solid #86efac;border-radius:.75rem;background:#f0fdf4;color:#166534}.lectura svg{width:1.35rem;height:1.35rem;flex:0 0 auto}.lectura strong{display:block;font-size:.875rem}.lectura span{display:block;margin-top:.12rem;font-size:.8125rem;line-height:1.4;color:#15803d}.turno,.ultima,.estado,.errores{padding:.875rem;border:1px solid var(--line);border-radius:.75rem;font-size:.875rem;line-height:1.45}.turno,.ultima{margin-bottom:.75rem;background:var(--soft);color:var(--muted)}.turno strong,.ultima strong{color:var(--ink)}.estado{margin:1rem 0;background:color-mix(in srgb,var(--primary) 8%,var(--surface));border-color:color-mix(in srgb,var(--primary) 33%,var(--line))}.estado strong{display:block;margin-bottom:.2rem;color:var(--primary);font-size:.9375rem}.estado span{color:var(--muted)}.errores{margin-bottom:.85rem;background:#fef2f2;border-color:#fecaca;color:#b91c1c}.acciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-top:1rem}.acciones.unica{grid-template-columns:1fr}.marca{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.3rem;width:100%;min-height:6rem;padding:.875rem;border:0;border-radius:.875rem;color:#fff;font:inherit;font-size:.9375rem;font-weight:800;cursor:pointer;box-shadow:0 .5rem 1rem rgb(15 23 42 / .12)}.marca small{font-size:.75rem;font-weight:500;opacity:.93;text-align:center}.marca:active{transform:scale(.98)}.btn-entrada{background:#16a34a}.btn-salida{background:#dc2626}.btn-salida_refrigerio{background:#d97706}.btn-regreso_refrigerio{background:#2563eb}.completo{padding:1rem .5rem;text-align:center;color:#15803d;font-size:.9375rem}.links{display:flex;justify-content:space-between;gap:.75rem;margin-top:1.25rem}.links a,.links button{display:inline-flex;align-items:center;gap:.35rem;padding:0;border:0;background:none;color:var(--muted);font:inherit;font-size:.8125rem;cursor:pointer;text-decoration:none}@media(max-width:640px){body{display:block;padding:0}.card{min-height:100dvh;max-width:none;padding:1.25rem 1rem calc(1.25rem + env(safe-area-inset-bottom));border:0;border-radius:0;box-shadow:none}.acciones{grid-template-columns:1fr}.marca{min-height:4.75rem}.links{margin-top:1rem}}
     </style>
 </head>
 <body>
-    @php
-        $etiquetas = ['entrada' => 'Marcar ingreso de turno', 'salida' => 'Marcar salida de turno', 'salida_refrigerio' => 'Marcar salida de refrigerio', 'regreso_refrigerio' => 'Marcar ingreso de refrigerio'];
-        $iconos = ['entrada' => 'arrow-right-on-rectangle', 'salida' => 'arrow-left-on-rectangle', 'salida_refrigerio' => 'pause-circle', 'regreso_refrigerio' => 'play-circle'];
-        $detallesBoton = ['entrada' => 'Inicia tu jornada', 'salida' => 'Cierra tu jornada', 'salida_refrigerio' => 'Refrigerio de 1 hora', 'regreso_refrigerio' => 'Continúa tu jornada'];
-        $siguiente = $siguientesTipos[0] ?? null;
-        $detalleEstado = match ($siguiente) {
-            'entrada' => 'Usa el botón para confirmar tu ingreso de turno.',
-            'salida_refrigerio' => 'Usa el botón correspondiente: salida a refrigerio de 1 hora o salida de turno.',
-            'regreso_refrigerio' => $retornoEsperado ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Usa el botón de ingreso de refrigerio.' : 'Usa el botón para registrar tu ingreso de refrigerio.',
-            'salida' => 'Usa el botón para registrar tu salida de turno.',
-            default => 'No tienes marcaciones pendientes en esta jornada.',
-        };
-    @endphp
-    <div class="card">
-        <h1>Confirma tu marcación</h1>
-        <p class="sub">{{ $colaborador->nombre_completo }} · {{ $estacion->sucursal->nombre }}{{ $estacion->puntoVenta ? ' · ' . $estacion->puntoVenta->nombre : '' }}</p>
-        <div class="turno">Turno: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }}–{{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}</div>
-
-        @if (isset($errors) && $errors->any())
-            <div class="errores">@foreach ($errors->all() as $error){{ $error }}<br>@endforeach</div>
-        @endif
-
-        @if ($ultimaMarcacion)
-            <div class="ultima">Última marcación: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> · {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</div>
-        @endif
-
-        <div class="estado"><strong>{{ $siguiente ? 'Siguiente paso: ' . $etiquetas[$siguiente] : 'Jornada completada' }}</strong><span>{{ $detalleEstado }}</span></div>
-
-        @if (empty($siguientesTipos))
-            <div class="completo"><x-heroicon-s-check-circle style="width:2rem;height:2rem;display:block;margin:0 auto .4rem;" />Tu turno ya quedó registrado.</div>
-        @else
-            <div class="acciones {{ count($siguientesTipos) === 1 ? 'unica' : '' }}">
-                @foreach ($siguientesTipos as $tipo)
-                    <form method="POST" action="{{ route('marcacion.store') }}">
-                        @csrf
-                        <input type="hidden" name="token" value="{{ $token }}">
-                        <input type="hidden" name="tipo" value="{{ $tipo }}">
-                        <button type="submit" class="marca btn-{{ $tipo }}">
-                            <x-dynamic-component :component="'heroicon-o-' . $iconos[$tipo]" style="width:1.35rem;height:1.35rem;" />
-                            {{ $etiquetas[$tipo] }}
-                            <small>{{ $detallesBoton[$tipo] }}</small>
-                        </button>
-                    </form>
-                @endforeach
-            </div>
-        @endif
-
-        <div class="links">
-            <a href="{{ route('horario.show') }}" class="link-item"><x-heroicon-o-calendar-days style="width:1rem;height:1rem;" /> Mi horario</a>
-            <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="link-item"><x-heroicon-o-arrow-left-on-rectangle style="width:1rem;height:1rem;" /> Cerrar sesión</button></form>
-        </div>
-    </div>
-</body>
-</html>
+@php
+    $etiquetas=['entrada'=>'Marcar ingreso de turno','salida'=>'Marcar salida de turno','salida_refrigerio'=>'Marcar salida de refrigerio','regreso_refrigerio'=>'Marcar ingreso de refrigerio'];
+    $iconos=['entrada'=>'arrow-right-on-rectangle','salida'=>'arrow-left-on-rectangle','salida_refrigerio'=>'pause-circle','regreso_refrigerio'=>'play-circle'];
+    $detallesBoton=['entrada'=>'Inicia tu jornada','salida'=>'Cierra tu jornada','salida_refrigerio'=>'Refrigerio de 1 hora','regreso_refrigerio'=>'Continúa tu jornada']; $siguiente=$siguientesTipos[0]??null;
+    $detalleEstado=match($siguiente){'entrada'=>'Confirma tu ingreso.','salida_refrigerio'=>'Elige salida de refrigerio o salida de turno.','regreso_refrigerio'=>$retornoEsperado?'Retorno previsto: '.$retornoEsperado->format('H:i:s').'.':'Confirma tu ingreso de refrigerio.','salida'=>'Confirma tu salida de turno.',default=>'No tienes marcaciones pendientes.'};
+@endphp
+<main class="card"><div class="brand"><img src="{{ $apariencia->logoUrl() }}" alt="{{ $apariencia->nombre() }}"><span>Marcación</span></div><h1>Confirma tu marcación</h1><p class="sub">{{ $colaborador->nombre_completo }}</p><div class="lectura"><x-heroicon-s-check-circle /><div><strong>QR escaneado correctamente</strong><span>{{ $estacion->sucursal->nombre }}{{ $estacion->puntoVenta ? ' · '.$estacion->puntoVenta->nombre : '' }} · Validado antes de registrar</span></div></div><div class="turno">Turno: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }} – {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}</div>
+@if(isset($errors)&&$errors->any())<div class="errores">@foreach($errors->all() as $error){{ $error }}<br>@endforeach</div>@endif
+@if($ultimaMarcacion)<div class="ultima">Última: <strong>{{ $etiquetas[$ultimaMarcacion->tipo] }}</strong> · {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</div>@endif
+<div class="estado"><strong>{{ $siguiente?'Siguiente: '.$etiquetas[$siguiente]:'Jornada completada' }}</strong><span>{{ $detalleEstado }}</span></div>
+@if(empty($siguientesTipos))<div class="completo"><x-heroicon-s-check-circle style="width:2rem;height:2rem;display:block;margin:0 auto .4rem;" />Tu turno ya quedó registrado.</div>@else <div class="acciones {{ count($siguientesTipos)===1?'unica':''}}">@foreach($siguientesTipos as $tipo)<form method="POST" action="{{ route('marcacion.store') }}">@csrf<input type="hidden" name="token" value="{{ $token }}"><input type="hidden" name="tipo" value="{{ $tipo }}"><button type="submit" class="marca btn-{{ $tipo }}"><x-dynamic-component :component="'heroicon-o-'.$iconos[$tipo]" style="width:1.4rem;height:1.4rem;" />{{ $etiquetas[$tipo] }}<small>{{ $detallesBoton[$tipo] }}</small></button></form>@endforeach</div>@endif
+<div class="links"><a href="{{ route('horario.show') }}"><x-heroicon-o-calendar-days style="width:1rem;height:1rem;" /> Mi horario</a><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle style="width:1rem;height:1rem;" /> Cerrar sesión</button></form></div></main>
+</body></html>

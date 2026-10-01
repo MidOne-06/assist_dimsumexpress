@@ -3,9 +3,8 @@
 namespace App\Filament\Resources\Turnos\Tables;
 
 use App\Models\Turno;
-use Filament\Actions\DeleteAction;
+use App\Services\TurnoService;
 use Filament\Actions\EditAction;
-use Filament\Notifications\Notification;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -28,7 +27,9 @@ class TurnosTable
                     ->sortable(),
                 TextColumn::make('hora_fin')
                     ->label('Fin')
-                    ->time('H:i')
+                    ->formatStateUsing(fn (?string $state, Turno $record): string => $record->solo_entrada || ! $state
+                        ? '—'
+                        : \Carbon\Carbon::parse($state)->format('H:i'))
                     ->sortable(),
                 IconColumn::make('cruza_medianoche')
                     ->label('Nocturno')
@@ -47,44 +48,59 @@ class TurnosTable
                     ->alignCenter(),
                 TextColumn::make('horas_efectivas_objetivo_minutos')
                     ->label('Horas efectivas')
-                    ->formatStateUsing(fn (int $state) => ($state / 60) . ' h')
-                    ->alignCenter(),
+                    ->formatStateUsing(fn (int $state, Turno $record) => $record->solo_entrada ? '—' : self::minutos($state))
+                    ->alignCenter()
+                    ->sortable(),
                 TextColumn::make('horas_efectivas_jornada_completa_minutos')
                     ->label('Jornada completa')
-                    ->formatStateUsing(fn (?int $state) => $state ? ($state / 60) . ' h' : '—')
-                    ->alignCenter(),
+                    ->formatStateUsing(fn (?int $state, Turno $record) => ! $record->solo_entrada && $state ? self::minutos($state) : '—')
+                    ->alignCenter()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('solo_entrada')
                     ->label('Solo entrada')
                     ->boolean(),
                 IconColumn::make('activo')
                     ->label('Activo')
                     ->boolean(),
+                TextColumn::make('asignaciones_count')
+                    ->label('Asignaciones')
+                    ->counts('asignaciones')
+                    ->alignCenter()
+                    ->sortable(),
+                TextColumn::make('marcaciones_count')
+                    ->label('Marcaciones')
+                    ->counts('marcaciones')
+                    ->alignCenter()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('hora_inicio')
             ->filters([
                 TernaryFilter::make('activo')
                     ->label('Activo'),
+                TernaryFilter::make('solo_entrada')
+                    ->label('Solo entrada'),
+                TernaryFilter::make('incluye_refrigerio')
+                    ->label('Incluye refrigerio'),
             ])
             ->recordActions([
                 EditAction::make()
-                    ->using(fn (Turno $record, array $data): Turno => $record->actualizarParaFuturo($data))
+                    ->using(fn (Turno $record, array $data): Turno => app(TurnoService::class)
+                        ->actualizar(auth()->user(), $record, $data))
                     ->modal()
                     ->modalHeading('Actualizar turno')
-                    ->modalWidth(Width::TwoExtraLarge),
-                DeleteAction::make()
-                    ->before(function (Turno $record, DeleteAction $action): void {
-                        if (! $record->asignaciones()->exists()) {
-                            return;
-                        }
-
-                        Notification::make()
-                            ->title('No se puede eliminar')
-                            ->danger()
-                            ->send();
-
-                        $action->cancel();
-                    }),
+                    ->modalWidth(Width::ExtraLarge),
             ])
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(25)
             ->toolbarActions([]);
+    }
+
+    private static function minutos(int $minutos): string
+    {
+        $horas = intdiv($minutos, 60);
+        $resto = $minutos % 60;
+
+        return $resto > 0 ? "{$horas} h {$resto} min" : "{$horas} h";
     }
 }

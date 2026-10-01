@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Roles\Pages;
 
 use App\Filament\Resources\Roles\RoleResource;
+use App\Models\User;
+use App\Services\RoleService;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Enums\Width;
@@ -15,9 +17,15 @@ class ListRoles extends ListRecords
     {
         return [
             CreateAction::make()
+                ->using(function (array $data): \Spatie\Permission\Models\Role {
+                    /** @var User $actor */
+                    $actor = auth()->user();
+
+                    return app(RoleService::class)->crear($actor, $data);
+                })
                 ->modal()
                 ->modalHeading('Crear rol')
-                ->modalWidth(Width::TwoExtraLarge)
+                ->modalWidth(Width::FiveExtraLarge)
                 ->createAnother(false),
         ];
     }

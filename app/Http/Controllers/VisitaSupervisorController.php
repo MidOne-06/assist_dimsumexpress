@@ -13,6 +13,7 @@ use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\View\View;
 
 class VisitaSupervisorController extends Controller
@@ -79,25 +80,43 @@ class VisitaSupervisorController extends Controller
         $this->validarSupervisor($usuario);
         abort_unless(AlcanceSupervisor::puedeGestionarSucursal($usuario, $sucursal->id), 403);
 
-        $visita = VisitaSupervisor::firstOrCreate(
-            [
-                'supervisor_id' => $usuario->id,
-                'sucursal_id' => $sucursal->id,
-                'fecha' => today()->toDateString(),
-            ],
-            [
-                'punto_venta_id' => $puntoVenta?->id,
-                'fecha_hora' => now(),
-                'ip_origen' => $request->ip(),
-                'user_agent' => substr((string) $request->userAgent(), 0, 1000),
-            ],
-        );
+        $fecha = today()->toDateString();
+        $visita = VisitaSupervisor::query()
+            ->where('supervisor_id', $usuario->id)
+            ->where('sucursal_id', $sucursal->id)
+            ->whereDate('fecha', $fecha)
+            ->first();
+        $nueva = false;
+
+        if (! $visita) {
+            try {
+                $visita = VisitaSupervisor::create([
+                    'supervisor_id' => $usuario->id,
+                    'sucursal_id' => $sucursal->id,
+                    'fecha' => $fecha,
+                    'punto_venta_id' => $puntoVenta?->id,
+                    'fecha_hora' => now(),
+                    'ip_origen' => $request->ip(),
+                    'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                ]);
+                $nueva = true;
+            } catch (UniqueConstraintViolationException) {
+                // Dos escaneos simultáneos pueden competir. El índice único
+                // conserva una sola visita; la segunda respuesta recupera
+                // la visita que ya fue registrada, sin error 500.
+                $visita = VisitaSupervisor::query()
+                    ->where('supervisor_id', $usuario->id)
+                    ->where('sucursal_id', $sucursal->id)
+                    ->whereDate('fecha', $fecha)
+                    ->firstOrFail();
+            }
+        }
 
         return view('visitas-supervisor.confirmada', [
             'sucursal' => $sucursal,
             'puntoVenta' => $puntoVenta,
             'visita' => $visita,
-            'nueva' => $visita->wasRecentlyCreated,
+            'nueva' => $nueva,
         ]);
     }
 

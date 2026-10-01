@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources\Sucursals\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use App\Models\Sucursal;
+use App\Services\SucursalService;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -35,6 +35,17 @@ class SucursalsTable
                     ->label('Puntos de venta')
                     ->counts('puntosVenta')
                     ->alignCenter(),
+                TextColumn::make('colaboradores_count')
+                    ->label('Colaboradores')
+                    ->counts('colaboradores')
+                    ->alignCenter()
+                    ->sortable(),
+                TextColumn::make('marcaciones_count')
+                    ->label('Marcaciones')
+                    ->counts('marcaciones')
+                    ->alignCenter()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('activo')
                     ->label('Activa')
                     ->boolean(),
@@ -59,12 +70,12 @@ class SucursalsTable
                 EditAction::make()
                     ->modal()
                     ->modalHeading('Actualizar sucursal')
-                    ->modalWidth(Width::Large),
+                    ->modalWidth(Width::Large)
+                    ->using(fn (Sucursal $record, array $data) => app(SucursalService::class)
+                        ->actualizar(auth()->user(), $record, $data)),
             ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(25)
+            ->toolbarActions([]);
     }
 }

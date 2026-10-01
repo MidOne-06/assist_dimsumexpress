@@ -20,17 +20,26 @@ final class JornadaMarcacion
     {
         $turno = $asignacion->turno;
         $inicio = Carbon::parse($asignacion->fecha->toDateString() . ' ' . $turno->hora_inicio, config('app.timezone'));
-        $fin = Carbon::parse($asignacion->fecha->toDateString() . ' ' . $turno->hora_fin, config('app.timezone'));
+        // Las estaciones de solo entrada solo aceptan la primera marcación;
+        // el límite técnico de la jornada evita que esa asignación quede
+        // vigente indefinidamente sin inventar una hora de salida.
+        if ($turno->solo_entrada || ! $turno->hora_fin) {
+            $fin = $inicio->copy()->addMinutes(static::MAXIMO_JORNADA_MINUTOS);
+        } else {
+            $fin = Carbon::parse($asignacion->fecha->toDateString() . ' ' . $turno->hora_fin, config('app.timezone'));
 
-        if ($turno->cruza_medianoche || $fin->lte($inicio)) {
-            $fin->addDay();
+            if ($turno->cruza_medianoche || $fin->lte($inicio)) {
+                $fin->addDay();
+            }
         }
 
         return [
             'inicio' => $inicio,
             'fin' => $fin,
             'ventana_inicio' => $inicio->copy()->subMinutes($turno->tolerancia_entrada_minutos),
-            'ventana_fin' => $fin->copy()->addMinutes($turno->tolerancia_salida_minutos),
+            'ventana_fin' => $turno->solo_entrada
+                ? $inicio->copy()->addMinutes($turno->tolerancia_entrada_minutos)
+                : $fin->copy()->addMinutes($turno->tolerancia_salida_minutos),
             'jornada_fin_maximo' => $inicio->copy()->addMinutes(static::MAXIMO_JORNADA_MINUTOS),
         ];
     }
@@ -244,43 +253,126 @@ final class JornadaMarcacion
             ->lte($limites['jornada_fin_maximo']);
     }
 
-    /** @return array{estado:string, efectivos_minutos:?int, objetivo_minutos:int, extras_minutos:?int, diferencia_minutos:?int} */
+    /**
+     * El cálculo se conserva en segundos para que una marcación nunca pierda
+     * precisión. Los campos en minutos se mantienen como compatibilidad para
+     * vistas existentes; no se usan para decidir cumplimiento ni extras.
+     *
+     * @return array{estado:string, efectivos_segundos:?int, objetivo_segundos:int, extras_segundos:?int, diferencia_segundos:?int, refrigerio_segundos:?int, efectivos_minutos:?int, objetivo_minutos:int, extras_minutos:?int, diferencia_minutos:?int, inconsistencias:array<int, string>}
+     */
     public static function resumen(Colaborador $colaborador, AsignacionTurno $asignacion, ?Collection $marcaciones = null): array
     {
         $marcaciones ??= static::marcaciones($colaborador, $asignacion);
         $entrada = $marcaciones->firstWhere('tipo', Marcacion::TIPO_ENTRADA);
         $salida = $marcaciones->filter(fn (Marcacion $marcacion) => $marcacion->tipo === Marcacion::TIPO_SALIDA)->last();
         $objetivoConfigurado = static::minutosObjetivo($asignacion);
+        $objetivoConfiguradoSegundos = $objetivoConfigurado * 60;
+        $inconsistencias = static::inconsistencias($marcaciones, $entrada, $salida);
 
-        if (! $entrada || ! $salida) {
-            return ['estado' => 'en_curso', 'efectivos_minutos' => null, 'objetivo_minutos' => $objetivoConfigurado, 'extras_minutos' => null, 'diferencia_minutos' => null];
+        if ($inconsistencias !== []) {
+            return static::resultadoInconsistente($objetivoConfigurado, $inconsistencias);
         }
 
-        $refrigerio = 0;
+        if (! $entrada || ! $salida) {
+            return [
+                'estado' => 'en_curso',
+                'efectivos_segundos' => null,
+                'objetivo_segundos' => $objetivoConfiguradoSegundos,
+                'extras_segundos' => null,
+                'diferencia_segundos' => null,
+                'refrigerio_segundos' => null,
+                'efectivos_minutos' => null,
+                'objetivo_minutos' => $objetivoConfigurado,
+                'extras_minutos' => null,
+                'diferencia_minutos' => null,
+                'inconsistencias' => [],
+            ];
+        }
+
+        $refrigerioSegundos = 0;
         $inicioRefrigerio = $marcaciones->firstWhere('tipo', Marcacion::TIPO_SALIDA_REFRIGERIO);
         $finRefrigerio = $marcaciones->firstWhere('tipo', Marcacion::TIPO_REGRESO_REFRIGERIO);
         if ($inicioRefrigerio && $finRefrigerio) {
-            $refrigerio = $inicioRefrigerio->fecha_hora->diffInMinutes($finRefrigerio->fecha_hora);
+            $refrigerioSegundos = max(0, $finRefrigerio->fecha_hora->getTimestamp() - $inicioRefrigerio->fecha_hora->getTimestamp());
         }
 
-        $efectivos = (int) max(0, $entrada->fecha_hora->diffInMinutes($salida->fecha_hora) - $refrigerio);
+        $efectivosSegundos = max(0, $salida->fecha_hora->getTimestamp() - $entrada->fecha_hora->getTimestamp() - $refrigerioSegundos);
         // Un turno puede definir una meta de jornada completa superior a su
         // meta ordinaria. Solo se aplica cuando la permanencia real la
         // alcanza: así un turno mañana extendido se reconoce sin reasignar
         // al colaborador y sin imponer una regla global a los demás turnos.
         $objetivoJornadaCompleta = $asignacion->turno->horas_efectivas_jornada_completa_minutos;
-        $objetivo = $objetivoJornadaCompleta !== null && $efectivos >= $objetivoJornadaCompleta
-            ? (int) $objetivoJornadaCompleta
-            : $objetivoConfigurado;
-        $diferencia = $efectivos - $objetivo;
+        $objetivoSegundos = $objetivoJornadaCompleta !== null && $efectivosSegundos >= ((int) $objetivoJornadaCompleta * 60)
+            ? (int) $objetivoJornadaCompleta * 60
+            : $objetivoConfiguradoSegundos;
+        $diferenciaSegundos = $efectivosSegundos - $objetivoSegundos;
 
         return [
-            'estado' => $diferencia < 0 ? 'pendiente' : ($diferencia > 0 ? 'extendida' : 'cumplida'),
-            'efectivos_minutos' => $efectivos,
-            'objetivo_minutos' => $objetivo,
-            'extras_minutos' => max(0, $diferencia),
-            'diferencia_minutos' => $diferencia,
+            'estado' => $diferenciaSegundos < 0 ? 'pendiente' : ($diferenciaSegundos > 0 ? 'extendida' : 'cumplida'),
+            'efectivos_segundos' => $efectivosSegundos,
+            'objetivo_segundos' => $objetivoSegundos,
+            'extras_segundos' => max(0, $diferenciaSegundos),
+            'diferencia_segundos' => $diferenciaSegundos,
+            'refrigerio_segundos' => $refrigerioSegundos,
+            'efectivos_minutos' => static::segundosAMinutos($efectivosSegundos),
+            'objetivo_minutos' => static::segundosAMinutos($objetivoSegundos),
+            'extras_minutos' => static::segundosAMinutos(max(0, $diferenciaSegundos)),
+            'diferencia_minutos' => static::segundosAMinutos($diferenciaSegundos),
+            'inconsistencias' => [],
         ];
+    }
+
+    /** @return array<int, string> */
+    private static function inconsistencias(Collection $marcaciones, ?Marcacion $entrada, ?Marcacion $salida): array
+    {
+        $inconsistencias = [];
+        $conteos = $marcaciones->countBy('tipo');
+
+        foreach ([Marcacion::TIPO_ENTRADA, Marcacion::TIPO_SALIDA, Marcacion::TIPO_SALIDA_REFRIGERIO, Marcacion::TIPO_REGRESO_REFRIGERIO] as $tipo) {
+            if (($conteos[$tipo] ?? 0) > 1) {
+                $inconsistencias[] = "{$tipo}_duplicada";
+            }
+        }
+
+        $salidaRefrigerio = $marcaciones->firstWhere('tipo', Marcacion::TIPO_SALIDA_REFRIGERIO);
+        $regresoRefrigerio = $marcaciones->firstWhere('tipo', Marcacion::TIPO_REGRESO_REFRIGERIO);
+        if (($salidaRefrigerio === null) !== ($regresoRefrigerio === null) && $salida !== null) {
+            $inconsistencias[] = 'refrigerio_incompleto';
+        }
+        if ($salidaRefrigerio && $regresoRefrigerio && $regresoRefrigerio->fecha_hora->lte($salidaRefrigerio->fecha_hora)) {
+            $inconsistencias[] = 'orden_refrigerio_invalido';
+        }
+        if ($entrada && $salida && $salida->fecha_hora->lte($entrada->fecha_hora)) {
+            $inconsistencias[] = 'orden_jornada_invalido';
+        }
+        if ($salida && $marcaciones->contains(fn (Marcacion $marcacion): bool => $marcacion->fecha_hora->gt($salida->fecha_hora))) {
+            $inconsistencias[] = 'evento_posterior_a_salida';
+        }
+
+        return array_values(array_unique($inconsistencias));
+    }
+
+    /** @return array{estado:string, efectivos_segundos:null, objetivo_segundos:int, extras_segundos:null, diferencia_segundos:null, refrigerio_segundos:null, efectivos_minutos:null, objetivo_minutos:int, extras_minutos:null, diferencia_minutos:null, inconsistencias:array<int, string>} */
+    private static function resultadoInconsistente(int $objetivoMinutos, array $inconsistencias): array
+    {
+        return [
+            'estado' => 'inconsistente',
+            'efectivos_segundos' => null,
+            'objetivo_segundos' => $objetivoMinutos * 60,
+            'extras_segundos' => null,
+            'diferencia_segundos' => null,
+            'refrigerio_segundos' => null,
+            'efectivos_minutos' => null,
+            'objetivo_minutos' => $objetivoMinutos,
+            'extras_minutos' => null,
+            'diferencia_minutos' => null,
+            'inconsistencias' => $inconsistencias,
+        ];
+    }
+
+    private static function segundosAMinutos(int $segundos): int
+    {
+        return ($segundos < 0 ? -1 : 1) * intdiv(abs($segundos), 60);
     }
 
     /** @return array<int, string> */

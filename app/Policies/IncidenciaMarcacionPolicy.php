@@ -19,6 +19,9 @@ class IncidenciaMarcacionPolicy
     public function view(User $user, IncidenciaMarcacion $incidencia): bool
     {
         return $user->can('View:IncidenciaMarcacion')
-            && AlcanceSupervisor::puedeGestionarSucursal($user, $incidencia->colaborador->sucursal_id);
+            && AlcanceSupervisor::puedeGestionarSucursal(
+                $user,
+                $incidencia->sucursal_id ?? $incidencia->colaborador->sucursal_id,
+            );
     }
 }

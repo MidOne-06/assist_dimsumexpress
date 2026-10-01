@@ -8,8 +8,10 @@ use App\Support\AlcanceSupervisor;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\SvgWriter;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -64,9 +66,12 @@ class EstacionesQr extends Page implements HasTable
                 sortDirection: $sortDirection,
             ))
             ->columns([
-                TextColumn::make('nombre')->label('Estación')->searchable()->sortable(),
+                TextColumn::make('nombre')
+                    ->label('Estación')
+                    ->description(fn (array $record): string => $record['tipo'])
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('sucursal')->label('Sucursal')->searchable()->sortable(),
-                TextColumn::make('ubicacion')->label('Ubicación')->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('sucursal_id')
@@ -80,57 +85,73 @@ class EstacionesQr extends Page implements HasTable
             ])
             ->actions([
                 Action::make('verQr')
-                    ->label('Ver QR')
+                    ->label('QR asistencia')
                     ->icon(Heroicon::OutlinedQrCode)
                     ->authorize(fn (): bool => auth()->user()->can('VerEnlace:PuntoVenta'))
-                    ->modalHeading(fn (array $record): string => "Estación: {$record['nombre']}")
+                    ->tooltip('Abrir y descargar QR de asistencia')
+                    ->modalHeading(fn (array $record): string => "QR de asistencia · {$record['nombre']}")
+                    ->modalWidth(Width::TwoExtraLarge)
                     ->modalContent(fn (array $record) => view('filament.actions.estacion-qr', [
                         'estacion' => $record,
                         'qr' => $this->codigoQr($record['url']),
+                        'tituloQr' => 'Marcación de asistencia',
+                        'subtituloQr' => "{$record['sucursal']} · {$record['tipo']}",
+                        'etiqueta' => 'Enlace de asistencia',
+                        'archivo' => 'DIMSUM-QR-ASISTENCIA-',
+                        'etiquetaDescargar' => 'Descargar QR de asistencia',
+                        'etiquetaAbrir' => 'Abrir estación de asistencia',
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
                 Action::make('verQrVisita')
                     ->label('QR visita')
                     ->icon(Heroicon::OutlinedIdentification)
+                    ->color('gray')
                     ->authorize(fn (): bool => auth()->user()->can('View:EstacionesQr')
                         && auth()->user()->can('VerEnlace:PuntoVenta'))
-                    ->modalHeading(fn (array $record): string => "Visita de supervisor: {$record['nombre']}")
+                    ->tooltip('Abrir y descargar QR de visita de supervisión')
+                    ->modalHeading(fn (array $record): string => "QR de visita · {$record['nombre']}")
+                    ->modalWidth(Width::TwoExtraLarge)
                     ->modalContent(fn (array $record) => view('filament.actions.estacion-qr', [
                         'estacion' => $record,
                         // Este QR provisiona la pantalla física. El QR que
-                        // muestra esa pantalla rota cada 20 segundos.
+                        // muestra esa pantalla rota cada 60 segundos.
                         'qr' => $this->codigoQr($record['visita_estacion_url']),
                         'url' => $record['visita_estacion_url'],
-                        'etiqueta' => 'Enlace de estación de visita',
-                        'archivo' => 'visita-supervisor-',
-                        // Abrir o copiar una URL de visita desde el panel
-                        // equivale a registrar una visita. El panel solo debe
-                        // servir para visualizar o descargar el QR físico.
+                        'tituloQr' => 'Visita de supervisión',
+                        'subtituloQr' => "{$record['sucursal']} · {$record['tipo']}",
+                        'etiqueta' => 'Enlace de visita de supervisión',
+                        'archivo' => 'DIMSUM-QR-VISITA-SUPERVISION-',
+                        'etiquetaDescargar' => 'Descargar QR de visita',
                         'mostrarEnlace' => true,
                         'permitirAbrir' => true,
                         'abrirUrl' => $record['visita_estacion_url'],
-                        'etiquetaAbrir' => 'Abrir vista de estación',
+                        'etiquetaAbrir' => 'Abrir estación de visita',
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar'),
-                Action::make('regenerarEnlace')
-                    ->label('Regenerar enlace')
-                    ->icon(Heroicon::OutlinedArrowPath)
-                    ->color('warning')
-                    ->authorize(fn (): bool => auth()->user()->can('VerEnlace:PuntoVenta'))
-                    ->requiresConfirmation()
-                    ->modalHeading('Regenerar enlace de estación')
-                    ->modalSubmitActionLabel('Regenerar enlace')
-                    ->action(function (array $record): void {
-                        PuntoVenta::query()
-                            ->findOrFail((int) str_replace('punto-venta-', '', $record['__key']))
-                            ->regenerarTokenPantalla();
+                ActionGroup::make([
+                    Action::make('regenerarEnlace')
+                        ->label('Regenerar accesos')
+                        ->icon(Heroicon::OutlinedArrowPath)
+                        ->color('warning')
+                        ->authorize(fn (): bool => auth()->user()->can('RegenerarEnlace:PuntoVenta'))
+                        ->requiresConfirmation()
+                        ->modalHeading('Regenerar accesos de estación')
+                        ->modalSubmitActionLabel('Regenerar')
+                        ->action(function (array $record): void {
+                            $this->puntoVentaPermitido($record)->regenerarTokenPantalla();
 
-                        Notification::make()->title('Enlace de estación regenerado')->success()->send();
-                    }),
+                            Notification::make()->title('Accesos de estación regenerados')->success()->send();
+                        }),
+                ])
+                    ->label('Acciones')
+                    ->icon(Heroicon::OutlinedEllipsisVertical)
+                    ->button()
+                    ->color('gray'),
             ])
             ->defaultSort('sucursal')
+            ->poll('30s')
             ->paginated([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->emptyStateHeading('Sin estaciones');
@@ -155,7 +176,7 @@ class EstacionesQr extends Page implements HasTable
             $needle = Str::lower($search);
 
             $estaciones = $estaciones->filter(fn (array $estacion): bool => Str::contains(
-                Str::lower(implode(' ', [$estacion['nombre'], $estacion['sucursal'], $estacion['ubicacion']])),
+                Str::lower(implode(' ', [$estacion['nombre'], $estacion['sucursal'], $estacion['tipo']])),
                 $needle,
             ));
         }
@@ -178,7 +199,7 @@ class EstacionesQr extends Page implements HasTable
     }
 
     /**
-     * @return Collection<int, array{__key: string, nombre: string, sucursal: string, sucursal_id: int, ubicacion: string, url: string, visita_estacion_url: string}>
+     * @return Collection<int, array{__key: string, nombre: string, sucursal: string, sucursal_id: int, tipo: string, url: string, visita_estacion_url: string}>
      */
     private function estacionesBase(): Collection
     {
@@ -199,7 +220,7 @@ class EstacionesQr extends Page implements HasTable
                         'nombre' => $puntoVenta->nombre,
                         'sucursal' => $puntoVenta->sucursal->nombre,
                         'sucursal_id' => $puntoVenta->sucursal_id,
-                        'ubicacion' => 'Punto de venta',
+                        'tipo' => self::etiquetaTipo($puntoVenta->tipo),
                         'url' => $puntoVenta->enlaceEstacion(),
                         'visita_estacion_url' => $puntoVenta->enlaceEstacionVisita(),
                     ]);
@@ -207,6 +228,29 @@ class EstacionesQr extends Page implements HasTable
         }
 
         return $estaciones;
+    }
+
+    /** @param array<string, mixed> $record */
+    private function puntoVentaPermitido(array $record): PuntoVenta
+    {
+        $id = preg_replace('/^punto-venta-/', '', (string) ($record['__key'] ?? ''));
+        abort_unless(is_string($id) && ctype_digit($id), 404);
+
+        return PuntoVenta::query()
+            ->where('activo', true)
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
+            ->findOrFail((int) $id);
+    }
+
+    private static function etiquetaTipo(?string $tipo): string
+    {
+        return match ($tipo) {
+            'caja' => 'Caja',
+            'produccion' => 'Producción',
+            'oficina' => 'Oficina',
+            'almacen' => 'Almacén',
+            default => 'Punto de marcado',
+        };
     }
 
     private function codigoQr(string $url): string

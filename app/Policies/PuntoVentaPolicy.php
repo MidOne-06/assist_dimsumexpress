@@ -34,12 +34,12 @@ class PuntoVentaPolicy
 
     public function delete(AuthUser $authUser, PuntoVenta $puntoVenta): bool
     {
-        return $authUser->can('Delete:PuntoVenta');
+        return false;
     }
 
     public function deleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('DeleteAny:PuntoVenta');
+        return false;
     }
 
     public function restore(AuthUser $authUser, PuntoVenta $puntoVenta): bool

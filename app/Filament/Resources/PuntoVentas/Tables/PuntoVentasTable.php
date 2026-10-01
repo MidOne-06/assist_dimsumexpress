@@ -4,9 +4,8 @@ namespace App\Filament\Resources\PuntoVentas\Tables;
 
 use App\Models\PuntoVenta;
 use App\Models\Sucursal;
+use App\Services\PuntoVentaService;
 use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
@@ -40,6 +39,17 @@ class PuntoVentasTable
                         'almacen' => 'Almacén',
                         default => 'Otro',
                     }),
+                TextColumn::make('colaboradores_count')
+                    ->label('Colaboradores')
+                    ->counts('colaboradores')
+                    ->alignCenter()
+                    ->sortable(),
+                TextColumn::make('marcaciones_count')
+                    ->label('Marcaciones')
+                    ->counts('marcaciones')
+                    ->alignCenter()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('activo')
                     ->label('Activo')
                     ->boolean(),
@@ -77,12 +87,12 @@ class PuntoVentasTable
                 EditAction::make()
                     ->modal()
                     ->modalHeading('Actualizar punto de marcado')
-                    ->modalWidth(Width::Large),
+                    ->modalWidth(Width::Large)
+                    ->using(fn (PuntoVenta $record, array $data) => app(PuntoVentaService::class)
+                        ->actualizar(auth()->user(), $record, $data)),
             ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(25)
+            ->toolbarActions([]);
     }
 }

@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'activo'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
@@ -35,6 +35,7 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'activo' => 'boolean',
         ];
     }
 
@@ -54,10 +55,15 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(VisitaSupervisor::class, 'supervisor_id');
     }
 
+    public function enlacesAccesoColaborador(): HasMany
+    {
+        return $this->hasMany(EnlaceAccesoColaborador::class);
+    }
+
     /** Las cuentas de colaborador dependen del estado de su ficha laboral. */
     public function estaActivoParaAcceso(): bool
     {
-        return $this->colaborador?->activo ?? true;
+        return $this->activo && ($this->colaborador?->activo ?? true);
     }
 
     /**
@@ -82,6 +88,11 @@ class User extends Authenticatable implements FilamentUser
     {
         $this->forceFill(['remember_token' => Str::random(60)])->save();
 
+        $this->enlacesAccesoColaborador()
+            ->whereNull('usado_en')
+            ->whereNull('revocado_en')
+            ->update(['revocado_en' => now()]);
+
         DB::table(config('session.table', 'sessions'))
             ->where('user_id', $this->getKey())
             ->delete();
@@ -91,6 +102,7 @@ class User extends Authenticatable implements FilamentUser
     {
         return $panel->getId() === 'admin'
             && $this->estaActivoParaAcceso()
+            && ! (request()->hasSession() && request()->session()->get('acceso_operativo_via_enlace', false) === true)
             && $this->can('Access:AdminPanel');
     }
 }

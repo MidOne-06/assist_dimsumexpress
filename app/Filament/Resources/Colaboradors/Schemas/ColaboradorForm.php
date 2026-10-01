@@ -5,7 +5,8 @@ namespace App\Filament\Resources\Colaboradors\Schemas;
 use App\Models\Area;
 use App\Models\Empresa;
 use App\Models\PuntoVenta;
-use App\Models\Sucursal;
+use App\Support\AlcanceSupervisor;
+use App\Support\PoliticaContrasena;
 use Filament\Forms\Components\DatePicker;
 use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
@@ -15,7 +16,6 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Validation\Rules\Password;
 
 class ColaboradorForm
 {
@@ -24,6 +24,8 @@ class ColaboradorForm
         return $schema
             ->components([
                 Section::make('Cuenta de acceso')
+                    ->columnSpanFull()
+                    ->compact()
                     ->columns(['default' => 1, 'md' => 2])
                     ->schema([
                         TextInput::make('email')
@@ -31,58 +33,66 @@ class ColaboradorForm
                             ->email()
                             ->required()
                             ->maxLength(255)
-                            ->unique(table: 'users', column: 'email', ignorable: fn (?Model $record) => $record?->user),
+                            ->unique(table: 'users', column: 'email', ignorable: fn (?Model $record) => $record?->user)
+                            ->columnSpanFull(),
                         TextInput::make('password')
                             ->label('Contraseña')
                             ->password()
                             ->revealable()
-                            ->minLength(12)
-                            ->rules([Password::min(12)->mixedCase()->numbers()->symbols()])
+                            ->minLength(PoliticaContrasena::MINIMO_CARACTERES)
+                            ->rules([PoliticaContrasena::regla()])
+                            ->confirmed()
                             ->required(fn (string $operation) => $operation === 'create')
                             ->dehydrated(fn (?string $state) => filled($state)),
+                        TextInput::make('password_confirmation')
+                            ->label('Confirmar contraseña')
+                            ->password()
+                            ->revealable()
+                            ->same('password')
+                            ->required(fn (Get $get, string $operation): bool => $operation === 'create' || filled($get('password')))
+                            ->dehydrated(false),
                     ]),
 
                 Section::make('Datos del colaborador')
-                    ->columns(['default' => 1, 'md' => 2, 'xl' => 12])
+                    ->columnSpanFull()
+                    ->compact()
+                    ->columns(['default' => 1, 'md' => 2])
                     ->schema([
                         TextInput::make('nombre_completo')
                             ->label('Nombre completo')
                             ->required()
                             ->maxLength(255)
-                            ->columnSpan(['default' => 'full', 'md' => 2, 'xl' => 6]),
+                            ->columnSpanFull(),
                         TextInput::make('documento_identidad')
                             ->label('Documento de identidad')
                             ->required()
                             ->maxLength(20)
-                            ->unique(ignoreRecord: true)
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 3]),
+                            ->unique(ignoreRecord: true),
                         Select::make('empresa_id')
                             ->label('Empresa')
                             ->options(fn (): array => Empresa::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
                             ->searchable()
                             ->preload()
-                            ->required()
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 6]),
+                            ->required(),
                         Select::make('area_id')
                             ->label('Área')
                             ->options(fn (): array => Area::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
                             ->searchable()
                             ->preload()
-                            ->required()
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 6]),
+                            ->required(),
                         TextInput::make('cargo')
                             ->label('Cargo')
-                            ->maxLength(255)
-                            ->columnSpan(['default' => 'full', 'md' => 2, 'xl' => 4]),
+                            ->maxLength(255),
                         Select::make('sucursal_id')
                             ->label('Sucursal')
-                            ->options(fn () => Sucursal::query()->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id'))
+                            ->options(fn (): array => auth()->user()
+                                ? AlcanceSupervisor::sucursalesQuery(auth()->user())->pluck('nombre', 'id')->all()
+                                : [])
                             ->searchable()
                             ->optionsLimit(8)
                             ->required()
                             ->live()
-                            ->afterStateUpdated(fn (Set $set) => $set('punto_venta_id', null))
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
+                            ->afterStateUpdated(fn (Set $set) => $set('punto_venta_id', null)),
                         Select::make('punto_venta_id')
                             ->label('Punto de venta')
                             ->visible(function (Get $get): bool {
@@ -107,18 +117,15 @@ class ColaboradorForm
                                     ->pluck('nombre', 'id');
                             })
                             ->searchable()
-                            ->optionsLimit(8)
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 4]),
+                            ->optionsLimit(8),
                         DatePicker::make('fecha_ingreso')
                             ->label('Fecha de ingreso')
                             ->default(now())
-                            ->native(false)
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 2]),
+                            ->native(false),
                         Toggle::make('activo')
                             ->label('Activo')
                             ->default(true)
-                            ->required()
-                            ->columnSpan(['default' => 'full', 'md' => 1, 'xl' => 2]),
+                            ->required(),
                     ]),
             ]);
     }

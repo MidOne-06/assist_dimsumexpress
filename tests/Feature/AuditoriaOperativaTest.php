@@ -75,7 +75,7 @@ class AuditoriaOperativaTest extends TestCase
             ],
             'qr' => 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
         ])
-            ->assertSee('Punto de venta · Tienda de prueba')
+            ->assertSee('Tienda de prueba')
             ->assertSee('Caja de prueba');
     }
 
@@ -86,7 +86,10 @@ class AuditoriaOperativaTest extends TestCase
         $ajena = $this->sucursal(['nombre' => 'Local ajeno']);
         $supervisor = User::factory()->create();
         $supervisor->assignRole('supervisor');
-        $supervisor->givePermissionTo(Permission::findByName('View:Marcacion', 'web'));
+        $supervisor->givePermissionTo(
+            Permission::findByName('View:Marcacion', 'web'),
+            Permission::findOrCreate('View:Colaborador', 'web'),
+        );
         $supervisor = $supervisor->fresh();
         $this->assertTrue($supervisor->hasPermissionTo('View:Marcacion'));
         $supervisor->sucursalesSupervisadas()->attach($propia);
@@ -116,6 +119,7 @@ class AuditoriaOperativaTest extends TestCase
         $this->seed(RolesYPermisosSeeder::class);
         $admin = User::factory()->create();
         $admin->assignRole('super_admin');
+        $admin->givePermissionTo(Permission::findOrCreate('Update:Turno', 'web'));
         $sucursal = $this->sucursal();
         $colaborador = $this->colaborador($sucursal);
         $turno = Turno::create(['nombre' => 'Turno histórico', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'activo' => true]);

@@ -18,8 +18,8 @@
             </div>
 
             <div class="visitas-filtros">
-                <x-filament::input.select wire:model.live="supervisorId" aria-label="Filtrar por supervisora">
-                    <option value="">Todas las supervisoras</option>
+                <x-filament::input.select wire:model.live="supervisorId" aria-label="Filtrar por supervisor">
+                    <option value="">Todos los supervisores</option>
                     @foreach ($this->supervisores as $supervisora)
                         <option value="{{ $supervisora->id }}">{{ $supervisora->name }}</option>
                     @endforeach
@@ -31,16 +31,29 @@
                         <option value="{{ $sucursal->id }}">{{ $sucursal->nombre }}</option>
                     @endforeach
                 </x-filament::input.select>
+                <x-filament::button wire:click="limpiarFiltros" color="gray" size="sm">Limpiar</x-filament::button>
             </div>
         </div>
     </x-filament::section>
 
     <x-filament::section>
-        <div class="visitas-calendario-scroll" x-init="$el.scrollLeft = 0" role="region" aria-label="Calendario de visitas de supervisión" tabindex="0">
+        <div
+            class="visitas-calendario-scroll"
+            x-data
+            x-on:visitas-ir-a-hoy.window="$nextTick(() => {
+                const columna = $el.querySelector('[data-visita-hoy]')
+                if (! columna) return
+                const fijo = $el.querySelector('.visitas-esquina')?.offsetWidth ?? 0
+                $el.scrollTo({ left: Math.max(0, columna.offsetLeft - fijo - 24), behavior: 'smooth' })
+            })"
+            role="region"
+            aria-label="Calendario de visitas de supervisión"
+            tabindex="0"
+        >
             <div class="visitas-calendario" style="--dias: {{ count($dias) }}">
-                <div class="visitas-esquina">Supervisora</div>
+                <div class="visitas-esquina">Supervisor</div>
                 @foreach ($dias as $dia)
-                    <div @class(['visitas-dia-cabecera', 'es-hoy' => $dia->isToday()])>
+                    <div @class(['visitas-dia-cabecera', 'es-hoy' => $dia->isToday()]) @if ($dia->isToday()) data-visita-hoy @endif>
                         <span>{{ $dia->isoFormat('dd') }}</span>
                         <strong>{{ $dia->format('d') }}</strong>
                     </div>
@@ -57,16 +70,17 @@
                                 @php
                                     $local = $visita->sucursal?->nombre ?? 'Local eliminado';
                                     $punto = $visita->puntoVenta?->nombre;
-                                    $detalle = $local . ($punto ? ' · ' . $punto : '') . ' · ' . $visita->fecha_hora->format('H:i');
+                                    $detalle = $local . ($punto ? ' · ' . $punto : '') . ' · ' . $visita->fecha_hora->format('H:i:s');
                                 @endphp
                                 <span class="visita-chip" title="{{ $detalle }}">
-                                    {{ $local }} · {{ $visita->fecha_hora->format('H:i') }}
+                                    <span class="visita-chip-local">{{ $local }}</span>
+                                    <span class="visita-chip-meta">{{ $punto ?? '—' }} · {{ $visita->fecha_hora->format('H:i:s') }}</span>
                                 </span>
                             @endforeach
                         </div>
                     @endforeach
                 @empty
-                    <div class="visitas-vacio" style="grid-column: 1 / -1">No hay supervisoras para los filtros seleccionados.</div>
+                    <div class="visitas-vacio" style="grid-column: 1 / -1">Sin visitas</div>
                 @endforelse
             </div>
         </div>
@@ -100,7 +114,9 @@
         .dark .visitas-celda { background:var(--gray-950); }
         .es-hoy { background:color-mix(in srgb, var(--primary-50) 72%, transparent) !important; }
         .dark .es-hoy { background:color-mix(in srgb, var(--primary-950) 65%, transparent) !important; }
-        .visita-chip { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:.3rem; background:var(--primary-100); color:var(--primary-700); font-size:.67rem; font-weight:700; line-height:1.3; padding:.22rem .3rem; }
+        .visita-chip { display:block; overflow:hidden; border-radius:.3rem; background:var(--primary-100); color:var(--primary-700); font-size:.67rem; font-weight:700; line-height:1.3; padding:.22rem .3rem; }
+        .visita-chip-local, .visita-chip-meta { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .visita-chip-meta { font-size:.62rem; font-weight:600; opacity:.82; }
         .dark .visita-chip { background:var(--primary-900); color:var(--primary-200); }
         .visitas-vacio { padding:1.5rem; color:var(--gray-500); text-align:center; }
         @media (max-width: 640px) { .visitas-filtros { width:100%; } .visitas-filtros select { flex:1; min-width:9rem; } }

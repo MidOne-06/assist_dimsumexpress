@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Sucursals\Pages;
 
 use App\Filament\Resources\Sucursals\SucursalResource;
+use App\Services\SucursalService;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Enums\Width;
@@ -18,7 +19,8 @@ class ListSucursals extends ListRecords
                 ->modal()
                 ->modalHeading('Crear sucursal')
                 ->modalWidth(Width::Large)
-                ->createAnother(false),
+                ->createAnother(false)
+                ->using(fn (array $data) => app(SucursalService::class)->crear(auth()->user(), $data)),
         ];
     }
 }

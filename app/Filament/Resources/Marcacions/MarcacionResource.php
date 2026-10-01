@@ -72,7 +72,17 @@ class MarcacionResource extends Resource implements HasShieldPermissions
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()));
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
+            ->with([
+                'colaborador',
+                'empresa',
+                'area',
+                'turno',
+                'sucursal',
+                'puntoVenta',
+                'qrToken',
+                'coberturaOperativa',
+            ]);
     }
 
     public static function getRelations(): array

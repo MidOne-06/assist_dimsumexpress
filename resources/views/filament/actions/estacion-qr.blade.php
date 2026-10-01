@@ -6,12 +6,16 @@
     $permitirAbrir = $permitirAbrir ?? true;
     $abrirUrl = $abrirUrl ?? $url;
     $etiquetaAbrir = $etiquetaAbrir ?? 'Abrir estación';
+    $tituloQr = $tituloQr ?? $estacion['nombre'];
+    $subtituloQr = $subtituloQr ?? $estacion['sucursal'];
+    $etiquetaDescargar = $etiquetaDescargar ?? 'Descargar QR';
+    $nombreArchivo = $archivo.\Illuminate\Support\Str::upper(\Illuminate\Support\Str::slug($estacion['sucursal'].'-'.$estacion['nombre'])).'.svg';
 @endphp
 <div x-data="{ copiado: false }" class="space-y-4">
     <x-filament::section
         icon="heroicon-o-qr-code"
-        :heading="$estacion['nombre']"
-        :description="'Punto de venta · '.$estacion['sucursal']"
+        :heading="$tituloQr"
+        :description="$subtituloQr"
     >
         <div class="flex justify-center bg-gray-50 p-4 dark:bg-white/5">
             <img src="{{ $qr }}" alt="QR de acceso a la estación {{ $estacion['nombre'] }}" class="h-56 w-56 rounded-lg bg-white p-2">
@@ -44,8 +48,8 @@
                         {{ $etiquetaAbrir }}
                     </x-filament::button>
                 @endif
-                <x-filament::button tag="a" color="gray" outlined icon="heroicon-o-arrow-down-tray" :href="$qr" :download="$archivo.\Illuminate\Support\Str::slug($estacion['sucursal'].'-'.$estacion['nombre']).'.svg'">
-                    Descargar QR
+                <x-filament::button tag="a" color="gray" outlined icon="heroicon-o-arrow-down-tray" :href="$qr" :download="$nombreArchivo">
+                    {{ $etiquetaDescargar }}
                 </x-filament::button>
             </div>
         </div>

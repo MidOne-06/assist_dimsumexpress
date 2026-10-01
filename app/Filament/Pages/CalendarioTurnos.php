@@ -7,15 +7,27 @@ use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Services\CalendarioTurnosSpreadsheetService;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\HtmlString;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rules\Unique;
 
 class CalendarioTurnos extends Page
 {
@@ -41,12 +53,164 @@ class CalendarioTurnos extends Page
 
     public ?int $sucursalId = null;
 
+    public ?int $asignacionEditandoId = null;
+
     public string $mes;
 
     public function mount(): void
     {
         $this->mes = now()->format('Y-m');
-        $this->sucursalId = $this->sucursalesPermitidas()->value('id');
+        $this->sucursalId = null;
+    }
+
+    /** @return array<Action> */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('exportarCalendario')
+                ->label('Exportar')
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->color('gray')
+                ->visible(fn (): bool => auth()->user()?->can('Exportar:AsignacionTurno') ?? false)
+                ->action(fn () => app(CalendarioTurnosSpreadsheetService::class)->exportar(
+                    $this->asignacionesDelMesQuery(),
+                )),
+            Action::make('asignarTurno')
+                ->label('Asignar turno')
+                ->icon(Heroicon::OutlinedCalendarDays)
+                ->visible(fn (): bool => auth()->user()?->can('Create:AsignacionTurno') ?? false)
+                ->modalHeading('Asignar turno')
+                ->modalWidth(Width::TwoExtraLarge)
+                ->modalSubmitActionLabel('Guardar asignación')
+                ->schema([
+                    Section::make()
+                        ->compact()
+                        ->columns(['default' => 1, 'md' => 2])
+                        ->schema([
+                            Select::make('colaborador_id')
+                                ->label('Colaborador')
+                                ->options(fn (): array => $this->colaboradores
+                                    ->where('activo', true)
+                                    ->pluck('nombre_completo', 'id')
+                                    ->all())
+                                ->searchable()
+                                ->optionsLimit(8)
+                                ->required()
+                                ->columnSpanFull(),
+                            Select::make('turno_id')
+                                ->label('Turno')
+                                ->options(fn (): array => Turno::query()
+                                    ->where('activo', true)
+                                    ->orderBy('hora_inicio')
+                                    ->pluck('nombre', 'id')
+                                    ->all())
+                                ->required(),
+                            DatePicker::make('fecha')
+                                ->label('Fecha')
+                                ->native(false)
+                                ->minDate(today())
+                                ->default(today())
+                                ->required()
+                                ->unique(
+                                    table: 'asignaciones_turno',
+                                    column: 'fecha',
+                                    modifyRuleUsing: fn (Unique $rule, Get $get): Unique => $rule
+                                        ->where('colaborador_id', $get('colaborador_id')),
+                                )
+                                ->validationMessages([
+                                    'unique' => 'Este colaborador ya tiene un turno asignado en esa fecha.',
+                                ]),
+                            Textarea::make('observacion')
+                                ->label('Observación')
+                                ->rows(2)
+                                ->maxLength(255)
+                                ->columnSpanFull(),
+                        ]),
+                ])
+                ->action(function (array $data): void {
+                    $colaborador = $this->colaboradoresPermitidosQuery()
+                        ->where('activo', true)
+                        ->findOrFail($data['colaborador_id']);
+
+                    abort_unless(
+                        AlcanceSupervisor::puedeGestionarSucursal(auth()->user(), $colaborador->sucursal_id),
+                        403,
+                    );
+
+                    AsignacionTurno::query()->create([
+                        ...$data,
+                        'asignado_por' => auth()->id(),
+                    ]);
+                }),
+            Action::make('editarAsignacion')
+                ->extraAttributes(['class' => 'hidden'])
+                ->modalHeading('Actualizar asignación')
+                ->modalWidth(Width::Large)
+                ->modalSubmitActionLabel('Guardar cambios')
+                ->fillForm(fn (): array => $this->datosAsignacionEditable())
+                ->schema([
+                    Section::make()
+                        ->compact()
+                        ->columns(['default' => 1, 'md' => 2])
+                        ->schema([
+                            Select::make('colaborador_id')
+                                ->label('Colaborador')
+                                ->options(fn (): array => $this->opcionesColaboradores())
+                                ->searchable()
+                                ->optionsLimit(8)
+                                ->required()
+                                ->columnSpanFull(),
+                            Select::make('turno_id')
+                                ->label('Turno')
+                                ->options(fn (): array => Turno::query()
+                                    ->where('activo', true)
+                                    ->orderBy('hora_inicio')
+                                    ->pluck('nombre', 'id')
+                                    ->all())
+                                ->required(),
+                            DatePicker::make('fecha')
+                                ->label('Fecha')
+                                ->native(false)
+                                ->minDate(today()->addDay())
+                                ->required(),
+                            Textarea::make('observacion')
+                                ->label('Observación')
+                                ->rows(2)
+                                ->maxLength(255)
+                                ->columnSpanFull(),
+                        ]),
+                ])
+                ->action(function (array $data): void {
+                    $asignacion = $this->asignacionEditable();
+
+                    if (! $asignacion) {
+                        Notification::make()
+                            ->title('La asignación ya no está disponible')
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+                    $colaborador = $this->colaboradoresPermitidosQuery()
+                        ->where('activo', true)
+                        ->findOrFail($data['colaborador_id']);
+
+                    if (AsignacionTurno::query()
+                        ->where('colaborador_id', $colaborador->id)
+                        ->whereDate('fecha', $data['fecha'])
+                        ->whereKeyNot($asignacion->id)
+                        ->exists()) {
+                        throw ValidationException::withMessages([
+                            'fecha' => 'Este colaborador ya tiene un turno asignado en esa fecha.',
+                        ]);
+                    }
+
+                    $asignacion->update([
+                        ...$data,
+                        'asignado_por' => auth()->id(),
+                    ]);
+                }),
+        ];
     }
 
     public function mesAnterior(): void
@@ -62,10 +226,41 @@ class CalendarioTurnos extends Page
     public function irAHoy(): void
     {
         $this->mes = now()->format('Y-m');
+        $this->dispatch('calendario-turnos-ir-a-hoy');
+    }
+
+    /**
+     * Abre la acción nativa de Filament con un argumento ya validado.
+     *
+     * Los distintivos de la grilla son controles personalizados. El ID queda
+     * en el estado Livewire antes de montar la acción, sin depender del ciclo
+     * de argumentos del modal.
+     */
+    public function abrirEdicionAsignacion(int $asignacionId): void
+    {
+        $asignacion = AsignacionTurno::query()
+            ->with('colaborador')
+            ->find($asignacionId);
+
+        if (! $asignacion || ! $this->puedeEditarAsignacion($asignacion)) {
+            Notification::make()
+                ->title('No se puede editar esta asignación')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $this->asignacionEditandoId = $asignacion->id;
+        $this->mountAction('editarAsignacion');
     }
 
     public function updatedSucursalId(?int $sucursalId): void
     {
+        if ($sucursalId === null) {
+            return;
+        }
+
         if ($sucursalId && $this->sucursalesPermitidas()->whereKey($sucursalId)->exists()) {
             return;
         }
@@ -97,16 +292,10 @@ class CalendarioTurnos extends Page
 
     public function getColaboradoresProperty(): Collection
     {
-        if (! $this->sucursalId) {
-            return new Collection();
-        }
-
         $inicio = Carbon::parse("{$this->mes}-01")->toDateString();
         $fin = Carbon::parse("{$this->mes}-01")->endOfMonth()->toDateString();
 
-        return Colaborador::query()
-            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
-            ->where('sucursal_id', $this->sucursalId)
+        return $this->colaboradoresPermitidosQuery()
             // Un colaborador desactivado no se muestra como disponible en
             // meses futuros, pero sus asignaciones ya realizadas siguen
             // siendo consultables al revisar un periodo histórico.
@@ -128,16 +317,13 @@ class CalendarioTurnos extends Page
             return new Collection();
         }
 
-        $inicio = Carbon::parse("{$this->mes}-01")->toDateString();
-        $fin = Carbon::parse("{$this->mes}-01")->endOfMonth()->toDateString();
-
         // La grilla muestra solo turnos que tienen asignaciones dentro del
         // alcance y el mes consultado. No se filtran por "activo": un turno
         // desactivado debe permanecer visible al revisar su historial.
         return Turno::query()
             ->whereIn('id', AsignacionTurno::query()
                 ->whereIn('colaborador_id', $colaboradores->pluck('id'))
-                ->whereBetween('fecha', [$inicio, $fin])
+                ->whereBetween('fecha', $this->limitesDelMes())
                 ->select('turno_id'))
             ->orderBy('hora_inicio')
             ->get();
@@ -148,40 +334,115 @@ class CalendarioTurnos extends Page
         return AlcanceSupervisor::sucursalesQuery(auth()->user());
     }
 
-    /**
-     * Filas = turnos (identidad fija) en vez de colaboradores, porque un
-     * colaborador puede rotar de turno día a día -- anclar las filas por
-     * colaborador hacía que la tabla se viera "inestable" de un mes a otro.
-     * Cada celda agrupa los colaboradores que trabajan ese turno ese día.
-     *
-     * @return array<int, array<string, Collection<int, AsignacionTurno>>>
-     */
-    public function getMapaPorTurnoProperty(): array
+    private function colaboradoresPermitidosQuery(): Builder
     {
-        $colaboradores = $this->colaboradores;
+        return Colaborador::query()
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
+            ->when($this->sucursalId, fn (Builder $query): Builder => $query->where('sucursal_id', $this->sucursalId));
+    }
 
-        if ($colaboradores->isEmpty()) {
+    /** @return array{0: string, 1: string} */
+    private function limitesDelMes(): array
+    {
+        $inicio = Carbon::parse("{$this->mes}-01");
+
+        return [$inicio->toDateString(), $inicio->copy()->endOfMonth()->toDateString()];
+    }
+
+    private function asignacionesDelMesQuery(): Builder
+    {
+        return AsignacionTurno::query()
+            ->whereBetween('fecha', $this->limitesDelMes())
+            ->whereHas('colaborador', fn (Builder $query): Builder => $query
+                ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
+                ->when($this->sucursalId, fn (Builder $subquery): Builder => $subquery->where('sucursal_id', $this->sucursalId)));
+    }
+
+    /** @return array<int, string> */
+    private function opcionesColaboradores(): array
+    {
+        return $this->colaboradoresPermitidosQuery()
+            ->where('activo', true)
+            ->orderBy('nombre_completo')
+            ->pluck('nombre_completo', 'id')
+            ->all();
+    }
+
+    private function asignacionEditable(): ?AsignacionTurno
+    {
+        $asignacion = AsignacionTurno::query()
+            ->with('colaborador')
+            ->find($this->asignacionEditandoId);
+
+        if (! $asignacion || ! $this->puedeEditarAsignacion($asignacion)) {
+            return null;
+        }
+
+        return $asignacion;
+    }
+
+    /** @return array<string, mixed> */
+    private function datosAsignacionEditable(): array
+    {
+        $asignacion = $this->asignacionEditable();
+
+        if (! $asignacion) {
             return [];
         }
 
-        $inicio = Carbon::parse("{$this->mes}-01")->toDateString();
-        $fin = Carbon::parse("{$this->mes}-01")->endOfMonth()->toDateString();
+        return [
+            'colaborador_id' => $asignacion->colaborador_id,
+            'turno_id' => $asignacion->turno_id,
+            'fecha' => $asignacion->fecha->toDateString(),
+            'observacion' => $asignacion->observacion,
+        ];
+    }
 
-        $asignaciones = AsignacionTurno::query()
-            ->whereIn('colaborador_id', $colaboradores->pluck('id'))
-            ->whereBetween('fecha', [$inicio, $fin])
-            ->with(['colaborador', 'turno'])
+    /** @return Collection<int, AsignacionTurno> */
+    public function getAsignacionesCalendarioProperty(): Collection
+    {
+        return $this->asignacionesDelMesQuery()
+            ->with(['colaborador.sucursal', 'turno'])
             ->get();
+    }
 
+    /** @return SupportCollection<int, array{clave: string, sucursal: Sucursal, turno: Turno}> */
+    public function getFilasCalendarioProperty(): SupportCollection
+    {
+        return $this->asignacionesCalendario
+            ->groupBy(fn (AsignacionTurno $asignacion): string => $this->claveFila($asignacion))
+            ->map(function ($asignaciones, string $clave): array {
+                /** @var AsignacionTurno $asignacion */
+                $asignacion = $asignaciones->first();
+
+                return [
+                    'clave' => $clave,
+                    'sucursal' => $asignacion->colaborador->sucursal,
+                    'turno' => $asignacion->turno,
+                ];
+            })
+            ->sortBy(fn (array $fila): string => $fila['sucursal']->nombre . '|' . $fila['turno']->hora_inicio)
+            ->values();
+    }
+
+    /** @return array<string, array<string, Collection<int, AsignacionTurno>>> */
+    public function getMapaPorFilaProperty(): array
+    {
         $mapa = [];
 
-        foreach ($asignaciones as $asignacion) {
+        foreach ($this->asignacionesCalendario as $asignacion) {
+            $clave = $this->claveFila($asignacion);
             $fecha = $asignacion->fecha->toDateString();
-            $mapa[$asignacion->turno_id][$fecha] ??= new Collection();
-            $mapa[$asignacion->turno_id][$fecha]->push($asignacion);
+            $mapa[$clave][$fecha] ??= new Collection();
+            $mapa[$clave][$fecha]->push($asignacion);
         }
 
         return $mapa;
+    }
+
+    private function claveFila(AsignacionTurno $asignacion): string
+    {
+        return $asignacion->colaborador->sucursal_id . ':' . $asignacion->turno_id;
     }
 
     /**
@@ -270,6 +531,11 @@ class CalendarioTurnos extends Page
         }
 
         return ['estado' => 'falta', 'label' => 'Falta (sin marcar entrada)', 'hora' => null];
+    }
+
+    public function puedeEditarAsignacion(AsignacionTurno $asignacion): bool
+    {
+        return auth()->user()?->can('update', $asignacion) ?? false;
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VisitaSupervisor;
+use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -54,6 +55,13 @@ class CalendarioVisitasSupervisor extends Page
     public function irAHoy(): void
     {
         $this->mes = now()->format('Y-m');
+        $this->dispatch('visitas-ir-a-hoy');
+    }
+
+    public function limpiarFiltros(): void
+    {
+        $this->supervisorId = null;
+        $this->sucursalId = null;
     }
 
     /** @return Collection<int, User> */
@@ -62,7 +70,14 @@ class CalendarioVisitasSupervisor extends Page
         // Además de quienes hoy tienen el rol, se incluyen las personas con
         // visitas del período. Así un cambio de rol no borra del calendario
         // la evidencia histórica de una visita registrada correctamente.
-        $ids = User::role('supervisor')->pluck('id')
+        $supervisoresActuales = User::role('supervisor')
+            ->when(! $this->tieneAlcanceGlobal(), fn ($query) => $query->whereHas(
+                'sucursalesSupervisadas',
+                fn ($sucursales) => $sucursales->whereIn('sucursales.id', $this->sucursalIdsPermitidos()),
+            ))
+            ->pluck('id');
+
+        $ids = $supervisoresActuales
             ->merge($this->visitasDelPeriodo()->distinct()->pluck('supervisor_id'))
             ->unique()
             ->values();
@@ -79,6 +94,7 @@ class CalendarioVisitasSupervisor extends Page
     {
         return Sucursal::query()
             ->where('activo', true)
+            ->whereIn('id', $this->sucursalIdsPermitidos())
             ->orderBy('nombre')
             ->get(['id', 'nombre']);
     }
@@ -126,8 +142,22 @@ class CalendarioVisitasSupervisor extends Page
         $fin = $inicio->copy()->endOfMonth();
 
         return VisitaSupervisor::query()
+            ->whereIn('sucursal_id', $this->sucursalIdsPermitidos())
             ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
             ->when($this->supervisorId, fn ($query) => $query->where('supervisor_id', $this->supervisorId))
             ->when($this->sucursalId, fn ($query) => $query->where('sucursal_id', $this->sucursalId));
+    }
+
+    /** @return array<int, int> */
+    private function sucursalIdsPermitidos(): array
+    {
+        $usuario = auth()->user();
+
+        return $usuario instanceof User ? AlcanceSupervisor::sucursalIds($usuario) : [];
+    }
+
+    private function tieneAlcanceGlobal(): bool
+    {
+        return auth()->user()?->hasAnyRole(['super_admin', 'administrador']) ?? false;
     }
 }

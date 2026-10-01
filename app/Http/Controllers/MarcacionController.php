@@ -7,8 +7,11 @@ use App\Models\CoberturaOperativa;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\QrToken;
+use App\Services\AparienciaSistemaService;
+use App\Services\ConsolidacionJornadaService;
 use App\Support\JornadaMarcacion;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +22,70 @@ use Illuminate\View\View;
 
 class MarcacionController extends Controller
 {
+    /**
+     * Valida el QR recién leído sin crear una marcación.
+     *
+     * La cámara usa este endpoint antes de llevar al colaborador a la
+     * confirmación. La misma lógica se vuelve a comprobar al guardar para
+     * que una lectura válida no pueda reutilizarse ni alterarse desde el
+     * navegador.
+     */
+    public function validarQr(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->can('Registrar:Marcacion'), 403);
+
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+        ]);
+
+        $colaborador = $request->user()->colaborador;
+
+        if (! $colaborador || ! $colaborador->activo) {
+            return $this->respuestaQrNoConfirmado('Tu cuenta de colaborador no está habilitada para marcar.');
+        }
+
+        $qrToken = QrToken::with(['sucursal', 'puntoVenta'])
+            ->where('token', $data['token'])
+            ->first();
+
+        if (! $qrToken || ! $qrToken->vigentePara(QrToken::PROPOSITO_ASISTENCIA)) {
+            return $this->respuestaQrNoConfirmado('El código QR cambió o venció. Escanea el código actual de la pantalla.');
+        }
+
+        if ($this->qrYaUsadoPorColaborador($colaborador, $qrToken)) {
+            return $this->respuestaQrNoConfirmado('Este código QR ya fue utilizado. Espera el nuevo código de la pantalla y vuelve a escanear.');
+        }
+
+        $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
+
+        if (! $asignacion) {
+            return $this->respuestaQrNoConfirmado('No tienes una jornada habilitada para marcar en este momento.');
+        }
+
+        if (! $this->estacionPermitida($colaborador, $qrToken, $asignacion)) {
+            return $this->respuestaQrNoConfirmado('La estación no está habilitada para tu jornada actual.');
+        }
+
+        $siguientesTipos = JornadaMarcacion::siguientesTipos($colaborador, $asignacion);
+
+        if ($siguientesTipos === []) {
+            return $this->respuestaQrNoConfirmado('Tu jornada ya no tiene acciones pendientes.');
+        }
+
+        return response()->json([
+            'confirmado' => true,
+            'mensaje' => 'QR escaneado correctamente',
+            'estacion' => [
+                'sucursal' => $qrToken->sucursal->nombre,
+                'punto_venta' => $qrToken->puntoVenta?->nombre,
+            ],
+            'acciones' => array_map(fn (string $tipo): array => [
+                'tipo' => $tipo,
+                'etiqueta' => $this->etiquetaMarcacion($tipo),
+            ], $siguientesTipos),
+        ]);
+    }
+
     public function show(Request $request): View
     {
         abort_unless($request->user()?->can('Registrar:Marcacion'), 403);
@@ -48,6 +115,7 @@ class MarcacionController extends Controller
             $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
 
             return view('marcacion.esperando', [
+                'apariencia' => app(AparienciaSistemaService::class),
                 'colaborador' => $colaborador,
                 'asignacion' => $asignacion,
                 'siguientesTipos' => $asignacion
@@ -95,6 +163,7 @@ class MarcacionController extends Controller
         }
 
         return view('marcacion.show', [
+            'apariencia' => app(AparienciaSistemaService::class),
             'colaborador' => $colaborador,
             'token' => $qrToken->token,
             'asignacion' => $asignacion,
@@ -185,7 +254,7 @@ class MarcacionController extends Controller
                 );
             }
 
-            return Marcacion::create([
+            $marcacion = Marcacion::create([
                 'colaborador_id' => $colaboradorBloqueado->id,
                 'empresa_id' => $colaboradorBloqueado->empresa_id,
                 'area_id' => $colaboradorBloqueado->area_id,
@@ -201,6 +270,12 @@ class MarcacionController extends Controller
                 'ip_origen' => $request->ip(),
                 'user_agent' => (string) $request->userAgent(),
             ]);
+
+            if ($marcacion->tipo === Marcacion::TIPO_SALIDA) {
+                app(ConsolidacionJornadaService::class)->consolidar($colaboradorBloqueado, $asignacion);
+            }
+
+            return $marcacion;
         });
 
         return redirect()->route('marcacion.confirmacion', $marcacion);
@@ -265,8 +340,17 @@ class MarcacionController extends Controller
 
     private function esEstacionBase(Colaborador $colaborador, QrToken $qrToken): bool
     {
-        return (int) $qrToken->sucursal_id === (int) $colaborador->sucursal_id
-            && (! $qrToken->punto_venta_id || (int) $qrToken->punto_venta_id === (int) $colaborador->punto_venta_id);
+        if ((int) $qrToken->sucursal_id !== (int) $colaborador->sucursal_id) {
+            return false;
+        }
+
+        // La sede base puede no estar amarrada a una caja específica. En ese
+        // caso cualquier punto de venta activo de la misma sucursal es parte
+        // de su sede habitual, no una cobertura. Si sí existe caja base,
+        // marcar en otra caja queda trazado como cobertura operativa.
+        return ! $qrToken->punto_venta_id
+            || ! $colaborador->punto_venta_id
+            || (int) $qrToken->punto_venta_id === (int) $colaborador->punto_venta_id;
     }
 
     private function registrarCoberturaAutomatica(Colaborador $colaborador, AsignacionTurno $asignacion, QrToken $qrToken, \Carbon\Carbon $detectadaEn): ?CoberturaOperativa
@@ -303,5 +387,23 @@ class MarcacionController extends Controller
             ->where('colaborador_id', $colaborador->id)
             ->where('qr_token_id', $qrToken->id)
             ->exists();
+    }
+
+    private function respuestaQrNoConfirmado(string $mensaje): JsonResponse
+    {
+        return response()->json([
+            'confirmado' => false,
+            'mensaje' => $mensaje,
+        ], 422);
+    }
+
+    private function etiquetaMarcacion(string $tipo): string
+    {
+        return match ($tipo) {
+            Marcacion::TIPO_ENTRADA => 'Marcar ingreso de turno',
+            Marcacion::TIPO_SALIDA_REFRIGERIO => 'Marcar salida de refrigerio',
+            Marcacion::TIPO_REGRESO_REFRIGERIO => 'Marcar ingreso de refrigerio',
+            Marcacion::TIPO_SALIDA => 'Marcar salida de turno',
+        };
     }
 }

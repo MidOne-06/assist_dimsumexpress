@@ -38,4 +38,9 @@ class AsignacionTurno extends Model
     {
         return $this->hasOne(AjusteTurnoAutomatico::class);
     }
+
+    public function resumenJornada(): HasOne
+    {
+        return $this->hasOne(ResumenJornada::class);
+    }
 }

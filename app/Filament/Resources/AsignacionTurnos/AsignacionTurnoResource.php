@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\AsignacionTurnos;
 
-use App\Filament\Resources\AsignacionTurnos\Pages\CreateAsignacionTurno;
-use App\Filament\Resources\AsignacionTurnos\Pages\EditAsignacionTurno;
 use App\Filament\Resources\AsignacionTurnos\Pages\ListAsignacionTurnos;
 use App\Filament\Resources\AsignacionTurnos\Schemas\AsignacionTurnoForm;
 use App\Filament\Resources\AsignacionTurnos\Tables\AsignacionTurnosTable;
@@ -47,6 +45,7 @@ class AsignacionTurnoResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->with(['colaborador.sucursal', 'colaborador.puntoVenta', 'turno', 'asignadoPor'])
             ->whereHas('colaborador', fn (Builder $query): Builder => $query->whereIn(
                 'sucursal_id',
                 AlcanceSupervisor::sucursalIds(auth()->user()),
@@ -64,8 +63,6 @@ class AsignacionTurnoResource extends Resource
     {
         return [
             'index' => ListAsignacionTurnos::route('/'),
-            'create' => CreateAsignacionTurno::route('/create'),
-            'edit' => EditAsignacionTurno::route('/{record}/edit'),
         ];
     }
 }

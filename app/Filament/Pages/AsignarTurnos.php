@@ -4,13 +4,13 @@ namespace App\Filament\Pages;
 
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
-use App\Models\Marcacion;
-use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Services\AsignacionMasivaTurnosService;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
-use Carbon\CarbonPeriod;
+use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -20,14 +20,18 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
-use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Support\Facades\DB;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\ValidationException;
 
-/**
- * @property-read Schema $form
- */
-class AsignarTurnos extends Page
+class AsignarTurnos extends Page implements HasTable
 {
     // Shield -- sin esto, `View:AsignarTurnos` (generado por shield:generate)
     // nunca se llegaba a evaluar de verdad: quedaba como fila huérfana en
@@ -35,6 +39,7 @@ class AsignarTurnos extends Page
     // página sin importar sus permisos reales (hallazgo de la auditoría de
     // "toda acción como permiso", 2026-09-18).
     use HasPageShield;
+    use InteractsWithTable;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
@@ -48,27 +53,118 @@ class AsignarTurnos extends Page
 
     protected string $view = 'filament.pages.asignar-turnos';
 
-    /**
-     * @var array<string, mixed>|null
-     */
-    public ?array $data = [];
-
-    public function mount(): void
+    public function table(Table $table): Table
     {
-        $this->form->fill([
-            'fecha_inicio' => today()->toDateString(),
-            'fecha_fin' => today()->toDateString(),
-            'dias_semana' => ['1', '2', '3', '4', '5', '6', '7'],
-        ]);
+        return $table
+            ->query($this->proximasAsignacionesQuery())
+            ->heading('Próximas asignaciones')
+            ->columns([
+                TextColumn::make('fecha')
+                    ->label('Fecha')
+                    ->date('d/m/Y')
+                    ->sortable(),
+                TextColumn::make('colaborador.nombre_completo')
+                    ->label('Colaborador')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('colaborador.sucursal.nombre')
+                    ->label('Local')
+                    ->description(fn (AsignacionTurno $record): ?string => $record->colaborador?->puntoVenta?->nombre)
+                    ->toggleable(),
+                TextColumn::make('turno.nombre')
+                    ->label('Turno')
+                    ->badge(),
+                TextColumn::make('turno.hora_inicio')
+                    ->label('Inicio')
+                    ->time('H:i'),
+                TextColumn::make('turno.hora_fin')
+                    ->label('Fin')
+                    ->time('H:i'),
+                TextColumn::make('asignadoPor.name')
+                    ->label('Asignado por')
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                Filter::make('fecha')
+                    ->schema([
+                        DatePicker::make('desde')->label('Desde')->native(false),
+                        DatePicker::make('hasta')->label('Hasta')->native(false),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when($data['desde'] ?? null, fn (Builder $subquery, string $fecha): Builder => $subquery->whereDate('fecha', '>=', $fecha))
+                        ->when($data['hasta'] ?? null, fn (Builder $subquery, string $fecha): Builder => $subquery->whereDate('fecha', '<=', $fecha))),
+                SelectFilter::make('sucursal_id')
+                    ->label('Local')
+                    ->options(fn (): array => AlcanceSupervisor::sucursalesQuery(auth()->user())
+                        ->orderBy('nombre')
+                        ->pluck('nombre', 'id')
+                        ->all())
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        $data['value'] ?? null,
+                        fn (Builder $subquery, int $sucursalId): Builder => $subquery->whereHas(
+                            'colaborador',
+                            fn (Builder $colaboradores): Builder => $colaboradores->where('sucursal_id', $sucursalId),
+                        ),
+                    )),
+                SelectFilter::make('turno_id')
+                    ->label('Turno')
+                    ->options(fn (): array => Turno::query()
+                        ->where('activo', true)
+                        ->orderBy('hora_inicio')
+                        ->pluck('nombre', 'id')
+                        ->all()),
+            ])
+            ->filtersFormColumns(2)
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(10)
+            ->defaultSort('fecha')
+            ->emptyStateHeading('Sin asignaciones próximas')
+            ->recordActions([
+                $this->editarAsignacionAction(),
+                DeleteAction::make()
+                    ->label('Eliminar')
+                    ->modalHeading('Eliminar asignación')
+                    ->visible(fn (AsignacionTurno $record): bool => auth()->user()?->can('delete', $record) ?? false),
+            ]);
     }
 
-    public function form(Schema $schema): Schema
+    private function proximasAsignacionesQuery(): Builder
     {
-        return $schema
-            ->statePath('data')
-            ->components([
+        return AsignacionTurno::query()
+            ->with(['colaborador.sucursal', 'colaborador.puntoVenta', 'turno', 'asignadoPor'])
+            ->whereDate('fecha', '>=', today())
+            ->whereHas('colaborador', fn (Builder $query): Builder => $query->whereIn(
+                'sucursal_id',
+                AlcanceSupervisor::sucursalIds(auth()->user()),
+            ));
+    }
+
+    /** @return array<Action> */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('asignarPorRango')
+                ->label('Asignar turnos')
+                ->icon(Heroicon::OutlinedCalendarDays)
+                ->visible(fn (): bool => auth()->user()?->can('AsignarMasivo:AsignarTurnos') ?? false)
+                ->modalHeading('Asignar turnos por rango')
+                ->modalWidth(Width::TwoExtraLarge)
+                ->modalSubmitActionLabel('Guardar asignaciones')
+                ->closeModalByClickingAway(false)
+                ->schema($this->schemaAsignacionMasiva())
+                ->action(function (array $data): void {
+                    $this->asignar($data);
+                }),
+        ];
+    }
+
+    /** @return array<int, Section> */
+    private function schemaAsignacionMasiva(): array
+    {
+        return [
                 Section::make()
-                    ->columns(12)
+                    ->compact()
+                    ->columns(['default' => 1, 'md' => 2])
                     ->schema([
                         Select::make('sucursal_id')
                             ->label('Local')
@@ -79,7 +175,30 @@ class AsignarTurnos extends Page
                             ->searchable()
                             ->live()
                             ->afterStateUpdated(fn (Set $set) => $set('colaborador_ids', []))
-                            ->columnSpan(['default' => 'full', 'lg' => 5]),
+                            ->columnSpan(1),
+                        Select::make('turno_id')
+                            ->label('Turno')
+                            ->options(fn (): array => Turno::query()
+                                ->where('activo', true)
+                                ->orderBy('hora_inicio')
+                                ->pluck('nombre', 'id')
+                                ->all())
+                            ->required()
+                            ->columnSpan(1),
+                        DatePicker::make('fecha_inicio')
+                            ->label('Desde')
+                            ->required()
+                            ->native(false)
+                            ->minDate(today())
+                            ->default(today())
+                            ->columnSpan(1),
+                        DatePicker::make('fecha_fin')
+                            ->label('Hasta')
+                            ->required()
+                            ->native(false)
+                            ->minDate(today())
+                            ->default(today())
+                            ->columnSpan(1),
                         Select::make('colaborador_ids')
                             ->label('Colaboradores')
                             ->options(fn (Get $get): array => filled($get('sucursal_id')) ? Colaborador::query()
@@ -94,24 +213,7 @@ class AsignarTurnos extends Page
                             ->optionsLimit(8)
                             ->required()
                             ->disabled(fn (Get $get): bool => blank($get('sucursal_id')))
-                            ->columnSpan(['default' => 'full', 'lg' => 7]),
-                        Select::make('turno_id')
-                            ->label('Turno')
-                            ->options(fn () => Turno::query()->where('activo', true)->orderBy('hora_inicio')->pluck('nombre', 'id'))
-                            ->required()
-                            ->columnSpan(['default' => 'full', 'lg' => 5]),
-                        DatePicker::make('fecha_inicio')
-                            ->label('Desde')
-                            ->required()
-                            ->native(false)
-                            ->minDate(today())
-                            ->columnSpan(3),
-                        DatePicker::make('fecha_fin')
-                            ->label('Hasta')
-                            ->required()
-                            ->native(false)
-                            ->minDate(today())
-                            ->columnSpan(3),
+                            ->columnSpanFull(),
                         CheckboxList::make('dias_semana')
                             ->label('Días')
                             ->options([
@@ -123,128 +225,97 @@ class AsignarTurnos extends Page
                                 '6' => 'Sábado',
                                 '7' => 'Domingo',
                             ])
-                            ->columns(['default' => 2, 'md' => 4, 'xl' => 7])
+                            ->default(['1', '2', '3', '4', '5', '6', '7'])
+                            ->columns(['default' => 2, 'md' => 4])
                             ->required()
                             ->columnSpanFull(),
                         Textarea::make('observacion')
                             ->label('Observación')
                             ->rows(2)
+                            ->maxLength(255)
                             ->columnSpanFull(),
                     ]),
-            ]);
+        ];
     }
 
-    public function asignar(): void
+    /** @param array<string, mixed> $data */
+    public function asignar(array $data): void
     {
-        // Permiso propio, distinto de "ver la página" (View:AsignarTurnos):
-        // esto crea/sobreescribe asignaciones reales para hasta 90 días y
-        // múltiples colaboradores a la vez -- un proceso mucho más sensible
-        // que asignar un turno individual (Create:AsignacionTurno), así que
-        // un rol podría necesitar lo uno sin lo otro.
-        abort_unless(auth()->user()->can('AsignarMasivo:AsignarTurnos'), 403);
-
-        $data = $this->form->getState();
-
-        $fechaInicio = \Illuminate\Support\Carbon::parse($data['fecha_inicio'])->startOfDay();
-        $fechaFin = \Illuminate\Support\Carbon::parse($data['fecha_fin'])->startOfDay();
-        $sucursalId = (int) $data['sucursal_id'];
-
-        abort_unless(
-            Sucursal::query()
-                ->whereKey($sucursalId)
-                ->whereIn('id', AlcanceSupervisor::sucursalIds(auth()->user()))
-                ->exists(),
-            403,
-        );
-
-        if ($fechaInicio->lt(today())) {
-            Notification::make()
-                ->title('No se pueden programar turnos en fechas pasadas')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        if ($fechaFin->lt($fechaInicio)) {
-            Notification::make()
-                ->title('Rango de fechas inválido')
-                ->body('La fecha "Hasta" debe ser igual o posterior a la fecha "Desde".')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        if ($fechaInicio->diffInDays($fechaFin) > 90) {
-            Notification::make()
-                ->title('Rango demasiado amplio')
-                ->body('El rango máximo permitido es de 90 días. Divide la asignación en tramos más pequeños.')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        $diasSemana = array_map('intval', $data['dias_semana']);
-        $colaboradorIds = $data['colaborador_ids'];
-
-        $colaboradoresPermitidos = Colaborador::query()
-            ->whereIn('id', $colaboradorIds)
-            ->where('sucursal_id', $sucursalId)
-            ->where('activo', true)
-            ->count();
-
-        abort_unless($colaboradoresPermitidos === count($colaboradorIds), 403);
-
-        if ($fechaInicio->isToday() && Marcacion::query()
-            ->whereIn('colaborador_id', $colaboradorIds)
-            ->whereDate('fecha_hora', today())
-            ->exists()) {
-            Notification::make()
-                ->title('No se puede cambiar el turno de hoy porque ya existen marcaciones')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        $creadas = 0;
-        $actualizadas = 0;
-
-        DB::transaction(function () use ($fechaInicio, $fechaFin, $diasSemana, $colaboradorIds, $data, &$creadas, &$actualizadas) {
-            foreach (CarbonPeriod::create($fechaInicio, $fechaFin) as $fecha) {
-                if (! in_array($fecha->isoWeekday(), $diasSemana, true)) {
-                    continue;
-                }
-
-                foreach ($colaboradorIds as $colaboradorId) {
-                    $asignacion = AsignacionTurno::firstOrNew([
-                        'colaborador_id' => $colaboradorId,
-                        'fecha' => $fecha->toDateString(),
-                    ]);
-
-                    $existia = $asignacion->exists;
-
-                    $asignacion->turno_id = $data['turno_id'];
-                    $asignacion->observacion = $data['observacion'] ?? null;
-                    $asignacion->asignado_por = auth()->id();
-                    $asignacion->save();
-
-                    $existia ? $actualizadas++ : $creadas++;
-                }
-            }
-        });
+        $resultado = app(AsignacionMasivaTurnosService::class)->asignar(auth()->user(), $data);
 
         Notification::make()
             ->title('Asignación completada')
-            ->body("{$creadas} asignaciones creadas y {$actualizadas} actualizadas.")
+            ->body("{$resultado['creadas']} asignaciones creadas y {$resultado['actualizadas']} actualizadas.")
             ->success()
             ->send();
+    }
 
-        $this->form->fill([
-            ...$data,
-            'colaborador_ids' => [],
-        ]);
+    private function editarAsignacionAction(): Action
+    {
+        return Action::make('editar')
+            ->label('Editar')
+            ->icon(Heroicon::OutlinedPencilSquare)
+            ->modalHeading('Actualizar asignación')
+            ->modalWidth(Width::Large)
+            ->modalSubmitActionLabel('Guardar cambios')
+            ->visible(fn (AsignacionTurno $record): bool => auth()->user()?->can('update', $record) ?? false)
+            ->fillForm(fn (AsignacionTurno $record): array => [
+                'turno_id' => $record->turno_id,
+                'fecha' => $record->fecha->toDateString(),
+                'observacion' => $record->observacion,
+            ])
+            ->schema([
+                Section::make()
+                    ->compact()
+                    ->columns(['default' => 1, 'md' => 2])
+                    ->schema([
+                        Select::make('turno_id')
+                            ->label('Turno')
+                            ->options(fn (): array => Turno::query()
+                                ->where('activo', true)
+                                ->orderBy('hora_inicio')
+                                ->pluck('nombre', 'id')
+                                ->all())
+                            ->required(),
+                        DatePicker::make('fecha')
+                            ->label('Fecha')
+                            ->native(false)
+                            ->minDate(today()->addDay())
+                            ->required(),
+                        Textarea::make('observacion')
+                            ->label('Observación')
+                            ->rows(2)
+                            ->maxLength(255)
+                            ->columnSpanFull(),
+                    ]),
+            ])
+            ->action(function (AsignacionTurno $record, array $data): void {
+                abort_unless(auth()->user()?->can('update', $record), 403);
+
+                if (! Turno::query()->whereKey($data['turno_id'])->where('activo', true)->exists()) {
+                    throw ValidationException::withMessages(['turno_id' => 'Selecciona un turno activo.']);
+                }
+
+                $fecha = \Illuminate\Support\Carbon::parse($data['fecha'])->startOfDay();
+
+                if ($fecha->lte(today())) {
+                    throw ValidationException::withMessages(['fecha' => 'Solo se pueden modificar asignaciones futuras.']);
+                }
+
+                if (AsignacionTurno::query()
+                    ->where('colaborador_id', $record->colaborador_id)
+                    ->whereDate('fecha', $fecha)
+                    ->whereKeyNot($record->id)
+                    ->exists()) {
+                    throw ValidationException::withMessages(['fecha' => 'Este colaborador ya tiene un turno asignado en esa fecha.']);
+                }
+
+                $record->update([
+                    'turno_id' => $data['turno_id'],
+                    'fecha' => $fecha,
+                    'observacion' => filled($data['observacion'] ?? null) ? trim((string) $data['observacion']) : null,
+                    'asignado_por' => auth()->id(),
+                ]);
+            });
     }
 }

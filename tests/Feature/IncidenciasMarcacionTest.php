@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\IncidenciaMarcacions\IncidenciaMarcacionResource;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\IncidenciaMarcacion;
@@ -9,8 +10,11 @@ use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Models\User;
+use App\Policies\IncidenciaMarcacionPolicy;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class IncidenciasMarcacionTest extends TestCase
@@ -99,6 +103,46 @@ class IncidenciasMarcacionTest extends TestCase
             'id' => $incidencia->id,
             'observacion_reporte' => 'Salida a refrigerio no escaneada por falla del equipo.',
         ]);
+    }
+
+    public function test_scope_and_policy_use_the_actual_local_of_a_coverage_incident(): void
+    {
+        [$colaborador, $asignacion] = $this->crearJornada();
+        $localCobertura = Sucursal::create([
+            'nombre' => 'Local de cobertura',
+            'tipo' => 'tienda',
+            'activo' => true,
+        ]);
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(Permission::findOrCreate('View:IncidenciaMarcacion', 'web'));
+        $supervisor->sucursalesSupervisadas()->attach($localCobertura);
+        $incidencia = IncidenciaMarcacion::create([
+            'asignacion_turno_id' => $asignacion->id,
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $localCobertura->id,
+            'tipo' => IncidenciaMarcacion::TIPO_SALIDA_TURNO_PENDIENTE,
+            'detectada_en' => now(),
+        ]);
+
+        $this->actingAs($supervisor);
+
+        $this->assertSame([$incidencia->id], IncidenciaMarcacionResource::getEloquentQuery()->pluck('id')->all());
+        $this->assertTrue(app(IncidenciaMarcacionPolicy::class)->view($supervisor, $incidencia));
+        $schema = (new \ReflectionMethod(IncidenciaMarcacionResource::class, 'detalleSchema'))
+            ->invoke(null, $incidencia->load(['colaborador', 'asignacionTurno.turno', 'sucursal', 'puntoVenta', 'resueltaPor']));
+
+        $this->assertCount(5, $schema);
+        $this->assertInstanceOf(\Filament\Schemas\Components\Section::class, $schema[0]);
+    }
+
+    public function test_incidents_list_renders_the_operational_filters_and_empty_state(): void
+    {
+        $usuario = User::factory()->create();
+        $usuario->givePermissionTo(Permission::findOrCreate('ViewAny:IncidenciaMarcacion', 'web'));
+
+        Livewire::actingAs($usuario)
+            ->test(\App\Filament\Resources\IncidenciaMarcacions\Pages\ListIncidenciaMarcacions::class)
+            ->assertSee('Sin incidencias');
     }
 
     /** @return array{Colaborador, AsignacionTurno} */

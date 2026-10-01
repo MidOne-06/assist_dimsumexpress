@@ -61,6 +61,11 @@ class Colaborador extends Model
         return $this->hasMany(CoberturaOperativa::class);
     }
 
+    public function enlacesAcceso(): HasMany
+    {
+        return $this->hasMany(EnlaceAccesoColaborador::class);
+    }
+
     public function turnoDelDia(?string $fecha = null): ?Turno
     {
         $asignacion = $this->asignacionesTurno()

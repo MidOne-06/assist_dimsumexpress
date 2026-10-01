@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'asignacion_turno_id',
     'colaborador_id',
+    'sucursal_id',
+    'punto_venta_id',
     'tipo',
     'detectada_en',
     'resuelta_en',
@@ -25,6 +27,8 @@ class IncidenciaMarcacion extends Model
     public const TIPO_SALIDA_TURNO_PENDIENTE = 'salida_turno_pendiente';
 
     public const TIPO_MARCACION_OMITIDA = 'marcacion_omitida';
+
+    public const TIPO_SECUENCIA_INCONSISTENTE = 'secuencia_inconsistente';
 
     protected function casts(): array
     {
@@ -44,6 +48,16 @@ class IncidenciaMarcacion extends Model
         return $this->belongsTo(Colaborador::class);
     }
 
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class);
+    }
+
+    public function puntoVenta(): BelongsTo
+    {
+        return $this->belongsTo(PuntoVenta::class);
+    }
+
     public function resueltaPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resuelta_por_id');
@@ -60,6 +74,7 @@ class IncidenciaMarcacion extends Model
             self::TIPO_RETORNO_REFRIGERIO_PENDIENTE => 'Retorno de refrigerio pendiente',
             self::TIPO_SALIDA_TURNO_PENDIENTE => 'Salida de turno pendiente',
             self::TIPO_MARCACION_OMITIDA => 'Marcación omitida reportada',
+            self::TIPO_SECUENCIA_INCONSISTENTE => 'Secuencia de marcaciones inconsistente',
             default => $tipo,
         };
     }

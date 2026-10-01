@@ -4,8 +4,11 @@ namespace App\Filament\Resources\AsignacionTurnos\Tables;
 
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Services\AsignacionTurnoIndividualService;
 use App\Support\AlcanceSupervisor;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -28,7 +31,8 @@ class AsignacionTurnosTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('colaborador.sucursal.nombre')
-                    ->label('Sucursal')
+                    ->label('Local')
+                    ->description(fn ($record): ?string => $record->colaborador?->puntoVenta?->nombre)
                     ->toggleable(),
                 TextColumn::make('turno.nombre')
                     ->label('Turno')
@@ -42,7 +46,7 @@ class AsignacionTurnosTable
                 TextColumn::make('observacion')
                     ->label('Observación')
                     ->limit(30)
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('asignadoPor.name')
                     ->label('Asignado por')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -51,8 +55,8 @@ class AsignacionTurnosTable
             ->filters([
                 Filter::make('fecha')
                     ->schema([
-                        \Filament\Forms\Components\DatePicker::make('desde')->native(false),
-                        \Filament\Forms\Components\DatePicker::make('hasta')->native(false),
+                        DatePicker::make('desde')->label('Desde')->native(false),
+                        DatePicker::make('hasta')->label('Hasta')->native(false),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
@@ -75,11 +79,23 @@ class AsignacionTurnosTable
                         );
                     }),
             ])
+            ->filtersFormColumns(2)
+            ->filtersFormWidth(Width::FourExtraLarge)
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(25)
+            ->emptyStateHeading('Sin asignaciones')
             ->recordActions([
                 EditAction::make()
                     ->modal()
                     ->modalHeading('Actualizar asignación de turno')
-                    ->modalWidth(Width::Large),
+                    ->modalWidth(Width::Large)
+                    ->using(fn ($record, array $data) => app(AsignacionTurnoIndividualService::class)
+                        ->actualizar(auth()->user(), $record, $data)),
+                DeleteAction::make()
+                    ->label('Eliminar')
+                    ->modalHeading('Eliminar asignación')
+                    ->using(fn ($record) => app(AsignacionTurnoIndividualService::class)
+                        ->eliminar(auth()->user(), $record)),
             ])
             ->toolbarActions([]);
     }

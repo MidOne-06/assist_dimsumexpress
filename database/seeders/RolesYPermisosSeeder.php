@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\CatalogoPermisos;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Spatie\Permission\Models\Permission;
@@ -15,15 +16,18 @@ class RolesYPermisosSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach ([
+        foreach (array_values(array_unique([
+            ...CatalogoPermisos::nombres(),
             'Access:AdminPanel',
             'Registrar:Marcacion',
             'View:MiHorario',
             'Registrar:VisitaSupervisor',
             'View:CalendarioVisitasSupervisor',
             'View:HorasEfectivasMensuales',
+            'View:AparienciaSistema',
             'ViewAny:Marcacion',
             'View:Marcacion',
+            'Exportar:Marcacion',
             'ViewAny:IncidenciaMarcacion',
             'View:IncidenciaMarcacion',
             'Resolver:IncidenciaMarcacion',
@@ -33,10 +37,15 @@ class RolesYPermisosSeeder extends Seeder
             'View:CoberturaOperativa',
             'Revisar:CoberturaOperativa',
             'VerEnlace:PuntoVenta',
+            'RegenerarEnlace:PuntoVenta',
             'AsignarMasivo:AsignarTurnos',
+            'Exportar:AsignacionTurno',
             'ResetPassword:User',
             'Exportar:Colaborador',
             'Importar:Colaborador',
+            'ViewEnlaces:Colaborador',
+            'GenerarEnlace:Colaborador',
+            'RevocarEnlace:Colaborador',
             'ViewAny:Empresa',
             'View:Empresa',
             'Create:Empresa',
@@ -45,7 +54,7 @@ class RolesYPermisosSeeder extends Seeder
             'View:Area',
             'Create:Area',
             'Update:Area',
-        ] as $permiso) {
+        ])) as $permiso) {
             Permission::findOrCreate($permiso, 'web');
         }
 
@@ -78,6 +87,7 @@ class RolesYPermisosSeeder extends Seeder
             'View:AsignacionTurno',
             'ViewAny:Marcacion',
             'View:Marcacion',
+            'Exportar:Marcacion',
             'ViewAny:IncidenciaMarcacion',
             'View:IncidenciaMarcacion',
             'Resolver:IncidenciaMarcacion',
@@ -95,8 +105,12 @@ class RolesYPermisosSeeder extends Seeder
             'View:HorasEfectivasMensuales',
             'View:AsignarTurnos',
             'AsignarMasivo:AsignarTurnos',
+            'Exportar:AsignacionTurno',
             'Registrar:Marcacion',
             'View:MiHorario',
+            'ViewEnlaces:Colaborador',
+            'GenerarEnlace:Colaborador',
+            'RevocarEnlace:Colaborador',
         ]));
         // Estas dos lecturas se declaran expresamente porque Marcaciones es
         // un recurso de solo lectura y no genera permisos CRUD completos.

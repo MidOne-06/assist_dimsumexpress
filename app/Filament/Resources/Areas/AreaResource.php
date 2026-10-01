@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Areas;
 
 use App\Filament\Resources\Areas\Pages\ListAreas;
 use App\Models\Area;
+use App\Services\AreaService;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
@@ -31,10 +32,18 @@ class AreaResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->columns(2)->components([
-            TextInput::make('nombre')->label('Nombre')->required()->maxLength(255)->unique(ignoreRecord: true),
-            TextInput::make('codigo')->label('Código')->required()->maxLength(30)->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::upper($state) : null)->unique(ignoreRecord: true),
-            Toggle::make('activo')->label('Activo')->default(true)->required()->columnSpanFull(),
+        return $schema->columns(['default' => 1, 'md' => 2])->components([
+            TextInput::make('nombre')
+                ->label('Área')
+                ->required()
+                ->maxLength(255)
+                ->columnSpanFull(),
+            TextInput::make('codigo')
+                ->label('Código')
+                ->required()
+                ->maxLength(30)
+                ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::upper(trim($state)) : null),
+            Toggle::make('activo')->label('Activo')->default(true)->required(),
         ]);
     }
 
@@ -43,12 +52,19 @@ class AreaResource extends Resource
         return $table->columns([
             TextColumn::make('nombre')->label('Área')->searchable()->sortable(),
             TextColumn::make('codigo')->label('Código')->badge()->searchable()->sortable(),
+            TextColumn::make('colaboradores_count')->label('Colaboradores')->counts('colaboradores')->sortable(),
+            TextColumn::make('marcaciones_count')->label('Marcaciones')->counts('marcaciones')->sortable()->toggleable(isToggledHiddenByDefault: true),
             IconColumn::make('activo')->label('Activo')->boolean(),
         ])->filters([
             TernaryFilter::make('activo')->label('Activo'),
         ])->recordActions([
-            EditAction::make()->modal()->modalHeading('Actualizar área')->modalWidth(Width::Medium),
-        ])->toolbarActions([])->defaultSort('nombre');
+            EditAction::make()
+                ->modal()
+                ->modalHeading('Actualizar área')
+                ->modalWidth(Width::Large)
+                ->using(fn (Area $record, array $data) => app(AreaService::class)
+                    ->actualizar(auth()->user(), $record, $data)),
+        ])->paginated([10, 25, 50])->defaultPaginationPageOption(25)->toolbarActions([])->defaultSort('nombre');
     }
 
     public static function getPages(): array

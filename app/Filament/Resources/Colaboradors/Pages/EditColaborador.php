@@ -20,6 +20,6 @@ class EditColaborador extends EditRecord
 
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
-        return app(ActualizarColaborador::class)->handle($record, $data, auth()->id());
+        return app(ActualizarColaborador::class)->handle($record, $data, auth()->user());
     }
 }

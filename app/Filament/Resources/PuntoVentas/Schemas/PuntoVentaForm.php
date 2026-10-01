@@ -23,7 +23,8 @@ class PuntoVentaForm
                         ->pluck('nombre', 'id'))
                     ->searchable()
                     ->optionsLimit(8)
-                    ->required(),
+                    ->required()
+                    ->columnSpanFull(),
                 TextInput::make('nombre')
                     ->label('Nombre')
                     ->required()
@@ -38,12 +39,12 @@ class PuntoVentaForm
                         'otro' => 'Otro',
                     ])
                     ->required()
-                    ->default('caja'),
+                    ->default('caja')
+                    ->native(),
                 Toggle::make('activo')
                     ->label('Activo')
                     ->default(true)
-                    ->required()
-                    ->columnSpanFull(),
+                    ->required(),
             ]);
     }
 }

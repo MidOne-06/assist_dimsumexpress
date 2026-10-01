@@ -7,11 +7,14 @@ use App\Actions\ActualizarColaborador;
 use App\Models\Area;
 use App\Models\Empresa;
 use App\Filament\Resources\Colaboradors\Pages\ListColaboradors;
+use App\Models\Colaborador;
 use App\Models\Sucursal;
 use App\Models\User;
 use Database\Seeders\RolesYPermisosSeeder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class CrearColaboradorTest extends TestCase
@@ -59,6 +62,10 @@ class CrearColaboradorTest extends TestCase
         $this->seed(RolesYPermisosSeeder::class);
         $usuario = User::factory()->create();
         $usuario->assignRole('super_admin');
+        $usuario->givePermissionTo(
+            Permission::findOrCreate('ViewAny:Colaborador', 'web'),
+            Permission::findOrCreate('Create:Colaborador', 'web'),
+        );
 
         Livewire::actingAs($usuario)
             ->test(ListColaboradors::class)
@@ -71,6 +78,10 @@ class CrearColaboradorTest extends TestCase
         $this->seed(RolesYPermisosSeeder::class);
         $administrador = User::factory()->create();
         $administrador->assignRole('super_admin');
+        $administrador->givePermissionTo(
+            Permission::findOrCreate('ViewAny:Colaborador', 'web'),
+            Permission::findOrCreate('Create:Colaborador', 'web'),
+        );
         $sucursal = Sucursal::create([
             'nombre' => 'Sucursal modal',
             'tipo' => 'planta',
@@ -83,6 +94,7 @@ class CrearColaboradorTest extends TestCase
             ->set('mountedActions.0.data.nombre_completo', 'Operador del modal')
             ->set('mountedActions.0.data.email', 'operador.modal@example.test')
             ->set('mountedActions.0.data.password', 'ClaveSegura2026!')
+            ->set('mountedActions.0.data.password_confirmation', 'ClaveSegura2026!')
             ->set('mountedActions.0.data.documento_identidad', 'DNI-00000009')
             ->set('mountedActions.0.data.empresa_id', Empresa::query()->where('codigo', 'DSE')->value('id'))
             ->set('mountedActions.0.data.area_id', Area::query()->where('codigo', 'OPE')->value('id'))
@@ -146,5 +158,47 @@ class CrearColaboradorTest extends TestCase
         ]));
 
         $this->assertSame('JAP-0001', $actualizado->fresh()->codigo_empresa);
+    }
+
+    public function test_supervisor_cannot_create_or_move_a_collaborator_outside_its_locations(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $supervisor = User::factory()->create();
+        $localPermitido = Sucursal::create(['nombre' => 'Local permitido', 'tipo' => 'tienda', 'activo' => true]);
+        $localRestringido = Sucursal::create(['nombre' => 'Local restringido', 'tipo' => 'tienda', 'activo' => true]);
+        $supervisor->sucursalesSupervisadas()->attach($localPermitido);
+        $empresa = Empresa::query()->where('codigo', 'DSE')->firstOrFail();
+        $area = Area::query()->where('codigo', 'OPE')->firstOrFail();
+        $datos = [
+            'nombre_completo' => 'Colaborador restringido',
+            'email' => 'restringido@example.test',
+            'password' => 'ClaveSegura2026!',
+            'documento_identidad' => 'DNI-00000012',
+            'empresa_id' => $empresa->id,
+            'area_id' => $area->id,
+            'sucursal_id' => $localRestringido->id,
+            'fecha_ingreso' => now()->toDateString(),
+            'activo' => true,
+        ];
+
+        try {
+            app(CrearColaborador::class)->handle($datos, $supervisor);
+            $this->fail('La creación fuera del alcance debió ser rechazada.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseMissing('colaboradores', ['documento_identidad' => 'DNI-00000012']);
+        }
+
+        $colaborador = app(CrearColaborador::class)->handle(array_replace($datos, [
+            'email' => 'permitido@example.test',
+            'documento_identidad' => 'DNI-00000013',
+            'sucursal_id' => $localPermitido->id,
+        ]));
+
+        $this->expectException(AuthorizationException::class);
+
+        app(ActualizarColaborador::class)->handle($colaborador, array_replace($datos, [
+            'email' => 'permitido@example.test',
+            'documento_identidad' => 'DNI-00000013',
+        ]), $supervisor);
     }
 }

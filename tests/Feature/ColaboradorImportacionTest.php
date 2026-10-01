@@ -101,6 +101,46 @@ class ColaboradorImportacionTest extends TestCase
             ->assertHasNoActionErrors();
     }
 
+    public function test_export_includes_current_catalog_dropdowns_for_editing_and_reimporting(): void
+    {
+        [, $empresa, $area, $sucursal] = $this->datosBase();
+        $caja = PuntoVenta::create(['sucursal_id' => $sucursal->id, 'nombre' => 'Caja exportable', 'activo' => true]);
+        $usuario = User::factory()->create(['email' => 'editable@example.test']);
+        Colaborador::create([
+            'user_id' => $usuario->id,
+            'empresa_id' => $empresa->id,
+            'area_id' => $area->id,
+            'sucursal_id' => $sucursal->id,
+            'punto_venta_id' => $caja->id,
+            'nombre_completo' => 'Colaborador editable',
+            'documento_identidad' => '77889900',
+            'activo' => true,
+        ]);
+
+        $respuesta = app(ColaboradorSpreadsheetService::class)->exportar(Colaborador::query());
+        ob_start();
+        $respuesta->sendContent();
+        $contenido = (string) ob_get_clean();
+        $archivo = tempnam(sys_get_temp_dir(), 'exportacion-');
+        file_put_contents($archivo, $contenido);
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($archivo) === true);
+
+        try {
+            $libro = (string) $zip->getFromName('xl/workbook.xml');
+            $hoja = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
+            $catalogos = (string) $zip->getFromName('xl/worksheets/sheet2.xml');
+
+            $this->assertStringContainsString('definedName name="cajas"', $libro);
+            $this->assertStringContainsString('<formula1>=cajas</formula1>', $hoja);
+            $this->assertStringContainsString('Colaborador editable', $hoja);
+            $this->assertStringContainsString('Caja exportable', $catalogos);
+        } finally {
+            $zip->close();
+            @unlink($archivo);
+        }
+    }
+
     public function test_import_creates_a_new_collaborator_from_a_csv_file(): void
     {
         [$actor, $empresa, $area, $sucursal] = $this->datosBase();

@@ -9,6 +9,7 @@ use App\Models\VisitaSupervisor;
 use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class CalendarioVisitasSupervisorTest extends TestCase
@@ -40,9 +41,16 @@ class CalendarioVisitasSupervisorTest extends TestCase
             ->assertSee('Ana Supervisora')
             ->assertSee('Beatriz Supervisora')
             ->assertSee('Tienda Centro')
+            ->assertSee('09:30:00')
             ->set('supervisorId', $ana->id)
             ->assertSee('Ana Supervisora')
-            ->assertDontSee('Beatriz Supervisora');
+            ->assertDontSee('Beatriz Supervisora')
+            ->call('limpiarFiltros')
+            ->assertSet('supervisorId', null)
+            ->assertSet('sucursalId', null)
+            ->call('irAHoy')
+            ->assertSet('mes', now()->format('Y-m'))
+            ->assertDispatched('visitas-ir-a-hoy');
     }
 
     public function test_calendar_keeps_historical_visits_visible_after_a_supervisor_role_is_removed(): void
@@ -66,5 +74,42 @@ class CalendarioVisitasSupervisorTest extends TestCase
             ->test(CalendarioVisitasSupervisor::class)
             ->assertSee('Supervisora histórica')
             ->assertSee('Tienda histórica');
+    }
+
+    public function test_limited_user_only_sees_visits_and_filters_from_assigned_locations(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $propia = Sucursal::create(['nombre' => 'Local propio', 'tipo' => 'tienda', 'activo' => true]);
+        $ajena = Sucursal::create(['nombre' => 'Local ajeno', 'tipo' => 'tienda', 'activo' => true]);
+        $usuario = User::factory()->create();
+        $usuario->assignRole('supervisor');
+        $usuario->givePermissionTo(Permission::findOrCreate('View:CalendarioVisitasSupervisor', 'web'));
+        $usuario->sucursalesSupervisadas()->attach($propia);
+        $supervisorPropio = User::factory()->create(['name' => 'Supervisor propio']);
+        $supervisorPropio->assignRole('supervisor');
+        $supervisorPropio->sucursalesSupervisadas()->attach($propia);
+        $supervisorAjeno = User::factory()->create(['name' => 'Supervisor ajeno']);
+        $supervisorAjeno->assignRole('supervisor');
+        $supervisorAjeno->sucursalesSupervisadas()->attach($ajena);
+
+        VisitaSupervisor::create([
+            'supervisor_id' => $supervisorPropio->id,
+            'sucursal_id' => $propia->id,
+            'fecha' => now()->toDateString(),
+            'fecha_hora' => now(),
+        ]);
+        VisitaSupervisor::create([
+            'supervisor_id' => $supervisorAjeno->id,
+            'sucursal_id' => $ajena->id,
+            'fecha' => now()->toDateString(),
+            'fecha_hora' => now(),
+        ]);
+
+        Livewire::actingAs($usuario)
+            ->test(CalendarioVisitasSupervisor::class)
+            ->assertSee('Supervisor propio')
+            ->assertSee('Local propio')
+            ->assertDontSee('Supervisor ajeno')
+            ->assertDontSee('Local ajeno');
     }
 }

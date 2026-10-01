@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['colaborador_id', 'empresa_id', 'area_id', 'tipo', 'fecha_hora', 'turno_id', 'qr_token_id', 'sucursal_id', 'punto_venta_id', 'ip_origen', 'user_agent', 'refrigerio_retorno_esperado_en', 'refrigerio_diferencia_segundos'])]
+#[Fillable(['colaborador_id', 'empresa_id', 'area_id', 'tipo', 'fecha_hora', 'turno_id', 'qr_token_id', 'sucursal_id', 'punto_venta_id', 'cobertura_operativa_id', 'ip_origen', 'user_agent', 'refrigerio_retorno_esperado_en', 'refrigerio_diferencia_segundos'])]
 class Marcacion extends Model
 {
     protected $table = 'marcaciones';
@@ -89,7 +89,15 @@ class Marcacion extends Model
                 return null;
             }
 
-            $esperado = $salida->fecha_hora->copy()->addHour();
+            // Las marcaciones históricas no tenían el retorno calculado y
+            // guardado. Se recompone con el refrigerio configurado en el
+            // turno real, nunca con una hora fija.
+            $turno = $this->turno;
+            if (! $turno?->incluye_refrigerio) {
+                return null;
+            }
+
+            $esperado = $salida->fecha_hora->copy()->addMinutes((int) $turno->refrigerio_minutos);
             $diferenciaSegundos = $this->fecha_hora->getTimestamp() - $esperado->getTimestamp();
         }
 

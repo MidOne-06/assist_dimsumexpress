@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Empresas;
 
 use App\Filament\Resources\Empresas\Pages\ListEmpresas;
 use App\Models\Empresa;
+use App\Rules\RucPeru;
+use App\Services\EmpresaService;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
@@ -31,11 +33,11 @@ class EmpresaResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->columns(2)->components([
-            TextInput::make('nombre')->label('Razón social')->required()->maxLength(255)->unique(ignoreRecord: true),
-            TextInput::make('codigo')->label('Código')->required()->maxLength(30)->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::upper($state) : null)->unique(ignoreRecord: true),
-            TextInput::make('ruc')->label('RUC')->maxLength(20)->unique(ignoreRecord: true),
-            Toggle::make('activo')->label('Activo')->default(true)->required(),
+        return $schema->columns(['default' => 1, 'md' => 2])->components([
+            TextInput::make('nombre')->label('Razón social')->required()->maxLength(255)->columnSpanFull(),
+            TextInput::make('codigo')->label('Código')->required()->maxLength(30)->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::upper(trim($state)) : null),
+            TextInput::make('ruc')->label('RUC')->tel()->inputMode('numeric')->maxLength(11)->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? preg_replace('/\D/', '', $state) : null)->rules([new RucPeru]),
+            Toggle::make('activo')->label('Activo')->default(true)->required()->columnSpanFull(),
         ]);
     }
 
@@ -45,12 +47,19 @@ class EmpresaResource extends Resource
             TextColumn::make('nombre')->label('Razón social')->searchable()->sortable(),
             TextColumn::make('codigo')->label('Código')->badge()->searchable()->sortable(),
             TextColumn::make('ruc')->label('RUC')->placeholder('—')->searchable(),
+            TextColumn::make('colaboradores_count')->label('Colaboradores')->counts('colaboradores')->sortable(),
+            TextColumn::make('marcaciones_count')->label('Marcaciones')->counts('marcaciones')->sortable()->toggleable(isToggledHiddenByDefault: true),
             IconColumn::make('activo')->label('Activo')->boolean(),
         ])->filters([
             TernaryFilter::make('activo')->label('Activo'),
         ])->recordActions([
-            EditAction::make()->modal()->modalHeading('Actualizar empresa')->modalWidth(Width::Large),
-        ])->toolbarActions([])->defaultSort('nombre');
+            EditAction::make()
+                ->modal()
+                ->modalHeading('Actualizar empresa')
+                ->modalWidth(Width::Large)
+                ->using(fn (Empresa $record, array $data) => app(EmpresaService::class)
+                    ->actualizar(auth()->user(), $record, $data)),
+        ])->paginated([10, 25, 50])->defaultPaginationPageOption(25)->toolbarActions([])->defaultSort('nombre');
     }
 
     public static function getPages(): array

@@ -45,6 +45,11 @@ class Sucursal extends Model
         return $this->hasMany(Colaborador::class);
     }
 
+    public function marcaciones(): HasMany
+    {
+        return $this->hasMany(Marcacion::class);
+    }
+
     public function qrTokens(): HasMany
     {
         return $this->hasMany(QrToken::class);

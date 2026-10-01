@@ -96,6 +96,7 @@
             <div class="cal-select-wrap">
                 <x-filament::input.wrapper>
                     <x-filament::input.select wire:model.live="sucursalId">
+                        <option value="">Todos los locales</option>
                         @forelse ($this->sucursales as $sucursal)
                             <option value="{{ $sucursal->id }}">{{ $sucursal->nombre }}</option>
                         @empty
@@ -109,10 +110,10 @@
         @php
             $colaboradores = $this->colaboradores;
             $turnos = $this->turnosActivos;
+            $filas = $this->filasCalendario;
             $dias = $this->dias;
-            $mapa = $this->mapaPorTurno;
+            $mapa = $this->mapaPorFila;
             $hoy = now()->toDateString();
-            $puedeEditarAsignaciones = auth()->user()?->can('Update:AsignacionTurno') ?? false;
             // max-content en la primera columna: se ajusta exactamente al
             // ancho real del nombre de turno más largo + su horario, en vez
             // de un ancho fijo sobrado.
@@ -123,26 +124,40 @@
             <div class="cal-empty" style="margin-top: 1.5rem;">
                 No hay colaboradores activos en esta sucursal.
             </div>
-        @elseif ($turnos->isEmpty())
+        @elseif ($filas->isEmpty())
             <div class="cal-empty" style="margin-top: 1.5rem;">
                 No hay turnos configurados para este mes.
             </div>
         @else
-            <div class="cal-scroll">
+            <div
+                class="cal-scroll"
+                x-data
+                x-init="$nextTick(() => $el.querySelector('[data-calendario-turnos-hoy]')?.scrollIntoView({ block: 'nearest', inline: 'center' }))"
+            >
                 <div class="cal-grid" style="grid-template-columns: {{ $columnas }};">
                     <div class="cal-head-turno">Turno</div>
                     @foreach ($dias as $dia)
-                        <div class="cal-day-head {{ $dia->toDateString() === $hoy ? 'cal-hoy' : '' }}">
+                        <div
+                            class="cal-day-head {{ $dia->toDateString() === $hoy ? 'cal-hoy' : '' }}"
+                            @if ($dia->toDateString() === $hoy) data-calendario-turnos-hoy @endif
+                        >
                             <div class="cal-day-dow">{{ $dia->locale('es')->translatedFormat('D') }}</div>
                             <div class="cal-day-num {{ $dia->toDateString() === $hoy ? 'cal-hoy' : '' }}">{{ $dia->day }}</div>
                         </div>
                     @endforeach
 
-                    @foreach ($turnos as $turno)
+                    @foreach ($filas as $fila)
+                        @php
+                            $turno = $fila['turno'];
+                            $sucursalFila = $fila['sucursal'];
+                        @endphp
                         @php $color = \App\Filament\Pages\CalendarioTurnos::colorParaTurno($turno->id); @endphp
                         <div class="cal-row-turno">
                             <div class="cal-row-turno-nombre">
                                 <span class="cal-swatch" style="background-color: {{ $color['bg'] }};"></span>
+                                @if (blank($sucursalId))
+                                    {{ $sucursalFila->nombre }} ·
+                                @endif
                                 {{ $turno->nombre }}
                             </div>
                             <div class="cal-row-turno-horario">
@@ -151,7 +166,7 @@
                         </div>
                         @foreach ($dias as $dia)
                             @php
-                                $lista = $mapa[$turno->id][$dia->toDateString()] ?? collect();
+                                $lista = $mapa[$fila['clave']][$dia->toDateString()] ?? collect();
                             @endphp
                             <div class="cal-cell {{ $dia->toDateString() === $hoy ? 'cal-hoy' : '' }}">
                                 @if ($lista->isEmpty())
@@ -163,10 +178,12 @@
                                             $icono = \App\Filament\Pages\CalendarioTurnos::iconoEstado($estado['estado']);
                                             $colorEstado = \App\Filament\Pages\CalendarioTurnos::colorEstado($estado['estado']);
                                             $tooltipTexto = $asignacion->colaborador->nombre_completo . ' — ' . $estado['label'] . ($estado['hora'] ? " ({$estado['hora']})" : '');
+                                            $puedeEditar = $this->puedeEditarAsignacion($asignacion);
+                                            $accionEditar = $puedeEditar ? "abrirEdicionAsignacion({$asignacion->id})" : null;
                                         @endphp
                                         <x-filament::badge
-                                            :tag="$puedeEditarAsignaciones ? 'a' : 'span'"
-                                            :href="$puedeEditarAsignaciones ? \App\Filament\Resources\AsignacionTurnos\AsignacionTurnoResource::getUrl('edit', ['record' => $asignacion]) : null"
+                                            :tag="$puedeEditar ? 'button' : 'span'"
+                                            :wire:click="$accionEditar"
                                             :color="null"
                                             :tooltip="$tooltipTexto"
                                             style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }}; cursor: pointer; position: relative; display: inline-flex; align-items: center; gap: 0.2rem;"
@@ -243,3 +260,11 @@
         </div>
     @endif
 </x-filament-panels::page>
+
+@script
+<script>
+    $wire.on('calendario-turnos-ir-a-hoy', () => {
+        document.querySelector('[data-calendario-turnos-hoy]')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+    })
+</script>
+@endscript

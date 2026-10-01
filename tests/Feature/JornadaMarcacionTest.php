@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
+use App\Models\PuntoVenta;
 use App\Models\QrToken;
 use App\Models\Sucursal;
 use App\Models\Turno;
@@ -70,7 +71,7 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.confirmacion', $salida))
             ->assertOk()
             ->assertSee('Horas efectivas trabajadas')
-            ->assertSee('8 h 0 min · Meta 7 h');
+            ->assertSee('8 h 0 min 0 s · Meta 7 h');
     }
 
     public function test_shift_can_only_be_marked_within_its_configured_tolerances(): void
@@ -192,6 +193,23 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame(540, $resumen['objetivo_minutos']);
         $this->assertSame(240, $resumen['extras_minutos']);
         $this->assertSame('extendida', $resumen['estado']);
+    }
+
+    public function test_effective_hours_are_compared_with_second_precision(): void
+    {
+        Carbon::setTestNow('2026-09-21 08:00:05');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $asignacion->turno->update(['incluye_refrigerio' => false, 'refrigerio_minutos' => 0, 'horas_efectivas_objetivo_minutos' => 540]);
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+        Carbon::setTestNow('2026-09-21 17:00:04');
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA);
+
+        $resumen = JornadaMarcacion::resumen($colaborador, $asignacion->fresh('turno'));
+
+        $this->assertSame(32399, $resumen['efectivos_segundos']);
+        $this->assertSame(-1, $resumen['diferencia_segundos']);
+        $this->assertSame('pendiente', $resumen['estado']);
+        $this->assertSame(539, $resumen['efectivos_minutos']);
     }
 
     public function test_first_entry_automatically_uses_the_shift_that_matches_the_operational_start_time(): void
@@ -444,6 +462,91 @@ class JornadaMarcacionTest extends TestCase
             'colaborador_id' => $colaborador->id,
             'tipo' => Marcacion::TIPO_SALIDA,
             'qr_token_id' => $nuevoQr->id,
+        ]);
+    }
+
+    public function test_validating_a_scanned_qr_confirms_the_station_and_next_action_without_creating_a_mark(): void
+    {
+        Carbon::setTestNow('2026-09-21 10:00:00');
+        [$colaborador] = $this->crearJornada('08:00:00', '17:00:00');
+        $operador = $colaborador->user;
+        $operador->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+
+        $qr = QrToken::create([
+            'sucursal_id' => $colaborador->sucursal_id,
+            'token' => 'qr-validacion-' . uniqid(),
+            'proposito' => QrToken::PROPOSITO_ASISTENCIA,
+            'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
+        ]);
+
+        $this->actingAs($operador)
+            ->getJson(route('marcacion.validar-qr', ['token' => $qr->token]))
+            ->assertOk()
+            ->assertJsonPath('confirmado', true)
+            ->assertJsonPath('mensaje', 'QR escaneado correctamente')
+            ->assertJsonPath('acciones.0.tipo', Marcacion::TIPO_ENTRADA)
+            ->assertJsonPath('estacion.sucursal', $colaborador->sucursal->nombre);
+
+        $this->assertDatabaseMissing('marcaciones', [
+            'colaborador_id' => $colaborador->id,
+            'qr_token_id' => $qr->id,
+        ]);
+    }
+
+    public function test_same_branch_point_of_sale_is_not_a_coverage_when_the_collaborator_has_no_base_point_of_sale(): void
+    {
+        $this->withoutMiddleware();
+        Carbon::setTestNow('2026-09-21 10:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $colaborador->user->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $puntoVenta = PuntoVenta::create([
+            'sucursal_id' => $colaborador->sucursal_id,
+            'nombre' => 'Caja sin cobertura',
+            'activo' => true,
+        ]);
+        $qr = QrToken::generarPara($colaborador->sucursal, $puntoVenta, 60);
+
+        $this->actingAs($colaborador->user)
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_ENTRADA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('marcaciones', [
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $colaborador->sucursal_id,
+            'punto_venta_id' => $puntoVenta->id,
+            'cobertura_operativa_id' => null,
+        ]);
+        $this->assertDatabaseMissing('coberturas_operativas', [
+            'asignacion_turno_id' => $asignacion->id,
+            'punto_venta_id' => $puntoVenta->id,
+        ]);
+    }
+
+    public function test_a_mark_at_another_branch_creates_coverage_without_blocking_the_mark(): void
+    {
+        $this->withoutMiddleware();
+        Carbon::setTestNow('2026-09-21 10:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $colaborador->user->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $otraSucursal = Sucursal::create(['nombre' => 'Sucursal de cobertura real', 'tipo' => 'tienda', 'activo' => true]);
+        $puntoVenta = PuntoVenta::create(['sucursal_id' => $otraSucursal->id, 'nombre' => 'Caja de cobertura', 'activo' => true]);
+        $qr = QrToken::generarPara($otraSucursal, $puntoVenta, 60);
+
+        $this->actingAs($colaborador->user)
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_ENTRADA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $cobertura = \App\Models\CoberturaOperativa::query()->sole();
+        $this->assertSame($asignacion->id, $cobertura->asignacion_turno_id);
+        $this->assertSame($otraSucursal->id, $cobertura->sucursal_id);
+        $this->assertSame($puntoVenta->id, $cobertura->punto_venta_id);
+        $this->assertDatabaseHas('marcaciones', [
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $otraSucursal->id,
+            'punto_venta_id' => $puntoVenta->id,
+            'cobertura_operativa_id' => $cobertura->id,
         ]);
     }
 

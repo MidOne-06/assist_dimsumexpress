@@ -4,6 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Marcar asistencia — {{ $sucursal->nombre }}</title>
+    @php
+        $nombreEstacion = "Asistencia · {$sucursal->nombre} · {$puntoVenta->nombre}";
+        $manifestEstacion = route('pwa.station.manifest', [
+            'tipo' => 'asistencia',
+            'sucursal' => $sucursal->id,
+            'puntoVenta' => $puntoVenta->id,
+            'clave' => $clave,
+        ]);
+    @endphp
+    <x-pwa-head :manifest-url="$manifestEstacion" :app-name="$nombreEstacion" />
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111827; color: #f9fafb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 2rem; text-align: center; }
@@ -14,9 +24,19 @@
         .reloj { margin-top: 2rem; font-size: 2.25rem; font-weight: 700; letter-spacing: 0.05em; }
         .barra { margin-top: 1rem; width: 20rem; max-width: 60vw; height: 0.4rem; background: #374151; border-radius: 999px; overflow: hidden; }
         .barra-fill { height: 100%; background: #22c55e; width: 100%; transition: width 1s linear; }
+        .instalar-estacion { position: fixed; top: 1rem; right: 1rem; display: inline-flex; min-height: 2.5rem; align-items: center; gap: .5rem; padding: .5rem .75rem; border: 1px solid #4b5563; border-radius: .625rem; background: #1f2937; color: #f9fafb; font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; }
+        .instalar-estacion:hover, .instalar-estacion:focus-visible { border-color: #f59e0b; color: #fbbf24; outline: 0; }
+        .instalar-estacion svg { width: 1.125rem; height: 1.125rem; }
+        .instalar-estacion[hidden] { display: none; }
+        @media (max-width: 40rem) { body { padding: 4.75rem 1.25rem 1.5rem; } .instalar-estacion { top: .75rem; right: .75rem; } }
     </style>
 </head>
 <body>
+    <button class="instalar-estacion" type="button" data-pwa-install hidden>
+        <x-heroicon-o-arrow-down-tray aria-hidden="true" />
+        <span>Instalar en escritorio</span>
+    </button>
+
     <h1>{{ $sucursal->nombre }}</h1>
     @if ($puntoVenta)
         <p class="sub">{{ $puntoVenta->nombre }}</p>
@@ -77,5 +97,6 @@
         refrescarQr();
         setInterval(refrescarQr, vigenciaSegundos * 1000);
     </script>
+    <x-pwa-register />
 </body>
 </html>

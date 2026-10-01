@@ -13,6 +13,6 @@ class CreateColaborador extends CreateRecord
 
     protected function handleRecordCreation(array $data): Model
     {
-        return app(CrearColaborador::class)->handle($data);
+        return app(CrearColaborador::class)->handle($data, auth()->user());
     }
 }

@@ -91,7 +91,7 @@ class VisitaSupervisorTest extends TestCase
         ]))
             ->assertOk()
             ->assertJsonStructure(['qr', 'segundos_restantes'])
-            ->assertJsonPath('segundos_restantes', 20);
+            ->assertJsonPath('segundos_restantes', 60);
 
         $this->assertDatabaseHas('qr_tokens', [
             'sucursal_id' => $sucursal->id,

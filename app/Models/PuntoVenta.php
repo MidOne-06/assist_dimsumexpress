@@ -40,6 +40,35 @@ class PuntoVenta extends Model
         return $this->hasMany(Colaborador::class);
     }
 
+    public function marcaciones(): HasMany
+    {
+        return $this->hasMany(Marcacion::class);
+    }
+
+    public function visitasSupervisor(): HasMany
+    {
+        return $this->hasMany(VisitaSupervisor::class);
+    }
+
+    public function coberturasOperativas(): HasMany
+    {
+        return $this->hasMany(CoberturaOperativa::class);
+    }
+
+    public function qrTokens(): HasMany
+    {
+        return $this->hasMany(QrToken::class);
+    }
+
+    public function tieneHistorialOperativo(): bool
+    {
+        return $this->colaboradores()->exists()
+            || $this->marcaciones()->exists()
+            || $this->visitasSupervisor()->exists()
+            || $this->coberturasOperativas()->exists()
+            || $this->qrTokens()->exists();
+    }
+
     /**
      * Enlace estable de la estación física para este punto de venta (incluye
      * la clave real). No hay otra forma de recuperarlo desde el panel -- sin

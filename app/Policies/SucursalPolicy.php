@@ -34,12 +34,12 @@ class SucursalPolicy
 
     public function delete(AuthUser $authUser, Sucursal $sucursal): bool
     {
-        return $authUser->can('Delete:Sucursal');
+        return false;
     }
 
     public function deleteAny(AuthUser $authUser): bool
     {
-        return $authUser->can('DeleteAny:Sucursal');
+        return false;
     }
 
     public function restore(AuthUser $authUser, Sucursal $sucursal): bool

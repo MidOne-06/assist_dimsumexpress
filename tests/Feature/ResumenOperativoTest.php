@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Widgets\ResumenOperativo;
+use App\Filament\Widgets\MarcacionesPorHoraChart;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\IncidenciaMarcacion;
@@ -74,5 +75,9 @@ class ResumenOperativoTest extends TestCase
             ->assertSee('Marcaciones hoy')
             ->assertSee('Incidencias pendientes')
             ->assertSee('1');
+
+        Livewire::test(MarcacionesPorHoraChart::class)
+            ->assertSee('Marcaciones por hora')
+            ->assertSee('max-height: 280px');
     }
 }

@@ -34,17 +34,42 @@ class Turno extends Model
     protected static function booted(): void
     {
         static::saving(function (self $turno): void {
+            $inicio = static::hora($turno->hora_inicio, 'hora_inicio');
+
+            // Un turno de solo entrada no tiene cierre de jornada. Se deja la
+            // salida en null para no inventar un horario que no existe.
             if ($turno->solo_entrada) {
+                $turno->hora_fin = null;
+                $turno->cruza_medianoche = false;
+                $turno->tolerancia_salida_minutos = 0;
+                $turno->incluye_refrigerio = false;
+                $turno->refrigerio_minutos = 0;
+                $turno->horas_efectivas_objetivo_minutos = 0;
+                $turno->horas_efectivas_jornada_completa_minutos = null;
+
                 return;
             }
 
-            $inicio = Carbon::parse('2000-01-01 ' . $turno->hora_inicio);
-            $fin = Carbon::parse('2000-01-01 ' . $turno->hora_fin);
-            if ($turno->cruza_medianoche || $fin->lte($inicio)) {
+            $fin = static::hora($turno->hora_fin, 'hora_fin');
+
+            if (! $turno->cruza_medianoche && $fin->lte($inicio)) {
+                throw ValidationException::withMessages([
+                    'cruza_medianoche' => 'Activa Cruza medianoche si la salida corresponde al día siguiente.',
+                ]);
+            }
+
+            if ($turno->cruza_medianoche && $fin->gte($inicio)) {
+                throw ValidationException::withMessages([
+                    'hora_fin' => 'En un turno nocturno, la hora de fin debe ser anterior a la hora de inicio.',
+                ]);
+            }
+
+            if ($turno->cruza_medianoche) {
                 $fin->addDay();
             }
 
             $duracionProgramada = $inicio->diffInMinutes($fin);
+
             $refrigerio = $turno->incluye_refrigerio ? (int) $turno->refrigerio_minutos : 0;
             $objetivo = (int) $turno->horas_efectivas_objetivo_minutos;
             if ($objetivo < 1) {
@@ -67,15 +92,34 @@ class Turno extends Model
         });
     }
 
+    private static function hora(?string $hora, string $campo): Carbon
+    {
+        $valor = trim((string) $hora);
+
+        if (! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/', $valor)) {
+            throw ValidationException::withMessages([$campo => 'Ingresa una hora válida.']);
+        }
+
+        return Carbon::parse('2000-01-01 ' . $valor);
+    }
+
     public function asignaciones(): HasMany
     {
         return $this->hasMany(AsignacionTurno::class);
     }
 
+    public function marcaciones(): HasMany
+    {
+        return $this->hasMany(Marcacion::class);
+    }
+
     /** @param array<string, mixed> $atributos */
     public function actualizarParaFuturo(array $atributos): self
     {
-        $atributos = Arr::only($atributos, $this->getFillable());
+        $atributos = array_replace(
+            Arr::only($this->getAttributes(), $this->getFillable()),
+            Arr::only($atributos, $this->getFillable()),
+        );
 
         if (! $this->asignaciones()->where('fecha', '<=', today())->exists()) {
             $this->update($atributos);

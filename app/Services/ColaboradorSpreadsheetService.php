@@ -40,7 +40,7 @@ final class ColaboradorSpreadsheetService
 
     public function exportar(Builder $query): StreamedResponse
     {
-        return $this->descargar('colaboradores-'.now()->format('Ymd-His').'.xlsx', function (XlsxWriter $writer) use ($query): void {
+        return $this->descargarConCatalogos('colaboradores-'.now()->format('Ymd-His').'.xlsx', function (XlsxWriter $writer) use ($query): void {
             $writer->addRow(Row::fromValues(self::COLUMNAS));
 
             $query->with(['user:id,email', 'empresa:id,codigo', 'area:id,codigo', 'sucursal:id,nombre', 'puntoVenta:id,nombre'])
@@ -55,9 +55,16 @@ final class ColaboradorSpreadsheetService
 
     public function plantilla(): StreamedResponse
     {
-        $archivo = tempnam(sys_get_temp_dir(), 'plantilla-colaboradores-');
+        return $this->descargarConCatalogos('plantilla-colaboradores-'.now()->format('Ymd-His').'.xlsx', function (XlsxWriter $writer): void {
+            $writer->addRow(Row::fromValues(self::COLUMNAS));
+        });
+    }
+
+    private function descargarConCatalogos(string $nombre, callable $escribir): StreamedResponse
+    {
+        $archivo = tempnam(sys_get_temp_dir(), 'colaboradores-');
         if ($archivo === false) {
-            throw new RuntimeException('No se pudo generar la plantilla.');
+            throw new RuntimeException('No se pudo generar el archivo.');
         }
 
         try {
@@ -67,7 +74,7 @@ final class ColaboradorSpreadsheetService
 
             try {
                 $writer->getCurrentSheet()->setName('Colaboradores');
-                $writer->addRow(Row::fromValues(self::COLUMNAS));
+                $escribir($writer);
 
                 $writer->addNewSheetAndMakeItCurrent()->setName('Catálogos');
                 $writer->addRow(Row::fromValues($catalogos['encabezados']));
@@ -92,7 +99,7 @@ final class ColaboradorSpreadsheetService
             } finally {
                 @unlink($archivo);
             }
-        }, 'plantilla-colaboradores-'.now()->format('Ymd-His').'.xlsx', [
+        }, $nombre, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
         ]);
@@ -324,7 +331,7 @@ final class ColaboradorSpreadsheetService
                     ->first();
 
                 if ($colaborador === null) {
-                    app(CrearColaborador::class)->handle($fila);
+                    app(CrearColaborador::class)->handle($fila, $actor);
                     ++$creados;
                     continue;
                 }
@@ -335,7 +342,7 @@ final class ColaboradorSpreadsheetService
                 $datos['activo'] = $activoAnterior;
                 unset($datos['password']);
 
-                app(ActualizarColaborador::class)->handle($colaborador, $datos, $actor->id);
+                app(ActualizarColaborador::class)->handle($colaborador, $datos, $actor);
 
                 if ($activoAnterior && ! $activoNuevo) {
                     $colaborador->desactivarAcceso();
@@ -523,20 +530,6 @@ final class ColaboradorSpreadsheetService
             'fecha_ingreso' => $fechaIngreso?->toDateString(),
             'activo' => $activo,
         ];
-    }
-
-    private function descargar(string $nombre, callable $escribir): StreamedResponse
-    {
-        return response()->streamDownload(function () use ($escribir): void {
-            $writer = new XlsxWriter();
-            $writer->openToFile('php://output');
-
-            try {
-                $escribir($writer);
-            } finally {
-                $writer->close();
-            }
-        }, $nombre, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     private function normalizarEncabezado(string $valor): string

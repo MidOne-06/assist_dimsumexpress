@@ -3,14 +3,11 @@
 namespace App\Filament\Resources\AsignacionTurnos\Pages;
 
 use App\Filament\Resources\AsignacionTurnos\AsignacionTurnoResource;
-use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
-use App\Models\Marcacion;
-use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Services\AsignacionMasivaTurnosService;
+use App\Services\AsignacionTurnoIndividualService;
 use App\Support\AlcanceSupervisor;
-use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\CheckboxList;
@@ -23,8 +20,6 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Enums\Width;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class ListAsignacionTurnos extends ListRecords
 {
@@ -39,10 +34,12 @@ class ListAsignacionTurnos extends ListRecords
                 ->color('primary')
                 ->visible(fn (): bool => auth()->user()?->can('AsignarMasivo:AsignarTurnos') ?? false)
                 ->modalHeading('Asignar turnos por rango')
+                ->modalWidth(Width::TwoExtraLarge)
                 ->modalSubmitActionLabel('Asignar turnos')
                 ->schema([
                     Section::make()
-                        ->columns(12)
+                        ->compact()
+                        ->columns(['default' => 1, 'md' => 2])
                         ->schema([
                             Select::make('sucursal_id')
                                 ->label('Local')
@@ -53,7 +50,30 @@ class ListAsignacionTurnos extends ListRecords
                                 ->required()
                                 ->live()
                                 ->afterStateUpdated(fn (Set $set) => $set('colaborador_ids', []))
-                                ->columnSpan(['default' => 'full', 'lg' => 5]),
+                                ->columnSpan(1),
+                            Select::make('turno_id')
+                                ->label('Turno')
+                                ->options(fn (): array => Turno::query()
+                                    ->where('activo', true)
+                                    ->orderBy('hora_inicio')
+                                    ->pluck('nombre', 'id')
+                                    ->all())
+                                ->required()
+                                ->columnSpan(1),
+                            DatePicker::make('fecha_inicio')
+                                ->label('Desde')
+                                ->native(false)
+                                ->minDate(today())
+                                ->default(today())
+                                ->required()
+                                ->columnSpan(1),
+                            DatePicker::make('fecha_fin')
+                                ->label('Hasta')
+                                ->native(false)
+                                ->minDate(today())
+                                ->default(today())
+                                ->required()
+                                ->columnSpan(1),
                             Select::make('colaborador_ids')
                                 ->label('Colaboradores')
                                 ->options(fn (Get $get): array => filled($get('sucursal_id')) ? Colaborador::query()
@@ -67,30 +87,7 @@ class ListAsignacionTurnos extends ListRecords
                                 ->optionsLimit(8)
                                 ->disabled(fn (Get $get): bool => blank($get('sucursal_id')))
                                 ->required()
-                                ->columnSpan(['default' => 'full', 'lg' => 7]),
-                            Select::make('turno_id')
-                                ->label('Turno')
-                                ->options(fn (): array => Turno::query()
-                                    ->where('activo', true)
-                                    ->orderBy('hora_inicio')
-                                    ->pluck('nombre', 'id')
-                                    ->all())
-                                ->required()
-                                ->columnSpan(['default' => 'full', 'lg' => 5]),
-                            DatePicker::make('fecha_inicio')
-                                ->label('Desde')
-                                ->native(false)
-                                ->minDate(today())
-                                ->default(today())
-                                ->required()
-                                ->columnSpan(['default' => 6, 'lg' => 3]),
-                            DatePicker::make('fecha_fin')
-                                ->label('Hasta')
-                                ->native(false)
-                                ->minDate(today())
-                                ->default(today())
-                                ->required()
-                                ->columnSpan(['default' => 6, 'lg' => 3]),
+                                ->columnSpanFull(),
                             CheckboxList::make('dias_semana')
                                 ->label('Días')
                                 ->options([
@@ -103,12 +100,13 @@ class ListAsignacionTurnos extends ListRecords
                                     '7' => 'Domingo',
                                 ])
                                 ->default(['1', '2', '3', '4', '5', '6', '7'])
-                                ->columns(['default' => 2, 'md' => 4, 'xl' => 7])
+                                ->columns(['default' => 2, 'md' => 4])
                                 ->required()
                                 ->columnSpanFull(),
                             Textarea::make('observacion')
                                 ->label('Observación')
                                 ->rows(2)
+                                ->maxLength(255)
                                 ->columnSpanFull(),
                         ]),
                 ])
@@ -118,96 +116,19 @@ class ListAsignacionTurnos extends ListRecords
                 ->modal()
                 ->modalHeading('Asignar turno individual')
                 ->modalWidth(Width::Large)
-                ->createAnother(false),
+                ->createAnother(false)
+                ->using(fn (array $data) => app(AsignacionTurnoIndividualService::class)->crear(auth()->user(), $data)),
         ];
     }
 
     /** @param array<string, mixed> $data */
     private function asignarPorRango(array $data): void
     {
-        abort_unless(auth()->user()?->can('AsignarMasivo:AsignarTurnos'), 403);
-
-        $fechaInicio = Carbon::parse($data['fecha_inicio'])->startOfDay();
-        $fechaFin = Carbon::parse($data['fecha_fin'])->startOfDay();
-        $sucursalId = (int) $data['sucursal_id'];
-
-        if ($fechaInicio->lt(today())) {
-            throw ValidationException::withMessages([
-                'fecha_inicio' => 'No se pueden programar turnos en fechas pasadas.',
-            ]);
-        }
-
-        if ($fechaFin->lt($fechaInicio)) {
-            throw ValidationException::withMessages([
-                'fecha_fin' => 'La fecha "Hasta" debe ser igual o posterior a la fecha "Desde".',
-            ]);
-        }
-
-        if ($fechaInicio->diffInDays($fechaFin) > 90) {
-            throw ValidationException::withMessages([
-                'fecha_fin' => 'El rango máximo permitido es de 90 días.',
-            ]);
-        }
-
-        abort_unless(
-            Sucursal::query()
-                ->whereKey($sucursalId)
-                ->whereIn('id', AlcanceSupervisor::sucursalIds(auth()->user()))
-                ->exists(),
-            403,
-        );
-
-        $colaboradorIds = array_values(array_unique(array_map('intval', $data['colaborador_ids'])));
-        $colaboradoresPermitidos = Colaborador::query()
-            ->whereIn('id', $colaboradorIds)
-            ->where('sucursal_id', $sucursalId)
-            ->where('activo', true)
-            ->count();
-
-        abort_unless($colaboradoresPermitidos === count($colaboradorIds), 403);
-
-        // La programación del día actual es válida hasta que el colaborador
-        // registra una marcación. Desde ese momento se preserva el turno que
-        // dio origen a la trazabilidad de esa jornada.
-        if ($fechaInicio->isToday() && Marcacion::query()
-            ->whereIn('colaborador_id', $colaboradorIds)
-            ->whereDate('fecha_hora', today())
-            ->exists()) {
-            throw ValidationException::withMessages([
-                'fecha_inicio' => 'No se puede cambiar el turno de hoy porque ya existen marcaciones.',
-            ]);
-        }
-
-        $diasSemana = array_map('intval', $data['dias_semana']);
-        $creadas = 0;
-        $actualizadas = 0;
-
-        DB::transaction(function () use ($fechaInicio, $fechaFin, $diasSemana, $colaboradorIds, $data, &$creadas, &$actualizadas): void {
-            foreach (CarbonPeriod::create($fechaInicio, $fechaFin) as $fecha) {
-                if (! in_array($fecha->isoWeekday(), $diasSemana, true)) {
-                    continue;
-                }
-
-                foreach ($colaboradorIds as $colaboradorId) {
-                    $asignacion = AsignacionTurno::firstOrNew([
-                        'colaborador_id' => $colaboradorId,
-                        'fecha' => $fecha->toDateString(),
-                    ]);
-
-                    $existia = $asignacion->exists;
-                    $asignacion->turno_id = $data['turno_id'];
-                    $asignacion->observacion = $data['observacion'] ?? null;
-                    $asignacion->asignado_por = auth()->id();
-                    $asignacion->save();
-
-                    $existia ? $actualizadas++ : $creadas++;
-                }
-            }
-        });
+        $resultado = app(AsignacionMasivaTurnosService::class)->asignar(auth()->user(), $data);
 
         Notification::make()
             ->title('Asignación completada')
-            ->body("{$creadas} asignaciones creadas y {$actualizadas} actualizadas.")
+            ->body("{$resultado['creadas']} asignaciones creadas y {$resultado['actualizadas']} actualizadas.")
             ->success()
             ->send();
     }

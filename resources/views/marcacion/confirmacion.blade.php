@@ -33,8 +33,8 @@
         @if ($resumenJornada)
             <div class="siguiente" style="background:#f0fdf4;border-color:#bbf7d0;">
                 <strong style="color:#166534;">Horas efectivas trabajadas</strong>
-                {{ intdiv($resumenJornada['efectivos_minutos'], 60) }} h {{ $resumenJornada['efectivos_minutos'] % 60 }} min · Meta {{ intdiv($resumenJornada['objetivo_minutos'], 60) }} h
-                @if ($resumenJornada['extras_minutos']) · Extras {{ intdiv($resumenJornada['extras_minutos'], 60) }} h {{ $resumenJornada['extras_minutos'] % 60 }} min @endif
+                {{ intdiv($resumenJornada['efectivos_segundos'], 3600) }} h {{ intdiv($resumenJornada['efectivos_segundos'] % 3600, 60) }} min {{ $resumenJornada['efectivos_segundos'] % 60 }} s · Meta {{ intdiv($resumenJornada['objetivo_segundos'], 3600) }} h
+                @if ($resumenJornada['extras_segundos']) · Extras {{ intdiv($resumenJornada['extras_segundos'], 3600) }} h {{ intdiv($resumenJornada['extras_segundos'] % 3600, 60) }} min {{ $resumenJornada['extras_segundos'] % 60 }} s @endif
             </div>
         @endif
         <div class="acciones">
