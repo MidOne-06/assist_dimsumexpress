@@ -116,6 +116,26 @@ class Turno extends Model
         return Carbon::parse('2000-01-01 ' . $valor);
     }
 
+    /** Etiqueta segura para pantallas donde la salida puede no estar programada. */
+    public function rangoHorario(): string
+    {
+        $inicio = static::hora($this->hora_inicio, 'hora_inicio')->format('H:i');
+
+        if ($this->solo_entrada) {
+            return "{$inicio} · Solo entrada";
+        }
+
+        if ($this->jornada_abierta) {
+            return "{$inicio} · Jornada abierta";
+        }
+
+        if (! $this->hora_fin) {
+            return "{$inicio} · Sin horario de salida";
+        }
+
+        return $inicio . '–' . static::hora($this->hora_fin, 'hora_fin')->format('H:i');
+    }
+
     public function asignaciones(): HasMany
     {
         return $this->hasMany(AsignacionTurno::class);

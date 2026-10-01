@@ -124,5 +124,6 @@ class TurnosModalTest extends TestCase
         $this->assertFalse($jornadaAbierta->solo_entrada);
         $this->assertNull($jornadaAbierta->hora_fin);
         $this->assertTrue($jornadaAbierta->incluye_refrigerio);
+        $this->assertSame('08:00 · Jornada abierta', $jornadaAbierta->rangoHorario());
     }
 }

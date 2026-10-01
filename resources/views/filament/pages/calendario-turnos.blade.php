@@ -161,7 +161,7 @@
                                 {{ $turno->nombre }}
                             </div>
                             <div class="cal-row-turno-horario">
-                                {{ \Illuminate\Support\Carbon::parse($turno->hora_inicio)->format('H:i') }}–{{ \Illuminate\Support\Carbon::parse($turno->hora_fin)->format('H:i') }}
+                                {{ $turno->rangoHorario() }}
                             </div>
                         </div>
                         @foreach ($dias as $dia)

@@ -73,7 +73,7 @@
 
         @if ($asignacion)
             <div class="turno">
-                Turno de hoy: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }}–{{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}
+                Turno de hoy: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ $asignacion->turno->rangoHorario() }}
                 · {{ intdiv($asignacion->turno->horas_efectivas_objetivo_minutos, 60) }} h efectivas{{ $asignacion->turno->incluye_refrigerio ? ' + ' . $asignacion->turno->refrigerio_minutos . ' min de refrigerio' : '' }}
             </div>
 

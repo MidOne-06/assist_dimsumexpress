@@ -107,7 +107,7 @@
                             @if ($asignacion && $asignacion->turno)
                                 @php $color = \App\Filament\Pages\CalendarioTurnos::colorParaTurno($asignacion->turno->id); @endphp
                                 <span class="badge" style="background-color:{{ $color['bg'] }};color:{{ $color['text'] }};">{{ $asignacion->turno->nombre }}</span>
-                                <div class="hours">{{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_inicio)->format('H:i') }} – {{ \Illuminate\Support\Carbon::parse($asignacion->turno->hora_fin)->format('H:i') }}</div>
+                                <div class="hours">{{ $asignacion->turno->rangoHorario() }}</div>
                             @else
                                 <span class="rest">Descanso</span>
                             @endif
