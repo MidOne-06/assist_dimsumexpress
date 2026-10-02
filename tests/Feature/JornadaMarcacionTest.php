@@ -500,7 +500,7 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.show', ['token' => $qr->token]))
             ->assertOk()
             ->assertSee('Marcar salida de refrigerio')
-            ->assertSee('Marcar salida de turno')
+            ->assertSee('Salida de turno')
             ->assertSee('data-codigo-marcacion="3"', false)
             ->assertSee('data-codigo-marcacion="5"', false)
             ->assertSee('data-codigo-marcacion="7"', false)
@@ -570,7 +570,7 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($operador)
             ->get(route('marcacion.show', ['token' => $nuevoQr->token]))
             ->assertOk()
-            ->assertSee('Marcar salida de turno');
+            ->assertSee('Salida de turno');
 
         $this->actingAs($operador)
             ->post(route('marcacion.store'), ['token' => $nuevoQr->token, 'tipo' => Marcacion::TIPO_SALIDA])
