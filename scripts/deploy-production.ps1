@@ -20,10 +20,14 @@ if ($LASTEXITCODE -ne 0) {
     throw 'El árbol de trabajo contiene cambios fuera del commit que se va a desplegar.'
 }
 
+$archivePath = Join-Path ([System.IO.Path]::GetTempPath()) "asistencias-$resolvedCommit.tar"
+$remoteArchive = "/tmp/asistencias-$resolvedCommit.tar"
+
 $remoteCommand = @"
 set -eu
 cd '$ProductionPath'
-tar -xf -
+trap 'rm -f "$remoteArchive"' EXIT
+tar -xf '$remoteArchive'
 printf '%s' '$resolvedCommit' > storage/app/.release-sha
 docker compose build app --quiet
 docker compose run --rm app php artisan migrate --force
@@ -37,7 +41,23 @@ curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/admin/login
 printf 'DEPLOYED_SHA=%s\\n' "`$(cat storage/app/.release-sha)"
 "@
 
-git archive --format=tar $resolvedCommit | ssh $ProductionHost $remoteCommand
-if ($LASTEXITCODE -ne 0) {
-    throw "El despliegue del commit $resolvedCommit no finalizó correctamente."
+try {
+    # PowerShell 5 puede corromper un flujo binario entre procesos nativos.
+    # El archivo temporal + SCP conserva el tar generado por Git intacto.
+    git archive --format=tar --output=$archivePath $resolvedCommit
+    if ($LASTEXITCODE -ne 0) {
+        throw "No se pudo preparar el artefacto del commit $resolvedCommit."
+    }
+
+    scp $archivePath "${ProductionHost}:$remoteArchive"
+    if ($LASTEXITCODE -ne 0) {
+        throw "No se pudo transferir el artefacto del commit $resolvedCommit."
+    }
+
+    ssh $ProductionHost $remoteCommand
+    if ($LASTEXITCODE -ne 0) {
+        throw "El despliegue del commit $resolvedCommit no finalizó correctamente."
+    }
+} finally {
+    Remove-Item -LiteralPath $archivePath -Force -ErrorAction SilentlyContinue
 }
