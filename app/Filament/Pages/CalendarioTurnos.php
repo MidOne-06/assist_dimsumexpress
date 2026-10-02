@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\AsignacionTurno;
+use App\Services\AsignacionTurnoIndividualService;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
@@ -137,10 +138,7 @@ class CalendarioTurnos extends Page
                         403,
                     );
 
-                    AsignacionTurno::query()->create([
-                        ...$data,
-                        'asignado_por' => auth()->id(),
-                    ]);
+                    app(AsignacionTurnoIndividualService::class)->crear(auth()->user(), $data);
                 }),
             Action::make('editarAsignacion')
                 ->extraAttributes(['class' => 'hidden'])
@@ -205,10 +203,7 @@ class CalendarioTurnos extends Page
                         ]);
                     }
 
-                    $asignacion->update([
-                        ...$data,
-                        'asignado_por' => auth()->id(),
-                    ]);
+                    app(AsignacionTurnoIndividualService::class)->actualizar(auth()->user(), $asignacion, $data);
                 }),
         ];
     }

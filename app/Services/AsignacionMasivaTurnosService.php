@@ -9,6 +9,7 @@ use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Models\TurnoOperativo;
 use App\Models\User;
 use App\Support\AlcanceSupervisor;
 use Carbon\Carbon;
@@ -77,13 +78,23 @@ class AsignacionMasivaTurnosService
             ]);
         }
 
-        $colaboradoresPermitidos = Colaborador::query()
+        $colaboradores = Colaborador::query()
             ->whereIn('id', $colaboradorIds)
             ->where('sucursal_id', $sucursalId)
             ->where('activo', true)
-            ->count();
+            ->get(['id', 'sucursal_id', 'punto_venta_id']);
 
-        abort_unless($colaboradoresPermitidos === count($colaboradorIds), 403);
+        abort_unless($colaboradores->count() === count($colaboradorIds), 403);
+
+        if ($colaboradores->contains(fn (Colaborador $colaborador): bool => ! TurnoOperativo::turnoHabilitadoEnEstacion(
+            $colaborador->sucursal_id,
+            $colaborador->punto_venta_id,
+            $turnoId,
+        ))) {
+            throw ValidationException::withMessages([
+                'turno_id' => 'El turno seleccionado no está habilitado para la estación base de uno o más colaboradores.',
+            ]);
+        }
 
         $fechas = collect(CarbonPeriod::create($fechaInicio, $fechaFin))
             ->filter(fn (Carbon $fecha): bool => in_array($fecha->isoWeekday(), $diasSemana, true))

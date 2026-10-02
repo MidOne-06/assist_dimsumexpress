@@ -8,6 +8,7 @@ use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Turno;
+use App\Models\TurnoOperativo;
 use App\Models\User;
 use App\Support\AlcanceSupervisor;
 use Illuminate\Support\Carbon;
@@ -89,6 +90,16 @@ class AsignacionTurnoIndividualService
 
         if (! Turno::query()->whereKey($turnoId)->where('activo', true)->exists()) {
             throw ValidationException::withMessages(['turno_id' => 'Selecciona un turno activo.']);
+        }
+
+        if (! TurnoOperativo::turnoHabilitadoEnEstacion(
+            $colaborador->sucursal_id,
+            $colaborador->punto_venta_id,
+            $turnoId,
+        )) {
+            throw ValidationException::withMessages([
+                'turno_id' => 'El turno seleccionado no está habilitado para el local y caja base del colaborador.',
+            ]);
         }
 
         if ($fecha->isToday() && Marcacion::query()
