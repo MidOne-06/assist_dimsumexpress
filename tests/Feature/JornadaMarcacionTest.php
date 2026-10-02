@@ -516,10 +516,11 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($operador)
             ->get(route('marcacion.show'))
             ->assertOk()
-            ->assertSee('Tu siguiente paso')
-            ->assertSee('Escanea el QR para continuar')
-            ->assertSee('Marcar ingreso de turno')
-            ->assertDontSee('name="tipo"', false);
+            ->assertSee('Siguiente paso: Marcar ingreso')
+            ->assertSee('Selecciona la acción que deseas registrar')
+            ->assertSee('Marcar ingreso')
+            ->assertSee('data-mp-accion="entrada"', false)
+            ->assertDontSee('data-codigo-marcacion', false);
 
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
         $qr = QrToken::create([
