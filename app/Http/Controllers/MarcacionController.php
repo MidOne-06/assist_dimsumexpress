@@ -115,14 +115,14 @@ class MarcacionController extends Controller
         // colaborador que recién se loguea.
         if (! $token) {
             $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
+            $acciones = $this->accionesMarcacion($colaborador, $asignacion);
 
             return view('marcacion.esperando', [
                 'apariencia' => app(AparienciaSistemaService::class),
                 'colaborador' => $colaborador,
                 'asignacion' => $asignacion,
-                'siguientesTipos' => $asignacion
-                    ? JornadaMarcacion::siguientesTipos($colaborador, $asignacion)
-                    : [],
+                'siguientesTipos' => $this->tiposHabilitados($acciones),
+                'acciones' => $acciones,
                 'ultimaMarcacion' => $asignacion
                     ? JornadaMarcacion::ultimaMarcacion($colaborador, $asignacion)
                     : null,

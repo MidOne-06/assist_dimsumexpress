@@ -1,126 +1,34 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Marcar asistencia — {{ $apariencia->nombre() }}</title>
-    <link rel="icon" href="{{ $apariencia->iconoUrl() }}">
-    <script>
-        try {
-            const tema = localStorage.getItem('theme');
-            if (tema === 'dark' || tema === 'light') document.documentElement.classList.add(tema);
-        } catch (_) {}
-    </script>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Marcación — {{ $apariencia->nombre() }}</title><link rel="icon" href="{{ $apariencia->iconoUrl() }}"><x-pwa-head />
     <style>
-        :root { color-scheme: light; --primary: {{ $apariencia->colorPrimario() }}; --page:#f8fafc; --surface:#fff; --soft:#f8fafc; --ink:#111827; --muted:#667085; --line:#e4e7ec; }
-        @media (prefers-color-scheme: dark) { :root { color-scheme:dark; --page:#0f172a; --surface:#18181b; --soft:#27272a; --ink:#f8fafc; --muted:#a1a1aa; --line:#3f3f46; } }
-        html.dark { color-scheme:dark; --page:#0f172a; --surface:#18181b; --soft:#27272a; --ink:#f8fafc; --muted:#a1a1aa; --line:#3f3f46; }
-        html.light { color-scheme:light; --page:#f8fafc; --surface:#fff; --soft:#f8fafc; --ink:#111827; --muted:#667085; --line:#e4e7ec; }
-        * { box-sizing: border-box; }
-        body { margin:0; min-height:100dvh; background:var(--page); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; display:flex; align-items:center; justify-content:center; padding:clamp(1rem,4vw,2rem); }
-        .card { background:var(--surface); border:1px solid var(--line); border-radius:.875rem; box-shadow:0 .75rem 1.75rem rgb(15 23 42 / .10); padding:1.125rem; width:100%; max-width:30rem; }
-        .brand { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding-bottom:1rem; margin-bottom:1rem; border-bottom:1px solid var(--line); }
-        .brand-logo { width:auto; height:2.25rem; max-width:8rem; object-fit:contain; }
-        .brand-label { color:var(--muted); font-size:.75rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
-        .encabezado { display: flex; gap: .8rem; align-items: flex-start; margin-bottom: 1.15rem; }
-        h1 { font-size:1.125rem; line-height:1.3; margin:0; letter-spacing:-.015em; }
-        .sub { color:var(--muted); font-size:.875rem; line-height:1.45; margin:.18rem 0 0; }
-        .icono { flex:0 0 auto; width:2.35rem; height:2.35rem; color:var(--primary); }
-        .turno, .estado, .alerta { border-radius:.625rem; padding:.75rem .875rem; margin-bottom:.75rem; }
-        .turno { background:var(--soft); border:1px solid var(--line); font-size:.875rem; color:var(--muted); }
-        .turno strong { color:var(--ink); }
-        .estado { border:1px solid color-mix(in srgb,var(--primary) 33%,var(--line)); background:color-mix(in srgb,var(--primary) 8%,var(--surface)); }
-        .estado-titulo { display:flex; align-items:center; gap:.4rem; color:var(--primary); font-size:.75rem; font-weight:700; letter-spacing:.02em; text-transform:uppercase; }
-        .estado-accion { margin:.32rem 0 .18rem; font-size:1rem; font-weight:700; color:var(--ink); }
-        .estado-detalle { margin:0; color:var(--muted); font-size:.875rem; line-height:1.45; }
-        .alerta { background:color-mix(in srgb,#f59e0b 10%,var(--surface)); border:1px solid color-mix(in srgb,#f59e0b 45%,var(--line)); color:color-mix(in srgb,#b45309 76%,var(--ink)); font-size:.875rem; line-height:1.45; }
-        .ultimo { color:var(--muted); font-size:.8125rem; margin:-.15rem 0 .9rem; }
-        .guia { color:var(--muted); font-size:.8125rem; line-height:1.45; margin:1rem 0 .75rem; text-align:center; }
-        .links { display:flex; justify-content:center; gap:1rem; margin-top:1.1rem; }
-        .links a, .links button { color:var(--muted); font-size:.8125rem; text-decoration:none; background:none; border:0; padding:0; cursor:pointer; }
-        .link-item { display: inline-flex; align-items: center; gap: .3rem; }
-        @media (max-width:640px) { body { display:block; padding:.75rem; } .card { max-width:none; margin:auto; padding:1rem; } .brand { padding-bottom:.75rem; margin-bottom:.875rem; } .brand-logo { height:2rem; } .encabezado { margin-bottom:.875rem; } .icono { width:2rem; height:2rem; } button.mp-escanear { min-height:3.25rem; border-radius:.625rem; font-size:.9375rem; } .links { justify-content:space-between; margin-top:.875rem; } }
+        :root{color-scheme:light;--primary:{{ $apariencia->colorPrimario() }};--page:#f8fafc;--surface:#fff;--soft:#f8fafc;--ink:#172033;--muted:#667085;--line:#e4e7ec;--success:#15803d;--warning:#b54708;--info:#175cd3;--danger:#b42318}
+        @media(prefers-color-scheme:dark){:root{color-scheme:dark;--page:#101828;--surface:#1d2939;--soft:#182230;--ink:#f9fafb;--muted:#cbd5e1;--line:#344054;--success:#86efac;--warning:#facc15;--info:#93c5fd;--danger:#fca5a5}}
+        *{box-sizing:border-box}body{min-height:100dvh;margin:0;background:var(--page);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;padding:1rem}.shell{width:min(100%,31rem);margin:clamp(1rem,8vh,4rem) auto;padding:1.125rem;background:var(--surface);border:1px solid var(--line);border-radius:.875rem}.brand{display:flex;justify-content:space-between;align-items:center;padding-bottom:.875rem;border-bottom:1px solid var(--line)}.brand img{height:2.1rem;max-width:8rem;object-fit:contain}.brand span{font-size:.75rem;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase}.identity{padding:.875rem 0 .75rem}.identity h1{margin:0;font-size:1.125rem;line-height:1.3}.identity p{margin:.2rem 0 0;color:var(--muted);font-size:.875rem}.turno,.estado{padding:.75rem .875rem;border:1px solid var(--line);border-radius:.625rem;font-size:.8125rem;line-height:1.45}.turno{background:var(--soft);margin-bottom:.625rem}.turno strong{color:var(--ink)}.estado{margin-bottom:1rem;border-color:color-mix(in srgb,var(--primary) 34%,var(--line));background:color-mix(in srgb,var(--primary) 7%,var(--surface))}.estado strong{display:block;color:var(--primary);font-size:.875rem}.estado span{color:var(--muted)}.section-label{margin:0 0 .625rem;font-size:.8125rem;font-weight:700;color:var(--muted)}.acciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.625rem}.accion{display:flex;min-height:6.75rem;flex-direction:column;align-items:flex-start;justify-content:center;gap:.3rem;padding:.75rem;border:1px solid var(--line);border-radius:.625rem;background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}.accion svg{width:1.25rem;height:1.25rem}.accion strong{font-size:.875rem;line-height:1.25}.accion small{font-size:.75rem;line-height:1.3}.accion:disabled{cursor:not-allowed;background:var(--soft);opacity:.62}.accion:not(:disabled):focus-visible{outline:3px solid color-mix(in srgb,var(--primary) 30%,transparent);outline-offset:2px}.ingreso{color:var(--success)}.refrigerio-salida{color:var(--warning)}.refrigerio-regreso{color:var(--info)}.salida{color:var(--danger)}.accion small{opacity:.8}.links{display:flex;justify-content:space-between;margin-top:1rem}.links a,.links button{display:inline-flex;align-items:center;gap:.35rem;border:0;background:none;padding:0;color:var(--muted);font:inherit;font-size:.8125rem;text-decoration:none;cursor:pointer}.links svg{width:1rem;height:1rem}@media(max-width:380px){body{padding:.5rem}.shell{margin:.5rem auto;padding:1rem}.acciones{grid-template-columns:1fr}.accion{min-height:4.75rem}}
     </style>
 </head>
 <body>
-    @php
-        $etiquetas = [
-            'entrada' => 'Marcar ingreso de turno',
-            'salida' => 'Marcar salida de turno',
-            'salida_refrigerio' => 'Marcar salida de refrigerio',
-            'regreso_refrigerio' => 'Marcar ingreso de refrigerio',
-        ];
-        $siguiente = $siguientesTipos[0] ?? null;
-        $detalleSiguiente = match ($siguiente) {
-            'entrada' => 'Después de escanear el QR, podrás confirmar: Marcar ingreso de turno.',
-            'salida_refrigerio' => 'Después de escanear el QR, podrás elegir: Marcar salida de refrigerio o Marcar salida de turno.',
-            'regreso_refrigerio' => $retornoEsperado
-                ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Después de escanear el QR, podrás confirmar tu ingreso de refrigerio.'
-                : 'Después de escanear el QR, podrás confirmar tu ingreso de refrigerio.',
-            'salida' => 'Después de escanear el QR, podrás confirmar: Marcar salida de turno.',
-            default => null,
-        };
-    @endphp
-    <div class="card">
-        <div class="brand"><img class="brand-logo" src="{{ $apariencia->logoUrl() }}" alt="{{ $apariencia->nombre() }}"><span class="brand-label">Marcación</span></div>
-        <div class="encabezado">
-            <x-heroicon-o-clock class="icono" />
-            <div>
-                <h1>Hola, {{ $colaborador->nombre_completo }}</h1>
-                <p class="sub">{{ $colaborador->sucursal->nombre }}{{ $colaborador->puntoVenta ? ' · ' . $colaborador->puntoVenta->nombre : '' }}</p>
-            </div>
-        </div>
-
-        @if ($asignacion)
-            <div class="turno">
-                Turno de hoy: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ $asignacion->turno->rangoHorario() }}
-                · {{ intdiv($asignacion->turno->horas_efectivas_objetivo_minutos, 60) }} h efectivas{{ $asignacion->turno->incluye_refrigerio ? ' + ' . $asignacion->turno->refrigerio_minutos . ' min de refrigerio' : '' }}
-            </div>
-
-            @if (($resumenJornada['efectivos_segundos'] ?? null) !== null)
-                <div class="estado" style="border-color:#bbf7d0;background:#f0fdf4;">
-                    <div class="estado-titulo" style="color:#15803d;">Horas efectivas</div>
-                    <p class="estado-detalle" style="margin-top:.35rem;">{{ intdiv($resumenJornada['efectivos_segundos'], 3600) }} h {{ intdiv($resumenJornada['efectivos_segundos'] % 3600, 60) }} min {{ $resumenJornada['efectivos_segundos'] % 60 }} s · Meta: {{ intdiv($resumenJornada['objetivo_segundos'], 3600) }} h{{ $resumenJornada['extras_segundos'] ? ' · Extras: ' . intdiv($resumenJornada['extras_segundos'], 3600) . ' h ' . intdiv($resumenJornada['extras_segundos'] % 3600, 60) . ' min ' . ($resumenJornada['extras_segundos'] % 60) . ' s' : '' }}</p>
-                </div>
-            @endif
-
-            @if ($siguiente)
-                <div class="estado">
-                    <div class="estado-titulo"><x-heroicon-o-arrow-right-circle style="width:1rem;height:1rem;" /> Tu siguiente paso</div>
-                    <div class="estado-accion">Escanea el QR para continuar</div>
-                    <p class="estado-detalle">{{ $detalleSiguiente }}</p>
-                </div>
-                @if ($ultimaMarcacion)
-                    <p class="ultimo">Última marcación: {{ $etiquetas[$ultimaMarcacion->tipo] }} · {{ $ultimaMarcacion->fecha_hora->format('H:i:s') }}</p>
-                @endif
-                <p class="guia">Cada marcación requiere escanear un QR dinámico nuevo mostrado en tu punto de venta.</p>
-                @include('marcacion.partials.escaner')
-                <style>
-                    button.mp-escanear { min-height:3.25rem; border-radius:.75rem; background:var(--primary) !important; box-shadow:0 .5rem 1rem color-mix(in srgb,var(--primary) 22%,transparent); }
-                    button.mp-escanear:hover { filter:brightness(.94); }
-                </style>
-            @else
-                <div class="estado" style="border-color:#bbf7d0;background:#f0fdf4;">
-                    <div class="estado-titulo" style="color:#15803d;"><x-heroicon-o-check-circle style="width:1rem;height:1rem;" /> Jornada completada</div>
-                    <p class="estado-detalle" style="margin-top:.35rem;">No tienes marcaciones pendientes para este turno.</p>
-                </div>
-            @endif
-        @else
-            <div class="alerta">No tienes un turno asignado en este momento. Puedes registrar una marcación excepcional únicamente escaneando el QR de tu estación base; quedará trazada para revisión administrativa.</div>
-            @include('marcacion.partials.escaner', ['textoBoton' => 'Escanear QR de mi estación'])
-            <style>
-                button.mp-escanear { min-height:3.25rem; border-radius:.75rem; background:var(--primary) !important; box-shadow:0 .5rem 1rem color-mix(in srgb,var(--primary) 22%,transparent); }
-                button.mp-escanear:hover { filter:brightness(.94); }
-            </style>
-        @endif
-
-        <div class="links">
-            <a href="{{ route('horario.show') }}" class="link-item"><x-heroicon-o-calendar-days style="width:1rem;height:1rem;" /> Mi horario</a>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="link-item"><x-heroicon-o-arrow-left-on-rectangle style="width:1rem;height:1rem;" /> Cerrar sesión</button>
-            </form>
-        </div>
+@php
+    $acciones=$acciones??[];
+    $meta=['entrada'=>['Marcar ingreso','Inicia tu jornada','arrow-right-on-rectangle','ingreso'],'salida_refrigerio'=>['Salida a refrigerio','Inicia tu descanso','pause-circle','refrigerio-salida'],'regreso_refrigerio'=>['Regreso de refrigerio','Continúa tu jornada','play-circle','refrigerio-regreso'],'salida'=>['Marcar salida','Finaliza tu jornada','arrow-left-on-rectangle','salida']];
+    $siguiente=$siguientesTipos[0]??null;
+@endphp
+<main class="shell">
+    <header class="brand"><img src="{{ $apariencia->logoUrl() }}" alt="{{ $apariencia->nombre() }}"><span>Marcación</span></header>
+    <section class="identity"><h1>{{ $colaborador->nombre_completo }}</h1><p>{{ $colaborador->sucursal->nombre }}{{ $colaborador->puntoVenta ? ' · '.$colaborador->puntoVenta->nombre : '' }}</p></section>
+    @if($asignacion)<div class="turno">Turno de hoy: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ $asignacion->turno->rangoHorario() }}</div>@else<div class="turno"><strong>Sin turno fijo</strong> · Puedes registrar una entrada excepcional en tu estación base.</div>@endif
+    <div class="estado"><strong>{{ $siguiente && isset($meta[$siguiente]) ? 'Siguiente paso: '.$meta[$siguiente][0] : 'Jornada completada' }}</strong><span>{{ $siguiente ? 'Selecciona la acción y luego escanea el QR actual de tu estación.' : 'No tienes acciones pendientes para hoy.' }}</span></div>
+    <p class="section-label">Selecciona la acción que deseas registrar</p>
+    <div class="acciones" aria-label="Acciones de marcación">
+        @foreach($acciones as $accion)
+            @php([$titulo,$detalle,$icono,$clase]=$meta[$accion['tipo']])
+            <button type="button" class="accion {{ $clase }}" data-mp-accion="{{ $accion['tipo'] }}" @disabled(! $accion['habilitada']) title="{{ $accion['habilitada'] ? $detalle : $accion['motivo'] }}"><x-dynamic-component :component="'heroicon-o-'.$icono" /><strong>{{ $titulo }}</strong><small>{{ $accion['habilitada'] ? $detalle : $accion['motivo'] }}</small></button>
+        @endforeach
     </div>
+    @include('marcacion.partials.escaner', ['mostrarBoton' => false, 'registrarAccionDirecta' => true])
+    <div class="links"><a href="{{ route('horario.show') }}"><x-heroicon-o-calendar-days />Mi horario</a><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle />Cerrar sesión</button></form></div>
+</main>
 </body>
 </html>
