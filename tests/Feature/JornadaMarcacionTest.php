@@ -74,7 +74,7 @@ class JornadaMarcacionTest extends TestCase
             ->assertSee('8 h 0 min 0 s · Meta 7 h');
     }
 
-    public function test_shift_can_only_be_marked_within_its_configured_tolerances(): void
+    public function test_assigned_shift_records_a_late_entry_until_its_technical_end(): void
     {
         Carbon::setTestNow('2026-09-21 07:49:00');
         [$colaborador] = $this->crearJornada('08:00:00', '17:00:00');
@@ -85,6 +85,9 @@ class JornadaMarcacionTest extends TestCase
         $this->assertNotNull(JornadaMarcacion::asignacionVigente($colaborador));
 
         Carbon::setTestNow('2026-09-21 17:11:00');
+        $this->assertNotNull(JornadaMarcacion::asignacionVigente($colaborador));
+
+        Carbon::setTestNow('2026-09-22 02:01:00');
         $this->assertNull(JornadaMarcacion::asignacionVigente($colaborador));
     }
 
@@ -227,6 +230,50 @@ class JornadaMarcacionTest extends TestCase
             'colaborador_id' => $colaborador->id,
             'tipo' => Marcacion::TIPO_ENTRADA,
             'fecha_hora' => '2026-09-21 15:25:00',
+        ]);
+    }
+
+    public function test_no_shift_mark_is_saved_as_a_traceable_exception_at_the_base_station(): void
+    {
+        $this->withoutMiddleware();
+        Carbon::setTestNow('2026-09-21 15:25:00');
+        $sucursal = Sucursal::create(['nombre' => 'Sucursal excepcional', 'tipo' => 'tienda', 'activo' => true]);
+        $usuario = User::factory()->create();
+        $usuario->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $colaborador = Colaborador::create([
+            'user_id' => $usuario->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador sin turno',
+            'documento_identidad' => 'SIN-TURNO-1',
+            'activo' => true,
+        ]);
+        $qr = QrToken::create([
+            'sucursal_id' => $sucursal->id,
+            'token' => 'qr-sin-turno-' . uniqid(),
+            'proposito' => QrToken::PROPOSITO_ASISTENCIA,
+            'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
+        ]);
+
+        $this->assertNull(JornadaMarcacion::asignacionVigente($colaborador));
+        $this->assertSame(
+            ['entrada'],
+            collect(JornadaMarcacion::accionesSinTurno($colaborador))
+                ->where('habilitada', true)
+                ->pluck('tipo')
+                ->all(),
+        );
+
+        $this->actingAs($usuario)
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'tipo' => Marcacion::TIPO_ENTRADA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('marcaciones', [
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => null,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'qr_token_id' => $qr->id,
+            'sucursal_id' => $sucursal->id,
         ]);
     }
 

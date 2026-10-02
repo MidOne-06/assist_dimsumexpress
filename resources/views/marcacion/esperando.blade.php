@@ -106,7 +106,12 @@
                 </div>
             @endif
         @else
-            <div class="alerta">No tienes un turno habilitado para marcar en este momento. Revisa tu horario o consulta con tu supervisora.</div>
+            <div class="alerta">No tienes un turno asignado en este momento. Puedes registrar una marcación excepcional únicamente escaneando el QR de tu estación base; quedará trazada para revisión administrativa.</div>
+            @include('marcacion.partials.escaner', ['textoBoton' => 'Escanear QR de mi estación'])
+            <style>
+                button.mp-escanear { min-height:3.25rem; border-radius:.75rem; background:var(--primary) !important; box-shadow:0 .5rem 1rem color-mix(in srgb,var(--primary) 22%,transparent); }
+                button.mp-escanear:hover { filter:brightness(.94); }
+            </style>
         @endif
 
         <div class="links">

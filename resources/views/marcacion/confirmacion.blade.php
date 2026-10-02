@@ -19,7 +19,7 @@
         $etiquetas = ['entrada' => 'Ingreso de turno registrado', 'salida' => 'Salida de turno registrada', 'salida_refrigerio' => 'Salida de refrigerio registrada', 'regreso_refrigerio' => 'Ingreso de refrigerio registrado'];
         $siguiente = match ($marcacion->tipo) {
             'entrada' => ['Siguiente paso', 'Cuando corresponda, escanea el QR para iniciar tu refrigerio de 1 hora o finalizar tu turno.'],
-            'salida_refrigerio' => ['Refrigerio en curso', 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Al volver, escanea el QR y registra tu regreso.'],
+            'salida_refrigerio' => ['Refrigerio en curso', $retornoEsperado ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Al volver, escanea el QR y registra tu regreso.' : 'Al volver, escanea el QR y registra tu ingreso de refrigerio.'],
             'regreso_refrigerio' => ['Jornada en curso', 'Cuando corresponda, escanea el QR para continuar con la siguiente acción de tu turno.'],
             'salida' => ['Jornada completada', 'Tu salida quedó registrada. No tienes ninguna acción pendiente para este turno.'],
         };
@@ -29,6 +29,12 @@
         <h1>{{ $etiquetas[$marcacion->tipo] }}</h1>
         <div class="hora">{{ $marcacion->fecha_hora->format('H:i:s') }}</div>
         <p class="fecha">{{ $marcacion->fecha_hora->translatedFormat('l d \d\e F') }}</p>
+        @if ($sinTurnoAsignado)
+            <div class="siguiente" style="background:#fff7ed;border-color:#fed7aa;">
+                <strong style="color:#9a3412;">Marcación excepcional</strong>
+                No había un turno asignado. El registro fue guardado con la estación y hora real para revisión administrativa.
+            </div>
+        @endif
         <div class="siguiente"><strong>{{ $siguiente[0] }}</strong>{{ $siguiente[1] }}</div>
         @if ($resumenJornada)
             <div class="siguiente" style="background:#f0fdf4;border-color:#bbf7d0;">
