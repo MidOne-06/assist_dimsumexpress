@@ -214,7 +214,8 @@ class MarcacionController extends Controller
                 throw ValidationException::withMessages(['tipo' => 'Tu cuenta de colaborador está inactiva. Contacta a tu administrador.']);
             }
 
-            $asignacion = JornadaMarcacion::asignacionVigente($colaboradorBloqueado);
+            $fechaHora = now();
+            $asignacion = JornadaMarcacion::asignacionVigente($colaboradorBloqueado, $fechaHora);
             if (! $asignacion && $this->esEstacionBase($colaboradorBloqueado, $qrToken)) {
                 $asignacion = JornadaMarcacion::detectarTurnoOperativo($colaboradorBloqueado, $qrToken->sucursal, $qrToken->puntoVenta, $fechaHora);
             }
@@ -247,8 +248,6 @@ class MarcacionController extends Controller
                 );
                 $asignacion->load('turno');
             }
-
-            $fechaHora = now();
 
             // La primera entrada puede detectar que la operación cambió el
             // turno del día. El ajuste se guarda aquí, después de validar el

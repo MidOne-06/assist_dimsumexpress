@@ -72,7 +72,7 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.confirmacion', $salida))
             ->assertOk()
             ->assertSee('Horas efectivas trabajadas')
-            ->assertSee('8 h 0 min 0 s · Meta 7 h');
+            ->assertSee('7 h 0 min 0 s · Meta 7 h');
     }
 
     public function test_assigned_shift_records_a_late_entry_until_its_technical_end(): void
