@@ -66,7 +66,11 @@ class MarcacionController extends Controller
             return $this->respuestaQrNoConfirmado('La estación no está habilitada para tu jornada actual.');
         }
 
-        $siguientesTipos = JornadaMarcacion::siguientesTipos($colaborador, $asignacion);
+        $acciones = JornadaMarcacion::acciones($colaborador, $asignacion);
+        $siguientesTipos = collect($acciones)
+            ->filter(fn (array $accion): bool => $accion['habilitada'])
+            ->pluck('tipo')
+            ->all();
 
         if ($siguientesTipos === []) {
             return $this->respuestaQrNoConfirmado('Tu jornada ya no tiene acciones pendientes.');
@@ -79,10 +83,7 @@ class MarcacionController extends Controller
                 'sucursal' => $qrToken->sucursal->nombre,
                 'punto_venta' => $qrToken->puntoVenta?->nombre,
             ],
-            'acciones' => array_map(fn (string $tipo): array => [
-                'tipo' => $tipo,
-                'etiqueta' => $this->etiquetaMarcacion($tipo),
-            ], $siguientesTipos),
+            'acciones' => $acciones,
         ]);
     }
 
@@ -168,6 +169,7 @@ class MarcacionController extends Controller
             'token' => $qrToken->token,
             'asignacion' => $asignacion,
             'siguientesTipos' => JornadaMarcacion::siguientesTipos($colaborador, $asignacion),
+            'acciones' => JornadaMarcacion::acciones($colaborador, $asignacion),
             'ultimaMarcacion' => JornadaMarcacion::ultimaMarcacion($colaborador, $asignacion),
             'retornoEsperado' => JornadaMarcacion::retornoRefrigerioEsperado($colaborador, $asignacion),
             'resumenJornada' => JornadaMarcacion::resumen($colaborador, $asignacion),

@@ -197,6 +197,39 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame('cumplida', $resumen['estado']);
     }
 
+    public function test_open_shift_allows_a_late_first_entry_until_its_technical_end(): void
+    {
+        Carbon::setTestNow('2026-09-21 15:25:00');
+        [$colaborador, $asignacion] = $this->crearJornada('07:00:00', '17:00:00');
+        $asignacion->turno->update([
+            'jornada_abierta' => true,
+            'incluye_refrigerio' => true,
+            'refrigerio_minutos' => 60,
+            'horas_efectivas_objetivo_minutos' => 480,
+        ]);
+
+        $abierta = $asignacion->fresh('turno');
+        $limites = JornadaMarcacion::limites($abierta);
+
+        $this->assertSame('2026-09-22 01:00:00', $limites['ventana_fin']->toDateTimeString());
+        $this->assertSame($abierta->id, JornadaMarcacion::asignacionVigente($colaborador)?->id);
+
+        $acciones = JornadaMarcacion::acciones($colaborador, $abierta);
+        $this->assertSame([
+            ['entrada', 3, true],
+            ['salida_refrigerio', 5, false],
+            ['regreso_refrigerio', 7, false],
+            ['salida', 9, false],
+        ], collect($acciones)->map(fn (array $accion): array => [$accion['tipo'], $accion['codigo'], $accion['habilitada']])->all());
+
+        $this->marcar($colaborador, $abierta, Marcacion::TIPO_ENTRADA);
+        $this->assertDatabaseHas('marcaciones', [
+            'colaborador_id' => $colaborador->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => '2026-09-21 15:25:00',
+        ]);
+    }
+
     public function test_turn_without_refrigerio_only_offers_final_exit(): void
     {
         Carbon::setTestNow('2026-09-21 14:00:00');
@@ -421,6 +454,10 @@ class JornadaMarcacionTest extends TestCase
             ->assertOk()
             ->assertSee('Marcar salida de refrigerio')
             ->assertSee('Marcar salida de turno')
+            ->assertSee('data-codigo-marcacion="3"', false)
+            ->assertSee('data-codigo-marcacion="5"', false)
+            ->assertSee('data-codigo-marcacion="7"', false)
+            ->assertSee('data-codigo-marcacion="9"', false)
             ->assertSee('10:00:00');
 
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
@@ -520,6 +557,10 @@ class JornadaMarcacionTest extends TestCase
             ->assertJsonPath('confirmado', true)
             ->assertJsonPath('mensaje', 'QR escaneado correctamente')
             ->assertJsonPath('acciones.0.tipo', Marcacion::TIPO_ENTRADA)
+            ->assertJsonPath('acciones.0.codigo', 3)
+            ->assertJsonPath('acciones.0.habilitada', true)
+            ->assertJsonPath('acciones.1.tipo', Marcacion::TIPO_SALIDA_REFRIGERIO)
+            ->assertJsonPath('acciones.1.habilitada', false)
             ->assertJsonPath('estacion.sucursal', $colaborador->sucursal->nombre);
 
         $this->assertDatabaseMissing('marcaciones', [
