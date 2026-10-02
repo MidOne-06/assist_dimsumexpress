@@ -1,192 +1,305 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Pages;
 
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
-use App\Services\ControlJornadaService;
 use App\Support\AlcanceSupervisor;
+use App\Support\JornadaMarcacion;
 use BackedEnum;
-use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Carbon\Carbon;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection as SupportCollection;
 
+/**
+ * Calendario operativo individual: cruza lo planificado con las marcaciones
+ * reales sin modificar ningún dato de asistencia.
+ */
 class ControlJornadas extends Page
 {
-    use HasPageShield;
-
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Asistencia';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $navigationLabel = 'Control de jornadas';
 
-    protected static ?string $title = 'Control de jornadas';
+    protected static ?string $title = 'Calendario de turnos';
 
     protected string $view = 'filament.pages.control-jornadas';
 
+    /** La escala solicitada: de 06:00 a 22:00. */
+    public const HORA_INICIO_ESCALA = 6 * 60;
+
+    public const HORA_FIN_ESCALA = 22 * 60;
+
     public ?int $sucursalId = null;
 
+    public ?int $colaboradorId = null;
+
     public string $mes;
-
-    /** @var Collection<int, AsignacionTurno>|null */
-    private ?Collection $asignacionesCache = null;
-
-    /** @var array<int, array<string, array<string, array{aplica: bool, estado: string, hora: ?string, etiqueta: string}>>>|null */
-    private ?array $segmentosCache = null;
 
     public function mount(): void
     {
         $this->mes = now()->format('Y-m');
+        $this->sucursalId = request()->integer('sucursal') ?: null;
+        $this->colaboradorId = request()->integer('colaborador') ?: null;
+
+        $this->normalizarSeleccion();
+    }
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('View:ControlJornadas') ?? false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
     }
 
     public function mesAnterior(): void
     {
         $this->mes = Carbon::parse("{$this->mes}-01")->subMonthNoOverflow()->format('Y-m');
-        $this->limpiarCache();
     }
 
     public function mesSiguiente(): void
     {
         $this->mes = Carbon::parse("{$this->mes}-01")->addMonthNoOverflow()->format('Y-m');
-        $this->limpiarCache();
     }
 
     public function irAHoy(): void
     {
         $this->mes = now()->format('Y-m');
-        $this->limpiarCache();
         $this->dispatch('control-jornadas-ir-a-hoy');
     }
 
     public function updatedSucursalId(): void
     {
-        $this->limpiarCache();
+        $this->colaboradorId = null;
+        $this->normalizarSeleccion();
+    }
+
+    public function updatedColaboradorId(): void
+    {
+        $this->normalizarSeleccion();
     }
 
     /** @return Collection<int, Sucursal> */
     public function getSucursalesProperty(): Collection
     {
-        return AlcanceSupervisor::sucursalesQuery(auth()->user())->get();
+        return AlcanceSupervisor::sucursalesQuery(auth()->user())
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    /** @return Collection<int, Colaborador> */
+    public function getColaboradoresProperty(): Collection
+    {
+        return $this->colaboradoresPermitidosQuery()
+            ->where('activo', true)
+            ->with(['area', 'sucursal'])
+            ->orderBy('nombre_completo')
+            ->get();
+    }
+
+    public function getColaboradorProperty(): ?Colaborador
+    {
+        if (! $this->colaboradorId) {
+            return null;
+        }
+
+        return $this->colaboradoresPermitidosQuery()
+            ->where('activo', true)
+            ->with(['area', 'sucursal'])
+            ->find($this->colaboradorId);
     }
 
     /** @return array<int, Carbon> */
     public function getDiasProperty(): array
     {
         $inicio = Carbon::parse("{$this->mes}-01");
+        $fin = $inicio->copy()->endOfMonth();
         $dias = [];
 
-        for ($dia = $inicio->copy(); $dia->lte($inicio->copy()->endOfMonth()); $dia->addDay()) {
+        for ($dia = $inicio->copy(); $dia->lte($fin); $dia->addDay()) {
             $dias[] = $dia->copy();
         }
 
         return $dias;
     }
 
-    /** @return SupportCollection<int, Colaborador> */
-    public function getColaboradoresProperty(): SupportCollection
+    /**
+     * @return SupportCollection<int, array{
+     *     fecha:Carbon,
+     *     asignacion:?AsignacionTurno,
+     *     marcaciones:SupportCollection<int, Marcacion>,
+     *     jornada:?array<string, mixed>,
+     *     refrigerio:?array{inicio:int, fin:int, incidencia:bool}
+     * }>
+     */
+    public function getJornadasProperty(): SupportCollection
     {
-        return $this->asignaciones
-            ->map(fn (AsignacionTurno $asignacion): Colaborador => $asignacion->colaborador)
-            ->unique('id')
-            ->sortBy(fn (Colaborador $colaborador): string => $colaborador->sucursal->nombre.'|'.$colaborador->nombre_completo)
-            ->values();
-    }
+        $colaborador = $this->colaborador;
 
-    /** @return array<int, array<string, AsignacionTurno>> */
-    public function getAsignacionesPorColaboradorProperty(): array
-    {
-        $mapa = [];
-
-        foreach ($this->asignaciones as $asignacion) {
-            $mapa[$asignacion->colaborador_id][$asignacion->fecha->toDateString()] = $asignacion;
+        if (! $colaborador) {
+            return collect();
         }
 
-        return $mapa;
-    }
+        $inicioMes = Carbon::parse("{$this->mes}-01")->startOfDay();
+        $finMes = $inicioMes->copy()->endOfMonth()->endOfDay();
 
-    /** @return array<int, array<string, array<string, array{aplica: bool, estado: string, hora: ?string, etiqueta: string}>>> */
-    public function getSegmentosPorAsignacionProperty(): array
-    {
-        if ($this->segmentosCache !== null) {
-            return $this->segmentosCache;
-        }
+        $asignaciones = AsignacionTurno::query()
+            ->with('turno')
+            ->where('colaborador_id', $colaborador->id)
+            ->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])
+            ->get()
+            ->keyBy(fn (AsignacionTurno $asignacion): string => $asignacion->fecha->toDateString());
 
-        $marcacionesPorJornada = $this->marcacionesDelMes
-            ->groupBy(fn (Marcacion $marcacion): string => $marcacion->colaborador_id.':'.$marcacion->turno_id);
-        $servicio = app(ControlJornadaService::class);
-
-        $this->segmentosCache = [];
-        foreach ($this->asignaciones as $asignacion) {
-            $clave = $asignacion->colaborador_id.':'.$asignacion->turno_id;
-            $this->segmentosCache[$asignacion->id] = $servicio->segmentos(
-                $asignacion,
-                $marcacionesPorJornada->get($clave, collect()),
-            );
-        }
-
-        return $this->segmentosCache;
-    }
-
-    /** @return Collection<int, AsignacionTurno> */
-    public function getAsignacionesProperty(): Collection
-    {
-        if ($this->asignacionesCache !== null) {
-            return $this->asignacionesCache;
-        }
-
-        $this->asignacionesCache = AsignacionTurno::query()
-            ->with(['colaborador.sucursal', 'turno'])
-            ->whereBetween('fecha', $this->limitesDelMes())
-            ->whereHas('colaborador', fn (Builder $query): Builder => $query
-                ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
-                ->when($this->sucursalId, fn (Builder $subquery): Builder => $subquery->where('sucursal_id', $this->sucursalId)))
-            ->orderBy('fecha')
-            ->get();
-
-        return $this->asignacionesCache;
-    }
-
-    /** @return Collection<int, Marcacion> */
-    public function getMarcacionesDelMesProperty(): Collection
-    {
-        $colaboradorIds = $this->asignaciones->pluck('colaborador_id')->unique()->values();
-        if ($colaboradorIds->isEmpty()) {
-            return new Collection();
-        }
-
-        [$inicio, $fin] = $this->limitesDelMes();
-
-        return Marcacion::query()
-            ->whereIn('colaborador_id', $colaboradorIds)
+        // Las jornadas nocturnas y abiertas pueden terminar después de
+        // medianoche. Se carga una ventana ampliada y se vuelve a limitar con
+        // JornadaMarcacion para cada turno, evitando consultas por columna.
+        $marcaciones = Marcacion::query()
+            ->where('colaborador_id', $colaborador->id)
             ->whereBetween('fecha_hora', [
-                Carbon::parse($inicio)->subDay()->startOfDay(),
-                Carbon::parse($fin)->addDay()->endOfDay(),
+                $inicioMes->copy()->subDay(),
+                $finMes->copy()->addMinutes(JornadaMarcacion::MAXIMO_JORNADA_MINUTOS),
             ])
             ->orderBy('fecha_hora')
             ->orderBy('id')
             ->get();
+
+        return collect($this->dias)->map(function (Carbon $fecha) use ($asignaciones, $marcaciones, $colaborador): array {
+            /** @var ?AsignacionTurno $asignacion */
+            $asignacion = $asignaciones->get($fecha->toDateString());
+
+            if (! $asignacion) {
+                return [
+                    'fecha' => $fecha,
+                    'asignacion' => null,
+                    'marcaciones' => collect(),
+                    'jornada' => null,
+                    'refrigerio' => null,
+                ];
+            }
+
+            $limites = JornadaMarcacion::limites($asignacion);
+            $eventos = $marcaciones
+                ->filter(fn (Marcacion $marcacion): bool => $marcacion->turno_id === $asignacion->turno_id
+                    && $marcacion->fecha_hora->betweenIncluded($limites['ventana_inicio'], $limites['jornada_fin_maximo']))
+                ->values();
+
+            return [
+                'fecha' => $fecha,
+                'asignacion' => $asignacion,
+                'marcaciones' => $eventos,
+                'jornada' => $this->rangoJornada($eventos),
+                'refrigerio' => $this->rangoRefrigerio($asignacion, $eventos),
+            ];
+        });
     }
 
-    /** @return array{0: string, 1: string} */
-    private function limitesDelMes(): array
+    public static function iniciales(string $nombre): string
     {
-        $inicio = Carbon::parse("{$this->mes}-01");
-
-        return [$inicio->toDateString(), $inicio->copy()->endOfMonth()->toDateString()];
+        return collect(preg_split('/\s+/', trim($nombre)))
+            ->filter()
+            ->take(2)
+            ->map(fn (string $parte): string => mb_strtoupper(mb_substr($parte, 0, 1)))
+            ->implode('');
     }
 
-    private function limpiarCache(): void
+    /** Posición vertical dentro de la escala, limitada a su rango visible. */
+    public static function porcentajeHora(Carbon $hora): float
     {
-        $this->asignacionesCache = null;
-        $this->segmentosCache = null;
+        $minutos = ($hora->hour * 60) + $hora->minute + ($hora->second / 60);
+        $rango = self::HORA_FIN_ESCALA - self::HORA_INICIO_ESCALA;
+
+        return max(0, min(100, (($minutos - self::HORA_INICIO_ESCALA) / $rango) * 100));
+    }
+
+    /** @return array<int, int> */
+    public static function horasEscala(): array
+    {
+        return range(6, 22, 2);
+    }
+
+    private function normalizarSeleccion(): void
+    {
+        if ($this->sucursalId && ! $this->sucursales->contains('id', $this->sucursalId)) {
+            $this->sucursalId = null;
+        }
+
+        if ($this->colaboradorId && $this->colaboradoresPermitidosQuery()
+            ->where('activo', true)
+            ->whereKey($this->colaboradorId)
+            ->exists()) {
+            return;
+        }
+
+        $this->colaboradorId = $this->colaboradoresPermitidosQuery()
+            ->where('activo', true)
+            ->orderBy('nombre_completo')
+            ->value('id');
+    }
+
+    private function colaboradoresPermitidosQuery(): Builder
+    {
+        return Colaborador::query()
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
+            ->when($this->sucursalId, fn (Builder $query): Builder => $query->where('sucursal_id', $this->sucursalId));
+    }
+
+    /** @param SupportCollection<int, Marcacion> $marcaciones */
+    private function rangoJornada(SupportCollection $marcaciones): ?array
+    {
+        $entrada = $marcaciones->firstWhere('tipo', Marcacion::TIPO_ENTRADA);
+
+        if (! $entrada) {
+            return null;
+        }
+
+        $salida = $marcaciones
+            ->filter(fn (Marcacion $marcacion): bool => $marcacion->tipo === Marcacion::TIPO_SALIDA)
+            ->last();
+        $ultimoEvento = $salida ?? $marcaciones->last();
+
+        return [
+            'inicio' => self::porcentajeHora($entrada->fecha_hora),
+            'fin' => max(self::porcentajeHora($ultimoEvento->fecha_hora), self::porcentajeHora($entrada->fecha_hora) + 0.75),
+            'cerrada' => (bool) $salida,
+        ];
+    }
+
+    /** @param SupportCollection<int, Marcacion> $marcaciones */
+    private function rangoRefrigerio(AsignacionTurno $asignacion, SupportCollection $marcaciones): ?array
+    {
+        if (! $asignacion->turno->incluye_refrigerio) {
+            return null;
+        }
+
+        $salida = $marcaciones->firstWhere('tipo', Marcacion::TIPO_SALIDA_REFRIGERIO);
+        $regreso = $marcaciones->firstWhere('tipo', Marcacion::TIPO_REGRESO_REFRIGERIO);
+
+        if (! $salida && ! $regreso) {
+            return null;
+        }
+
+        $duracion = max(1, (int) $asignacion->turno->refrigerio_minutos);
+        $inicio = $salida?->fecha_hora ?? $regreso->fecha_hora->copy()->subMinutes($duracion);
+        $fin = $regreso?->fecha_hora ?? $salida->fecha_hora->copy()->addMinutes($duracion);
+
+        return [
+            'inicio' => self::porcentajeHora($inicio),
+            'fin' => max(self::porcentajeHora($fin), self::porcentajeHora($inicio) + 0.75),
+            'incidencia' => ! $salida || ! $regreso,
+        ];
     }
 }
