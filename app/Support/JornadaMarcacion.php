@@ -12,6 +12,7 @@ use App\Models\Sucursal;
 use App\Models\PuntoVenta;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 /** Define la jornada por turno asignado, incluso cuando cruza medianoche. */
 final class JornadaMarcacion
@@ -138,6 +139,12 @@ final class JornadaMarcacion
      */
     public static function detectarTurnoOperativo(Colaborador $colaborador, Sucursal $sucursal, ?PuntoVenta $puntoVenta, ?Carbon $momento = null): ?AsignacionTurno
     {
+        // Durante una actualización de esquema la marcación conserva el
+        // comportamiento excepcional previo; nunca debe responder 500.
+        if (! Schema::hasTable('turnos_operativos')) {
+            return null;
+        }
+
         $momento ??= now();
         $configuraciones = TurnoOperativo::query()
             ->with('turno')
