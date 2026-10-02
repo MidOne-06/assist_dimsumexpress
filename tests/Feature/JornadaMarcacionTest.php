@@ -535,10 +535,11 @@ class JornadaMarcacionTest extends TestCase
             ->assertOk()
             ->assertSee('Marcar salida de refrigerio')
             ->assertSee('Salida de turno')
-            ->assertSee('data-codigo-marcacion="3"', false)
-            ->assertSee('data-codigo-marcacion="5"', false)
-            ->assertSee('data-codigo-marcacion="7"', false)
-            ->assertSee('data-codigo-marcacion="9"', false)
+            ->assertDontSee('data-codigo-marcacion', false)
+            ->assertDontSee('>3<', false)
+            ->assertDontSee('>5<', false)
+            ->assertDontSee('>7<', false)
+            ->assertDontSee('>9<', false)
             ->assertSee('10:00:00');
 
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
