@@ -9,6 +9,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['turno_id', 'sucursal_id', 'punto_venta_id', 'prioridad', 'activo'])]
 class TurnoOperativo extends Model
 {
+    /**
+     * La base productiva usa el esquema PostgreSQL `public`, pero la
+     * resolución sin esquema puede fallar con identificadores entre comillas
+     * (como los que genera Eloquent). Declararlo evita que Filament dependa
+     * del search_path de cada conexión.
+     */
+    protected $table = 'public.turnos_operativos';
+
     protected function casts(): array
     {
         return ['activo' => 'boolean', 'prioridad' => 'integer'];
