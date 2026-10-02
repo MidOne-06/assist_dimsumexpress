@@ -32,11 +32,11 @@ printf '%s' '$resolvedCommit' > storage/app/.release-sha
 docker compose build app --quiet
 docker compose run --rm app php artisan migrate --force
 docker compose up -d --no-deps --force-recreate app worker scheduler
-docker compose exec -T app php artisan optimize:clear
-docker compose exec -T app php artisan config:cache
-docker compose exec -T app php artisan route:cache
-docker compose exec -T app php artisan view:cache
 docker compose exec -T -u root app sh -lc 'chown -R www-data:www-data storage bootstrap/cache && chmod -R ug+rwX storage bootstrap/cache'
+docker compose exec -T -u www-data app php artisan optimize:clear
+docker compose exec -T -u www-data app php artisan config:cache
+docker compose exec -T -u www-data app php artisan route:cache
+docker compose exec -T -u www-data app php artisan view:cache
 curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/admin/login
 printf 'DEPLOYED_SHA=%s\\n' "`$(cat storage/app/.release-sha)"
 "@
