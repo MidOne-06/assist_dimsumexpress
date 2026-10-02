@@ -9,6 +9,7 @@ use App\Models\PuntoVenta;
 use App\Models\QrToken;
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Models\TurnoOperativo;
 use App\Models\User;
 use App\Support\JornadaMarcacion;
 use Carbon\Carbon;
@@ -275,6 +276,38 @@ class JornadaMarcacionTest extends TestCase
             'qr_token_id' => $qr->id,
             'sucursal_id' => $sucursal->id,
         ]);
+    }
+
+    public function test_station_detects_the_closest_operational_shift_in_an_overlap(): void
+    {
+        Carbon::setTestNow('2026-09-21 14:30:00');
+        $sucursal = Sucursal::create(['nombre' => 'Tienda por rango', 'tipo' => 'tienda', 'activo' => true]);
+        $usuario = User::factory()->create();
+        $colaborador = Colaborador::create(['user_id' => $usuario->id, 'sucursal_id' => $sucursal->id, 'nombre_completo' => 'Detección por rango', 'documento_identidad' => 'RANGO-1', 'activo' => true]);
+        $apertura = Turno::create(['nombre' => 'Apertura por rango', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'tolerancia_entrada_minutos' => 10, 'activo' => true]);
+        $cierre = Turno::create(['nombre' => 'Cierre por rango', 'hora_inicio' => '14:00', 'hora_fin' => '22:00', 'tolerancia_entrada_minutos' => 10, 'incluye_refrigerio' => false, 'refrigerio_minutos' => 0, 'activo' => true]);
+        TurnoOperativo::create(['turno_id' => $apertura->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 100, 'activo' => true]);
+        TurnoOperativo::create(['turno_id' => $cierre->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 100, 'activo' => true]);
+
+        $detectada = JornadaMarcacion::detectarTurnoOperativo($colaborador, $sucursal, null);
+
+        $this->assertFalse($detectada->exists);
+        $this->assertSame($cierre->id, $detectada->turno_id);
+        $this->assertSame('detectado_automaticamente', $detectada->origen);
+    }
+
+    public function test_unmarked_break_caps_effective_hours_at_the_shift_target(): void
+    {
+        Carbon::setTestNow('2026-09-21 08:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+        Carbon::setTestNow('2026-09-21 17:00:00');
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA);
+
+        $resumen = JornadaMarcacion::resumen($colaborador, $asignacion);
+
+        $this->assertSame(8 * 3600, $resumen['efectivos_segundos']);
+        $this->assertSame(0, $resumen['extras_segundos']);
     }
 
     public function test_turn_without_refrigerio_only_offers_final_exit(): void

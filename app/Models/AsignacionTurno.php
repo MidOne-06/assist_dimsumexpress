@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['colaborador_id', 'turno_id', 'fecha', 'observacion', 'asignado_por'])]
+#[Fillable(['colaborador_id', 'turno_id', 'turno_operativo_id', 'fecha', 'origen', 'detectado_en', 'observacion', 'asignado_por'])]
 class AsignacionTurno extends Model
 {
     protected $table = 'asignaciones_turno';
@@ -16,6 +16,7 @@ class AsignacionTurno extends Model
     {
         return [
             'fecha' => 'date',
+            'detectado_en' => 'datetime',
         ];
     }
 
@@ -27,6 +28,11 @@ class AsignacionTurno extends Model
     public function turno(): BelongsTo
     {
         return $this->belongsTo(Turno::class);
+    }
+
+    public function turnoOperativo(): BelongsTo
+    {
+        return $this->belongsTo(TurnoOperativo::class);
     }
 
     public function asignadoPor(): BelongsTo

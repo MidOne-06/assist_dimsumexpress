@@ -7,6 +7,9 @@ use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Turno;
+use App\Models\TurnoOperativo;
+use App\Models\Sucursal;
+use App\Models\PuntoVenta;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -127,6 +130,70 @@ final class JornadaMarcacion
             })
             ->sortByDesc(fn (AsignacionTurno $asignacion) => static::limites($asignacion)['inicio']->getTimestamp())
             ->first();
+    }
+
+    /**
+     * Busca el turno de tienda configurado en la estación. No persiste nada:
+     * la asignación se crea únicamente al confirmar la primera entrada.
+     */
+    public static function detectarTurnoOperativo(Colaborador $colaborador, Sucursal $sucursal, ?PuntoVenta $puntoVenta, ?Carbon $momento = null): ?AsignacionTurno
+    {
+        $momento ??= now();
+        $configuraciones = TurnoOperativo::query()
+            ->with('turno')
+            ->where('sucursal_id', $sucursal->id)
+            ->where('activo', true)
+            ->whereHas('turno', fn ($query) => $query->where('activo', true))
+            ->get();
+
+        $especificas = $puntoVenta ? $configuraciones->where('punto_venta_id', $puntoVenta->id) : collect();
+        $candidatas = $especificas->isNotEmpty() ? $especificas : $configuraciones->whereNull('punto_venta_id');
+
+        $ganadora = $candidatas
+            ->filter(function (TurnoOperativo $configuracion) use ($momento): bool {
+                $inicio = Carbon::parse($momento->toDateString().' '.$configuracion->turno->hora_inicio, config('app.timezone'))
+                    ->subMinutes($configuracion->turno->tolerancia_entrada_minutos);
+                $fin = static::finOperativo($configuracion->turno, $momento);
+
+                return $momento->betweenIncluded($inicio, $fin);
+            })
+            ->sortBy(function (TurnoOperativo $configuracion) use ($momento): array {
+                $inicio = Carbon::parse($momento->toDateString().' '.$configuracion->turno->hora_inicio, config('app.timezone'));
+
+                return [abs($momento->getTimestamp() - $inicio->getTimestamp()), $configuracion->prioridad, $configuracion->id];
+            })
+            ->first();
+
+        if (! $ganadora) {
+            return null;
+        }
+
+        $asignacion = new AsignacionTurno([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $ganadora->turno_id,
+            'turno_operativo_id' => $ganadora->id,
+            'fecha' => $momento->toDateString(),
+            'origen' => 'detectado_automaticamente',
+            'detectado_en' => $momento,
+            'observacion' => 'Turno detectado por rango de estación',
+        ]);
+        $asignacion->setRelation('turno', $ganadora->turno);
+        $asignacion->setRelation('turnoOperativo', $ganadora);
+
+        return $asignacion;
+    }
+
+    private static function finOperativo(Turno $turno, Carbon $momento): Carbon
+    {
+        if ($turno->jornada_abierta || ! $turno->hora_fin) {
+            return Carbon::parse($momento->toDateString().' '.$turno->hora_inicio, config('app.timezone'))
+                ->addMinutes(self::MAXIMO_JORNADA_MINUTOS);
+        }
+        $fin = Carbon::parse($momento->toDateString().' '.$turno->hora_fin, config('app.timezone'));
+        if ($turno->cruza_medianoche || $fin->lte(Carbon::parse($momento->toDateString().' '.$turno->hora_inicio, config('app.timezone')))) {
+            $fin->addDay();
+        }
+        return $fin;
     }
 
     /** Persiste el turno detectado solo al confirmar la primera entrada. */
@@ -313,7 +380,14 @@ final class JornadaMarcacion
             $refrigerioSegundos = max(0, $finRefrigerio->fecha_hora->getTimestamp() - $inicioRefrigerio->fecha_hora->getTimestamp());
         }
 
-        $efectivosSegundos = max(0, $salida->fecha_hora->getTimestamp() - $entrada->fecha_hora->getTimestamp() - $refrigerioSegundos);
+        $brutosSegundos = max(0, $salida->fecha_hora->getTimestamp() - $entrada->fecha_hora->getTimestamp());
+        $refrigerioMarcado = $inicioRefrigerio !== null && $finRefrigerio !== null;
+        // Si el turno exige refrigerio pero no hubo ninguna marca, la
+        // permanencia adicional no se convierte en horas efectivas: se aplica
+        // la meta configurada (p. ej. 08:00–17:00 cuenta máximo 8 h).
+        $efectivosSegundos = $asignacion->turno->incluye_refrigerio && ! $refrigerioMarcado
+            ? min($brutosSegundos, $objetivoConfiguradoSegundos)
+            : max(0, $brutosSegundos - $refrigerioSegundos);
         // Un turno puede definir una meta de jornada completa superior a su
         // meta ordinaria. Solo se aplica cuando la permanencia real la
         // alcanza: así un turno mañana extendido se reconoce sin reasignar

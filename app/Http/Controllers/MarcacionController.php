@@ -57,6 +57,9 @@ class MarcacionController extends Controller
         }
 
         $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
+        if (! $asignacion && $this->esEstacionBase($colaborador, $qrToken)) {
+            $asignacion = JornadaMarcacion::detectarTurnoOperativo($colaborador, $qrToken->sucursal, $qrToken->puntoVenta);
+        }
 
         if (! $this->estacionPermitida($colaborador, $qrToken, $asignacion)) {
             return $this->respuestaQrNoConfirmado($asignacion
@@ -149,6 +152,9 @@ class MarcacionController extends Controller
         }
 
         $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
+        if (! $asignacion && $this->esEstacionBase($colaborador, $qrToken)) {
+            $asignacion = JornadaMarcacion::detectarTurnoOperativo($colaborador, $qrToken->sucursal, $qrToken->puntoVenta);
+        }
 
         if (! $this->estacionPermitida($colaborador, $qrToken, $asignacion)) {
             return view('marcacion.error', [
@@ -209,6 +215,9 @@ class MarcacionController extends Controller
             }
 
             $asignacion = JornadaMarcacion::asignacionVigente($colaboradorBloqueado);
+            if (! $asignacion && $this->esEstacionBase($colaboradorBloqueado, $qrToken)) {
+                $asignacion = JornadaMarcacion::detectarTurnoOperativo($colaboradorBloqueado, $qrToken->sucursal, $qrToken->puntoVenta, $fechaHora);
+            }
 
             if (! $this->estacionPermitida($colaboradorBloqueado, $qrToken, $asignacion)) {
                 throw ValidationException::withMessages(['tipo' => $asignacion
@@ -225,6 +234,18 @@ class MarcacionController extends Controller
 
             if (! in_array($data['tipo'], $this->tiposHabilitados($this->accionesMarcacion($colaboradorBloqueado, $asignacion)), true)) {
                 throw ValidationException::withMessages(['tipo' => 'Esa marcación ya no corresponde al siguiente paso de tu jornada. Actualiza la página.']);
+            }
+
+            if ($asignacion && ! $asignacion->exists) {
+                if ($data['tipo'] !== Marcacion::TIPO_ENTRADA) {
+                    throw ValidationException::withMessages(['tipo' => 'Registra primero la entrada para detectar tu turno.']);
+                }
+
+                $asignacion = AsignacionTurno::query()->firstOrCreate(
+                    ['colaborador_id' => $colaboradorBloqueado->id, 'fecha' => $fechaHora->toDateString()],
+                    $asignacion->getAttributes(),
+                );
+                $asignacion->load('turno');
             }
 
             $fechaHora = now();
