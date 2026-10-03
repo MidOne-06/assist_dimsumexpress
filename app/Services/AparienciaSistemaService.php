@@ -17,7 +17,11 @@ class AparienciaSistemaService
     {
         return AjusteSistema::query()->firstOrCreate(
             ['id' => 1],
-            ['nombre_sistema' => 'Sistema de Asistencias', 'color_primario' => '#f59e0b'],
+            [
+                'nombre_sistema' => 'Sistema de Asistencias',
+                'color_primario' => '#f59e0b',
+                'revision_identidad' => 1,
+            ],
         );
     }
 
@@ -28,21 +32,23 @@ class AparienciaSistemaService
 
     public function logoUrl(): string
     {
-        return $this->archivoUrl($this->actual()->logo, 'images/sistema-asistencias.svg');
+        $ajuste = $this->actual();
+
+        return $this->archivoUrl($ajuste->logo, 'images/sistema-asistencias.svg', $ajuste);
     }
 
     public function logoOscuroUrl(): string
     {
         $ajuste = $this->actual();
 
-        return $this->archivoUrl($ajuste->logo_oscuro ?? $ajuste->logo, 'images/sistema-asistencias.svg');
+        return $this->archivoUrl($ajuste->logo_oscuro ?? $ajuste->logo, 'images/sistema-asistencias.svg', $ajuste);
     }
 
     public function iconoUrl(): string
     {
         $ajuste = $this->actual();
 
-        return $this->archivoUrl($ajuste->icono ?? $ajuste->logo_app_movil ?? $ajuste->logo, 'images/sistema-asistencias.svg');
+        return $this->archivoUrl($ajuste->icono ?? $ajuste->logo_app_movil ?? $ajuste->logo, 'images/sistema-asistencias.svg', $ajuste);
     }
 
     /** Logo cuadrado usado por la PWA al instalarse en un teléfono. */
@@ -50,7 +56,7 @@ class AparienciaSistemaService
     {
         $ajuste = $this->actual();
 
-        return $this->archivoUrl($this->logoAppMovilArchivo($ajuste), 'images/sistema-asistencias.svg');
+        return $this->archivoUrl($this->logoAppMovilArchivo($ajuste), 'images/sistema-asistencias.svg', $ajuste);
     }
 
     /** Tipo real del ícono publicado por el manifiesto PWA. */
@@ -73,13 +79,22 @@ class AparienciaSistemaService
         return is_string($color) && preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? strtolower($color) : '#f59e0b';
     }
 
-    private function archivoUrl(mixed $archivo, string $respaldo): string
+    private function archivoUrl(mixed $archivo, string $respaldo, AjusteSistema $ajuste): string
     {
+        $url = null;
+
         if (is_string($archivo) && $archivo !== '' && Storage::disk('public')->exists($archivo)) {
-            return Storage::disk('public')->url($archivo);
+            $url = Storage::disk('public')->url($archivo);
         }
 
-        return asset($respaldo);
+        $url ??= asset($respaldo);
+
+        // El nombre físico del archivo puede repetirse en una actualización.
+        // La revisión hace que favicon, manifest y PWA vuelvan a solicitar la
+        // identidad recién guardada, sin depender de vaciar cachés del celular.
+        $revision = max(1, (int) ($ajuste->revision_identidad ?? 1));
+
+        return $url . (str_contains($url, '?') ? '&' : '?') . 'v=' . $revision;
     }
 
     private function logoAppMovilArchivo(AjusteSistema $ajuste): mixed
@@ -124,6 +139,7 @@ class AparienciaSistemaService
                 'icono' => $icono,
                 'logo_app_movil' => $logoAppMovil,
                 'color_primario' => $color,
+                'revision_identidad' => ((int) ($ajuste->revision_identidad ?? 1)) + 1,
             ])->save();
         });
 
@@ -151,6 +167,7 @@ class AparienciaSistemaService
             'icono' => null,
             'logo_app_movil' => null,
             'color_primario' => '#f59e0b',
+            'revision_identidad' => ((int) ($ajuste->revision_identidad ?? 1)) + 1,
         ])->save();
 
         $this->eliminarArchivosReemplazados($archivos, []);

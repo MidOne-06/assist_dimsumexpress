@@ -52,7 +52,12 @@ class AparienciaSistemaTest extends TestCase
         $this->assertDatabaseHas('ajustes_sistema', [
             'id' => 1,
             'nombre_sistema' => 'Control de Asistencia',
+            'revision_identidad' => 2,
         ]);
+
+        // El sufijo cambia en cada guardado para que navegador, favicon y PWA
+        // soliciten el logo actual, aunque el archivo conserve su nombre.
+        $this->assertStringContainsString('?v=2', app(AparienciaSistemaService::class)->logoAppMovilUrl());
     }
 
     public function test_an_unauthorized_user_cannot_update_the_identity(): void

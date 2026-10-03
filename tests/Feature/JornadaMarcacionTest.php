@@ -536,6 +536,8 @@ class JornadaMarcacionTest extends TestCase
             ->assertSee('Marcar salida de refrigerio')
             ->assertSee('Salida de turno')
             ->assertDontSee('data-codigo-marcacion', false)
+            ->assertDontSee('localStorage.getItem', false)
+            ->assertSee('prefers-color-scheme', false)
             ->assertDontSee('>3<', false)
             ->assertDontSee('>5<', false)
             ->assertDontSee('>7<', false)
