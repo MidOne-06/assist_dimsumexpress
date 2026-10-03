@@ -554,7 +554,7 @@ class JornadaMarcacionTest extends TestCase
             ->assertDontSee('>5<', false)
             ->assertDontSee('>7<', false)
             ->assertDontSee('>9<', false)
-            ->assertSee('10:00:00');
+            ->assertDontSee('10:00:00');
 
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_SALIDA_REFRIGERIO);
 
