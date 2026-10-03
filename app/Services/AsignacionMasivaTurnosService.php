@@ -9,7 +9,6 @@ use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
-use App\Models\TurnoOperativo;
 use App\Models\User;
 use App\Support\AlcanceSupervisor;
 use Carbon\Carbon;
@@ -86,15 +85,9 @@ class AsignacionMasivaTurnosService
 
         abort_unless($colaboradores->count() === count($colaboradorIds), 403);
 
-        if ($colaboradores->contains(fn (Colaborador $colaborador): bool => ! TurnoOperativo::turnoHabilitadoEnEstacion(
-            $colaborador->sucursal_id,
-            $colaborador->punto_venta_id,
-            $turnoId,
-        ))) {
-            throw ValidationException::withMessages([
-                'turno_id' => 'El turno seleccionado no está habilitado para la estación base de uno o más colaboradores.',
-            ]);
-        }
+        // La programación manual admite turnos activos aun cuando no estén
+        // configurados como operativos para la estación. Esa configuración
+        // se reserva para la detección automática al momento de marcar.
 
         $fechas = collect(CarbonPeriod::create($fechaInicio, $fechaFin))
             ->filter(fn (Carbon $fecha): bool => in_array($fecha->isoWeekday(), $diasSemana, true))
