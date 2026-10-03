@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Services\SchedulerHeartbeat;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class HealthEndpointTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_health_endpoint_reports_database_and_scheduler_status_without_caching(): void
     {
         Storage::fake('local');
