@@ -6,11 +6,13 @@ use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Turno;
 use App\Services\AsignacionMasivaTurnosService;
+use App\Services\AsignacionTurnoIndividualService;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -29,7 +31,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\ValidationException;
 
 class AsignarTurnos extends Page implements HasTable
 {
@@ -252,9 +253,9 @@ class AsignarTurnos extends Page implements HasTable
             ->send();
     }
 
-    private function editarAsignacionAction(): Action
+    private function editarAsignacionAction(): EditAction
     {
-        return Action::make('editar')
+        return EditAction::make('editar')
             ->label('Editar')
             ->icon(Heroicon::OutlinedPencilSquare)
             ->modalHeading('Actualizar asignación')
@@ -291,33 +292,7 @@ class AsignarTurnos extends Page implements HasTable
                             ->columnSpanFull(),
                     ]),
             ])
-            ->action(function (AsignacionTurno $record, array $data): void {
-                abort_unless(auth()->user()?->can('update', $record), 403);
-
-                if (! Turno::query()->whereKey($data['turno_id'])->where('activo', true)->exists()) {
-                    throw ValidationException::withMessages(['turno_id' => 'Selecciona un turno activo.']);
-                }
-
-                $fecha = \Illuminate\Support\Carbon::parse($data['fecha'])->startOfDay();
-
-                if ($fecha->lte(today())) {
-                    throw ValidationException::withMessages(['fecha' => 'Solo se pueden modificar asignaciones futuras.']);
-                }
-
-                if (AsignacionTurno::query()
-                    ->where('colaborador_id', $record->colaborador_id)
-                    ->whereDate('fecha', $fecha)
-                    ->whereKeyNot($record->id)
-                    ->exists()) {
-                    throw ValidationException::withMessages(['fecha' => 'Este colaborador ya tiene un turno asignado en esa fecha.']);
-                }
-
-                $record->update([
-                    'turno_id' => $data['turno_id'],
-                    'fecha' => $fecha,
-                    'observacion' => filled($data['observacion'] ?? null) ? trim((string) $data['observacion']) : null,
-                    'asignado_por' => auth()->id(),
-                ]);
-            });
+            ->using(fn (AsignacionTurno $record, array $data): AsignacionTurno => app(AsignacionTurnoIndividualService::class)
+                ->actualizar(auth()->user(), $record, $data));
     }
 }
