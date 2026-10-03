@@ -197,6 +197,8 @@ class SupervisionTurnosTest extends TestCase
         ]);
         $nuevaFecha = now()->addDays(2)->toDateString();
 
+        $this->assertTrue($supervisor->can('update', $asignacion));
+
         Livewire::actingAs($supervisor)
             ->test(AsignarTurnos::class)
             ->assertTableActionExists('editar', null, $asignacion)
