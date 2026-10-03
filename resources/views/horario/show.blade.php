@@ -16,24 +16,24 @@
         .brand { display:flex; min-width:0; align-items:center; gap:.75rem; }
         .brand-logo { width:auto; height:2.5rem; max-width:9rem; object-fit:contain; }
         .brand-name { overflow:hidden; color:var(--ink); font-size:.9375rem; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
-        .logout { display:inline-flex; align-items:center; gap:.45rem; min-height:2.5rem; padding:0 .875rem; border:1px solid var(--line); border-radius:.625rem; background:var(--surface); color:var(--ink); font:inherit; font-size:.875rem; font-weight:600; cursor:pointer; }
+        .logout { display:inline-flex; align-items:center; gap:.45rem; min-height:2.75rem; padding:0 .875rem; border:1px solid var(--line); border-radius:.625rem; background:var(--surface); color:var(--ink); font:inherit; font-size:.875rem; font-weight:600; cursor:pointer; }
         .logout:hover { border-color:color-mix(in srgb,var(--primary) 40%,var(--line)); color:var(--primary); }
         .page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.25rem; }
         h1 { margin:0; font-size:clamp(1.375rem,3vw,1.625rem); letter-spacing:-.03em; line-height:1.2; }
         .identity { margin:.4rem 0 0; color:var(--muted); font-size:.875rem; line-height:1.45; }
-        .today-link { display:inline-flex; flex:0 0 auto; align-items:center; gap:.4rem; min-height:2.5rem; padding:0 .875rem; border:1px solid var(--line); border-radius:.625rem; background:var(--surface); color:var(--ink); font-size:.875rem; font-weight:600; text-decoration:none; }
+        .today-link { display:inline-flex; flex:0 0 auto; align-items:center; gap:.4rem; min-height:2.75rem; padding:0 .875rem; border:1px solid var(--line); border-radius:.625rem; background:var(--surface); color:var(--ink); font-size:.875rem; font-weight:600; text-decoration:none; }
         .today-link:hover { border-color:var(--primary); color:var(--primary); }
         .panel { overflow:hidden; border:1px solid var(--line); border-radius:.75rem; background:var(--surface); }
         .panel-head { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.875rem 1rem; border-bottom:1px solid var(--line); }
         .month-nav { display:flex; align-items:center; gap:.625rem; }
         .month { min-width:10.5rem; text-align:center; color:var(--ink); font-size:.9375rem; font-weight:700; text-transform:capitalize; }
-        .nav-button { display:inline-grid; width:2.25rem; height:2.25rem; place-items:center; border:1px solid var(--line); border-radius:.5rem; background:var(--surface-soft); color:var(--muted); text-decoration:none; }
+        .nav-button { display:inline-grid; width:2.75rem; height:2.75rem; place-items:center; border:1px solid var(--line); border-radius:.5rem; background:var(--surface-soft); color:var(--muted); text-decoration:none; }
         .nav-button:hover { border-color:var(--primary); color:var(--primary); }
         .legend { color:var(--muted); font-size:.8125rem; }
         .week-nav { display:flex; align-items:center; justify-content:space-between; gap:.625rem; padding:.625rem .875rem; border-bottom:1px solid var(--line); background:var(--surface-soft); }
         .week-label { color:var(--muted); font-size:.75rem; font-weight:700; }
         .week-actions { display:flex; gap:.375rem; }
-        .week-actions a { display:inline-grid; width:2rem; height:2rem; place-items:center; border:1px solid var(--line); border-radius:.5rem; background:var(--surface); color:var(--muted); text-decoration:none; }
+        .week-actions a { display:inline-grid; width:2.75rem; height:2.75rem; place-items:center; border:1px solid var(--line); border-radius:.5rem; background:var(--surface); color:var(--muted); text-decoration:none; }
         .week-actions a:hover { border-color:var(--primary); color:var(--primary); }
         .days { display:grid; grid-template-columns:repeat(auto-fit,minmax(13rem,1fr)); gap:.5rem; padding:.625rem; }
         .day { position:relative; display:grid; min-height:4.25rem; grid-template-columns:2.625rem minmax(0,1fr); gap:.5rem; align-items:center; padding:.625rem; border:1px solid var(--line); border-radius:.625rem; background:var(--surface-soft); }
@@ -48,7 +48,7 @@
         .rest { color:var(--muted); font-size:.875rem; }
         .today-badge { position:absolute; top:.55rem; right:.55rem; padding:.15rem .4rem; border-radius:999px; background:color-mix(in srgb,var(--primary) 16%,transparent); color:var(--primary); font-size:.625rem; font-weight:800; text-transform:uppercase; }
         .actions { display:flex; justify-content:flex-start; margin-top:1.25rem; }
-        .back { display:inline-flex; align-items:center; gap:.45rem; min-height:2.5rem; padding:0 .875rem; border:1px solid color-mix(in srgb,var(--primary) 35%,var(--line)); border-radius:.625rem; background:color-mix(in srgb,var(--primary) 9%,var(--surface)); color:var(--primary); font-size:.875rem; font-weight:700; text-decoration:none; }
+        .back { display:inline-flex; align-items:center; gap:.45rem; min-height:2.75rem; padding:0 .875rem; border:1px solid color-mix(in srgb,var(--primary) 35%,var(--line)); border-radius:.625rem; background:color-mix(in srgb,var(--primary) 9%,var(--surface)); color:var(--primary); font-size:.875rem; font-weight:700; text-decoration:none; }
         .back:hover { background:color-mix(in srgb,var(--primary) 16%,var(--surface)); }
         @media (max-width:640px) { body { padding:.75rem; } .topbar { margin-bottom:.875rem; } .brand-name { display:none; } .brand-logo { height:2rem; } .page-heading { align-items:flex-end; margin-bottom:.875rem; } h1 { font-size:1.375rem; } .identity { font-size:.8125rem; } .today-link span { display:none; } .panel { border-radius:.625rem; } .panel-head { padding:.75rem .875rem; } .legend { display:none; } .month-nav { width:100%; justify-content:space-between; } .month { min-width:0; font-size:.875rem; } .week-nav { padding:.5rem .75rem; } .days { grid-template-columns:1fr; padding:0; gap:0; } .day { min-height:3.25rem; grid-template-columns:2.5rem minmax(0,1fr); gap:.5rem; padding:.5rem .75rem; border:0; border-radius:0; border-bottom:1px solid var(--line); background:transparent; } .day:last-child { border-bottom:0; } .day.today { box-shadow:none; } .date { min-height:2.25rem; border:0; border-radius:0; background:transparent; } .number { font-size:1rem; } .today-badge { top:.25rem; right:.625rem; } .logout span { display:none; } .logout { width:2.5rem; justify-content:center; padding:0; } .actions { margin-top:1rem; } }
     </style>

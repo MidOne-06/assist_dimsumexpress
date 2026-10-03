@@ -18,7 +18,7 @@
 <main class="shell">
     <header class="brand"><img src="{{ $apariencia->logoUrl() }}" alt="{{ $apariencia->nombre() }}"><span>Marcación</span></header>
     <section class="identity"><h1>{{ $colaborador->nombre_completo }}</h1><p>{{ $colaborador->sucursal->nombre }}{{ $colaborador->puntoVenta ? ' · '.$colaborador->puntoVenta->nombre : '' }}</p></section>
-    @if($asignacion)<div class="turno">Turno de hoy: <strong>{{ $asignacion->turno->nombre }}</strong> · {{ $asignacion->turno->rangoHorario() }}</div>@else<div class="turno"><strong>Sin turno fijo</strong> · Puedes registrar una entrada excepcional en tu estación base.</div>@endif
+    @if($asignacion)<div class="turno"><strong>{{ $asignacion->origen === 'detectado_automaticamente' ? 'Turno detectado por horario' : 'Turno programado' }}: {{ $asignacion->turno->nombre }}</strong> · {{ $asignacion->turno->rangoHorario() }}<br>{{ $asignacion->turno->incluye_refrigerio ? 'Incluye refrigerio de '.$asignacion->turno->refrigerio_minutos.' min.' : 'No requiere registro de refrigerio.' }}</div>@else<div class="turno"><strong>Sin turno detectado</strong> · Escanea el QR de tu estación para identificar tu turno por hora y local. Si no existe rango aplicable, la entrada quedará trazada como excepción.</div>@endif
     <div class="estado"><strong>{{ $siguiente && isset($meta[$siguiente]) ? 'Siguiente paso: '.$meta[$siguiente][0] : 'Jornada completada' }}</strong><span>{{ $siguiente ? 'Selecciona la acción y luego escanea el QR actual de tu estación.' : 'No tienes acciones pendientes para hoy.' }}</span></div>
     <p class="section-label">Selecciona la acción que deseas registrar</p>
     <div class="acciones" aria-label="Acciones de marcación">
