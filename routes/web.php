@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\ColaboradorLoginController;
 use App\Http\Controllers\EstacionMarcadoController;
 use App\Http\Controllers\EnlaceAccesoColaboradorController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HorarioColaboradorController;
 use App\Http\Controllers\MarcacionController;
 use App\Http\Controllers\PwaController;
@@ -12,6 +13,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return redirect()->route('login');
 });
+
+// Monitor externo: comprueba aplicación, base de datos y scheduler sin
+// exponer datos internos ni requerir una sesión de colaborador.
+Route::get('/health', HealthController::class)->middleware('throttle:60,1')->name('health');
 
 Route::get('/manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
 Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.service-worker');

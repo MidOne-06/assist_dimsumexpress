@@ -38,6 +38,7 @@ docker compose exec -T -u www-data app php artisan config:cache
 docker compose exec -T -u www-data app php artisan route:cache
 docker compose exec -T -u www-data app php artisan view:cache
 curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/admin/login
+curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/health
 printf 'DEPLOYED_SHA=%s\\n' "`$(cat storage/app/.release-sha)"
 "@
 
