@@ -14,18 +14,19 @@
         ]);
     @endphp
     <x-pwa-head :manifest-url="$manifestEstacion" :app-name="$nombreEstacion" />
+    <x-public-theme />
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111827; color: #f9fafb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 2rem; text-align: center; }
+        body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background:var(--app-page); color:var(--app-text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 2rem; text-align: center; }
         h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
-        p.sub { margin: 0 0 2rem; color: #9ca3af; font-size: 1rem; }
-        .qr-wrap { background: #fff; padding: 1.25rem; border-radius: 1.25rem; box-shadow: 0 20px 45px rgba(0,0,0,0.35); }
+        p.sub { margin: 0 0 2rem; color:var(--app-muted); font-size: 1rem; }
+        .qr-wrap { background: #fff; padding: 1.25rem; border:1px solid var(--app-border); border-radius: 1.25rem; }
         .qr-wrap img { display: block; width: 20rem; height: 20rem; max-width: 60vw; max-height: 60vw; }
         .reloj { margin-top: 2rem; font-size: 2.25rem; font-weight: 700; letter-spacing: 0.05em; }
-        .barra { margin-top: 1rem; width: 20rem; max-width: 60vw; height: 0.4rem; background: #374151; border-radius: 999px; overflow: hidden; }
-        .barra-fill { height: 100%; background: #22c55e; width: 100%; transition: width 1s linear; }
-        .instalar-estacion { position: fixed; top: 1rem; right: 1rem; display: inline-flex; min-height: 2.5rem; align-items: center; gap: .5rem; padding: .5rem .75rem; border: 1px solid #4b5563; border-radius: .625rem; background: #1f2937; color: #f9fafb; font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; }
-        .instalar-estacion:hover, .instalar-estacion:focus-visible { border-color: #f59e0b; color: #fbbf24; outline: 0; }
+        .barra { margin-top: 1rem; width: 20rem; max-width: 60vw; height: 0.4rem; background:var(--app-border); border-radius: 999px; overflow: hidden; }
+        .barra-fill { height: 100%; background:var(--app-success); width: 100%; transition: width 1s linear; }
+        .instalar-estacion { position: fixed; top: 1rem; right: 1rem; display: inline-flex; min-height: 2.5rem; align-items: center; gap: .5rem; padding: .5rem .75rem; border: 1px solid var(--app-border); border-radius: .625rem; background:var(--app-surface); color:var(--app-text); font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; }
+        .instalar-estacion:hover, .instalar-estacion:focus-visible { border-color:var(--app-info); color:var(--app-info); outline: 0; }
         .instalar-estacion svg { width: 1.125rem; height: 1.125rem; }
         .instalar-estacion[hidden] { display: none; }
         @media (max-width: 40rem) { body { padding: 4.75rem 1.25rem 1.5rem; } .instalar-estacion { top: .75rem; right: .75rem; } }

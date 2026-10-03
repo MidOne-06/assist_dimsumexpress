@@ -4,13 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Registrar visita</title>
+    <x-public-theme />
     <style>
         * { box-sizing: border-box; }
-        body { margin:0; min-height:100vh; display:grid; place-items:center; background:#f3f4f6; color:#111827; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; padding:1.5rem; }
-        main { width:min(100%,24rem); background:#fff; border-radius:1rem; padding:2rem 1.75rem; box-shadow:0 10px 25px rgba(0,0,0,.06); text-align:center; }
+        body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--app-page); color:var(--app-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; padding:1.5rem; }
+        main { width:min(100%,24rem); background:var(--app-surface); border:1px solid var(--app-border); border-radius:1rem; padding:2rem 1.75rem; text-align:center; }
         h1 { margin:0 0 .5rem; font-size:1.15rem; }
-        p { margin:0 0 1.4rem; color:#6b7280; font-size:.875rem; line-height:1.5; }
-        .salir { color:#6b7280; font-size:.8rem; text-decoration:none; }
+        p { margin:0 0 1.4rem; color:var(--app-muted); font-size:.875rem; line-height:1.5; }
+        .salir { color:var(--app-muted); font-size:.8rem; text-decoration:none; }
     </style>
 </head>
 <body>

@@ -4,13 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>No se pudo marcar</title>
+    <x-public-theme />
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; min-height: 100vh; background: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
-        .card { background: #fff; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.06); padding: 2rem 1.75rem; width: 100%; max-width: 22rem; text-align: center; }
-        h1 { font-size: 1.05rem; margin: 0 0 0.5rem; color: #111827; }
-        p { color: #6b7280; font-size: 0.875rem; line-height: 1.5; margin: 0 0 1.5rem; }
-        a.salir { color: #2563eb; font-size: 0.85rem; text-decoration: none; font-weight: 600; }
+        body { margin: 0; min-height: 100vh; background:var(--app-page); color:var(--app-text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+        .card { background:var(--app-surface); border:1px solid var(--app-border); border-radius: 1rem; padding: 2rem 1.75rem; width: 100%; max-width: 22rem; text-align: center; }
+        h1 { font-size: 1.05rem; margin: 0 0 0.5rem; color:var(--app-text); }
+        p { color:var(--app-muted); font-size: 0.875rem; line-height: 1.5; margin: 0 0 1.5rem; }
+        a.salir { color:var(--app-info); font-size: 0.85rem; text-decoration: none; font-weight: 600; }
         .salir-btn { display: inline-flex; align-items: center; gap: 0.35rem; }
     </style>
 </head>

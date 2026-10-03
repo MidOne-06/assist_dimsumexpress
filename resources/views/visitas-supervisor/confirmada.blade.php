@@ -4,13 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Visita registrada</title>
+    <x-public-theme />
     <style>
-        body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #111827; padding: 1.5rem; text-align: center; }
-        main { width: min(100%, 26rem); background: white; border-radius: 1.25rem; padding: 2.5rem 2rem; box-shadow: 0 14px 35px rgba(0,0,0,.09); }
-        .ok { display: inline-grid; place-items: center; width: 4rem; height: 4rem; border-radius: 999px; background: #dcfce7; color: #15803d; font-size: 2rem; }
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; background:var(--app-page); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color:var(--app-text); padding: 1.5rem; text-align: center; }
+        main { width: min(100%, 26rem); background:var(--app-surface); border:1px solid var(--app-border); border-radius: 1.25rem; padding: 2.5rem 2rem; }
+        .ok { display: inline-grid; place-items: center; width: 4rem; height: 4rem; border-radius: 999px; background:var(--app-success-bg); color:var(--app-success); font-size: 2rem; }
         h1 { margin: 1.25rem 0 .5rem; font-size: 1.4rem; }
-        p { margin: .35rem 0; color: #4b5563; }
-        .hora { margin-top: 1.5rem; font-size: 1.05rem; font-weight: 700; color: #166534; }
+        p { margin: .35rem 0; color:var(--app-muted); }
+        .hora { margin-top: 1.5rem; font-size: 1.05rem; font-weight: 700; color:var(--app-success); }
     </style>
 </head>
 <body>
