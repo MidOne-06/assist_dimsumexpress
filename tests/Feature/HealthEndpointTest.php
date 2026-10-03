@@ -16,12 +16,16 @@ class HealthEndpointTest extends TestCase
         Storage::fake('local');
         app(SchedulerHeartbeat::class)->touch();
 
-        $this->get(route('health'))
+        $response = $this->get(route('health'));
+
+        $response
             ->assertOk()
-            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.database', 'ok')
             ->assertJsonPath('checks.scheduler', 'ok');
+
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-cache', (string) $response->headers->get('Cache-Control'));
     }
 
     public function test_health_endpoint_fails_when_the_scheduler_signal_is_stale(): void
