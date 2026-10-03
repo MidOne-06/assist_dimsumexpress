@@ -202,13 +202,11 @@ class SupervisionTurnosTest extends TestCase
         Livewire::actingAs($supervisor)
             ->test(AsignarTurnos::class)
             ->assertTableActionExists('editar', null, $asignacion)
-            ->mountTableAction('editar', $asignacion)
-            ->setTableActionData([
+            ->callTableAction('editar', $asignacion, [
                 'turno_id' => $cierre->id,
                 'fecha' => $nuevaFecha,
                 'observacion' => 'Cambio validado',
-            ])
-            ->callMountedTableAction();
+            ]);
 
         $asignacion->refresh();
         $this->assertSame($cierre->id, $asignacion->turno_id);
