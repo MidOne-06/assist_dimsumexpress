@@ -207,7 +207,7 @@ class SupervisionTurnosTest extends TestCase
                 'observacion' => 'Cambio validado',
             ])
             ->callMountedTableAction()
-            ->assertHasNoTableActionErrors();
+            ->assertTableActionNotMounted('editar');
 
         $asignacion->refresh();
         $this->assertSame($cierre->id, $asignacion->turno_id);
