@@ -38,7 +38,7 @@ class ColaboradorLoginController extends Controller
             Auth::logout();
 
             throw ValidationException::withMessages([
-                'email' => 'Esta cuenta está inactiva. Contacta a tu administrador.',
+                'email' => 'Esta cuenta no está disponible. Consulta con tu supervisor.',
             ]);
         }
 

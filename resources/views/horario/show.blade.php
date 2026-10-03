@@ -89,7 +89,6 @@
                     <span class="month">{{ $mesLabel }}</span>
                     <a class="nav-button" href="{{ route('horario.show', ['mes' => $mesSiguiente]) }}" aria-label="Mes siguiente"><x-heroicon-o-chevron-right style="width:1.125rem;height:1.125rem;" /></a>
                 </nav>
-                <span class="legend">Turnos asignados</span>
             </div>
 
             <nav class="week-nav" aria-label="Cambiar semana">

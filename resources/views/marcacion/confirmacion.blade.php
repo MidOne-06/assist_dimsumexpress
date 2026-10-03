@@ -19,10 +19,10 @@
     @php
         $etiquetas = ['entrada' => 'Ingreso de turno registrado', 'salida' => 'Salida de turno registrada', 'salida_refrigerio' => 'Salida de refrigerio registrada', 'regreso_refrigerio' => 'Ingreso de refrigerio registrado'];
         $siguiente = match ($marcacion->tipo) {
-            'entrada' => ['Siguiente paso', 'Cuando corresponda, escanea el QR para iniciar tu refrigerio de 1 hora o finalizar tu turno.'],
-            'salida_refrigerio' => ['Refrigerio en curso', $retornoEsperado ? 'Tu retorno previsto es a las ' . $retornoEsperado->format('H:i:s') . '. Al volver, escanea el QR y registra tu regreso.' : 'Al volver, escanea el QR y registra tu ingreso de refrigerio.'],
-            'regreso_refrigerio' => ['Jornada en curso', 'Cuando corresponda, escanea el QR para continuar con la siguiente acción de tu turno.'],
-            'salida' => ['Jornada completada', 'Tu salida quedó registrada. No tienes ninguna acción pendiente para este turno.'],
+            'entrada' => ['Listo', 'Cuando necesites marcar nuevamente, selecciona la acción correspondiente y escanea el QR.'],
+            'salida_refrigerio' => ['Listo', 'Cuando regreses, selecciona “Ingreso de refrigerio” y escanea el QR.'],
+            'regreso_refrigerio' => ['Listo', 'Continúa con tu jornada. Cuando corresponda, registra tu salida.'],
+            'salida' => ['Listo', 'Tu salida quedó registrada.'],
         };
     @endphp
     <div class="card">
@@ -30,22 +30,9 @@
         <h1>{{ $etiquetas[$marcacion->tipo] }}</h1>
         <div class="hora">{{ $marcacion->fecha_hora->format('H:i:s') }}</div>
         <p class="fecha">{{ $marcacion->fecha_hora->translatedFormat('l d \d\e F') }}</p>
-        @if ($sinTurnoAsignado)
-            <div class="siguiente" style="background:var(--app-warning-bg);border-color:color-mix(in srgb,var(--app-warning) 38%,var(--app-border));">
-                <strong style="color:var(--app-warning);">Marcación excepcional</strong>
-                No había un turno asignado. El registro fue guardado con la estación y hora real para revisión administrativa.
-            </div>
-        @endif
         <div class="siguiente"><strong>{{ $siguiente[0] }}</strong>{{ $siguiente[1] }}</div>
-        @if ($resumenJornada)
-            <div class="siguiente" style="background:var(--app-success-bg);border-color:color-mix(in srgb,var(--app-success) 38%,var(--app-border));">
-                <strong style="color:var(--app-success);">Horas efectivas trabajadas</strong>
-                {{ intdiv($resumenJornada['efectivos_segundos'], 3600) }} h {{ intdiv($resumenJornada['efectivos_segundos'] % 3600, 60) }} min {{ $resumenJornada['efectivos_segundos'] % 60 }} s · Meta {{ intdiv($resumenJornada['objetivo_segundos'], 3600) }} h
-                @if ($resumenJornada['extras_segundos']) · Extras {{ intdiv($resumenJornada['extras_segundos'], 3600) }} h {{ intdiv($resumenJornada['extras_segundos'] % 3600, 60) }} min {{ $resumenJornada['extras_segundos'] % 60 }} s @endif
-            </div>
-        @endif
         <div class="acciones">
-            <a href="{{ route('marcacion.show') }}" class="accion"><x-heroicon-o-camera style="width:1rem;height:1rem;" /> Ver mi jornada</a>
+            <a href="{{ route('marcacion.show') }}" class="accion"><x-heroicon-o-camera style="width:1rem;height:1rem;" /> Volver a marcar</a>
             <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="accion"><x-heroicon-o-arrow-left-on-rectangle style="width:1rem;height:1rem;" /> Cerrar sesión</button></form>
         </div>
     </div>

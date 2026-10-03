@@ -568,30 +568,30 @@ final class JornadaMarcacion
                 ? 'La entrada no está habilitada en este momento.'
                 : 'Ya registraste tu entrada.',
             Marcacion::TIPO_SALIDA_REFRIGERIO => $asignacion->turno->solo_entrada
-                ? 'Este turno registra solo entrada.'
+                ? 'Esta acción no está disponible por ahora.'
                 : (! $asignacion->turno->incluye_refrigerio
-                    ? 'Este turno no incluye refrigerio.'
+                    ? 'Esta acción no está disponible por ahora.'
                     : match ($ultima) {
                         null => 'Registra primero tu entrada.',
                         Marcacion::TIPO_SALIDA_REFRIGERIO => 'Confirma primero tu ingreso de refrigerio.',
                         Marcacion::TIPO_REGRESO_REFRIGERIO => 'El refrigerio ya fue registrado.',
-                        Marcacion::TIPO_SALIDA => 'Tu jornada ya fue cerrada.',
-                        default => 'Esta acción no está disponible.',
+                        Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
+                        default => 'Esta acción no está disponible por ahora.',
                     }),
             Marcacion::TIPO_REGRESO_REFRIGERIO => match ($ultima) {
                 null => 'Registra primero tu entrada.',
                 Marcacion::TIPO_ENTRADA => 'Inicia primero tu refrigerio.',
                 Marcacion::TIPO_REGRESO_REFRIGERIO => 'Ya registraste tu ingreso de refrigerio.',
-                Marcacion::TIPO_SALIDA => 'Tu jornada ya fue cerrada.',
-                default => 'Esta acción no está disponible.',
+                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
+                default => 'Esta acción no está disponible por ahora.',
             },
             Marcacion::TIPO_SALIDA => match ($ultima) {
                 null => 'Registra primero tu entrada.',
                 Marcacion::TIPO_SALIDA_REFRIGERIO => 'Registra primero tu ingreso de refrigerio.',
-                Marcacion::TIPO_SALIDA => 'Tu jornada ya fue cerrada.',
-                default => 'Esta acción no está disponible.',
+                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
+                default => 'Esta acción no está disponible por ahora.',
             },
-            default => 'Esta acción no está disponible.',
+            default => 'Esta acción no está disponible por ahora.',
         };
     }
 
@@ -600,28 +600,28 @@ final class JornadaMarcacion
         return match ($tipo) {
             Marcacion::TIPO_ENTRADA => $ultima === null
                 ? 'La entrada no está habilitada en este momento.'
-                : 'Ya registraste tu entrada excepcional.',
+                : 'Ya registraste tu entrada.',
             Marcacion::TIPO_SALIDA_REFRIGERIO => match ($ultima) {
                 null => 'Registra primero tu entrada.',
                 Marcacion::TIPO_SALIDA_REFRIGERIO => 'Confirma primero tu ingreso de refrigerio.',
                 Marcacion::TIPO_REGRESO_REFRIGERIO => 'El refrigerio ya fue registrado.',
-                Marcacion::TIPO_SALIDA => 'La jornada excepcional ya fue cerrada.',
-                default => 'Esta acción no está disponible.',
+                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
+                default => 'Esta acción no está disponible por ahora.',
             },
             Marcacion::TIPO_REGRESO_REFRIGERIO => match ($ultima) {
                 null => 'Registra primero tu entrada.',
                 Marcacion::TIPO_ENTRADA => 'Inicia primero tu refrigerio.',
                 Marcacion::TIPO_REGRESO_REFRIGERIO => 'Ya registraste tu ingreso de refrigerio.',
-                Marcacion::TIPO_SALIDA => 'La jornada excepcional ya fue cerrada.',
-                default => 'Esta acción no está disponible.',
+                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
+                default => 'Esta acción no está disponible por ahora.',
             },
             Marcacion::TIPO_SALIDA => match ($ultima) {
                 null => 'Registra primero tu entrada.',
                 Marcacion::TIPO_SALIDA_REFRIGERIO => 'Registra primero tu ingreso de refrigerio.',
-                Marcacion::TIPO_SALIDA => 'La jornada excepcional ya fue cerrada.',
-                default => 'Esta acción no está disponible.',
+                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
+                default => 'Esta acción no está disponible por ahora.',
             },
-            default => 'Esta acción no está disponible.',
+            default => 'Esta acción no está disponible por ahora.',
         };
     }
 }

@@ -23,7 +23,7 @@ class HorarioColaboradorController extends Controller
 
         if (! $colaborador) {
             return view('marcacion.error', [
-                'mensaje' => 'Tu usuario no está vinculado a ningún colaborador. Contacta a tu administrador.',
+                'mensaje' => 'No podemos mostrar tu horario en esta cuenta. Consulta con tu supervisor.',
             ]);
         }
 

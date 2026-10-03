@@ -71,8 +71,11 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($colaborador->user)
             ->get(route('marcacion.confirmacion', $salida))
             ->assertOk()
-            ->assertSee('Horas efectivas trabajadas')
-            ->assertSee('7 h 0 min 0 s · Meta 7 h');
+            ->assertSee('Salida de turno registrada')
+            ->assertSee('Tu salida quedó registrada.')
+            ->assertDontSee('Horas efectivas trabajadas')
+            ->assertDontSee('Meta 7 h')
+            ->assertDontSee('Marcación excepcional');
     }
 
     public function test_assigned_shift_records_a_late_entry_until_its_technical_end(): void
@@ -520,6 +523,8 @@ class JornadaMarcacionTest extends TestCase
             ->assertSee('Selecciona la acción que deseas registrar')
             ->assertDontSee('Turno programado')
             ->assertDontSee('Turno detectado por horario')
+            ->assertDontSee('Horas efectivas trabajadas')
+            ->assertDontSee('Marcación excepcional')
             ->assertSee('Marcar ingreso')
             ->assertSee('data-mp-accion="entrada"', false)
             ->assertDontSee('data-codigo-marcacion', false);
@@ -539,6 +544,9 @@ class JornadaMarcacionTest extends TestCase
             ->assertSee('Salida de turno')
             ->assertDontSee('Turno programado')
             ->assertDontSee('Turno detectado por horario')
+            ->assertDontSee('Horas efectivas trabajadas')
+            ->assertDontSee('Marcación excepcional')
+            ->assertDontSee($colaborador->sucursal->nombre)
             ->assertDontSee('data-codigo-marcacion', false)
             ->assertDontSee('localStorage.getItem', false)
             ->assertSee('prefers-color-scheme', false)
@@ -649,7 +657,8 @@ class JornadaMarcacionTest extends TestCase
             ->assertJsonPath('acciones.0.habilitada', true)
             ->assertJsonPath('acciones.1.tipo', Marcacion::TIPO_SALIDA_REFRIGERIO)
             ->assertJsonPath('acciones.1.habilitada', false)
-            ->assertJsonPath('estacion.sucursal', $colaborador->sucursal->nombre);
+            ->assertJsonMissing(['estacion'])
+            ->assertJsonMissing(['sin_turno_asignado']);
 
         $this->assertDatabaseMissing('marcaciones', [
             'colaborador_id' => $colaborador->id,
