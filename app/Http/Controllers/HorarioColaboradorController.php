@@ -50,6 +50,16 @@ class HorarioColaboradorController extends Controller
             ];
         }
 
+        // En móvil un mes completo en una sola columna obliga a recorrer una
+        // pantalla demasiado larga. Se muestran semanas de siete días, sin
+        // perder el contexto del mes ni cargar datos de otro colaborador.
+        $totalSemanas = (int) ceil(count($dias) / 7);
+        $semanaSolicitada = $request->integer('semana', 1);
+        $semana = min(max($semanaSolicitada, 1), $totalSemanas);
+        $diasPagina = array_slice($dias, ($semana - 1) * 7, 7);
+        $hoyEnMes = collect($dias)->contains(fn (array $dia) => $dia['hoy']);
+        $semanaHoy = $hoyEnMes ? intdiv(now()->day - 1, 7) + 1 : null;
+
         return view('horario.show', [
             'apariencia' => app(AparienciaSistemaService::class),
             'colaborador' => $colaborador,
@@ -57,7 +67,11 @@ class HorarioColaboradorController extends Controller
             'mesLabel' => ucfirst($inicio->locale('es')->translatedFormat('F Y')),
             'mesAnterior' => $inicio->copy()->subMonthNoOverflow()->format('Y-m'),
             'mesSiguiente' => $inicio->copy()->addMonthNoOverflow()->format('Y-m'),
-            'dias' => $dias,
+            'dias' => $diasPagina,
+            'hoyEnMes' => $hoyEnMes,
+            'semanaHoy' => $semanaHoy,
+            'semana' => $semana,
+            'totalSemanas' => $totalSemanas,
         ]);
     }
 }
