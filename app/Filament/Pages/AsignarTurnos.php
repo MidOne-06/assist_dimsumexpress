@@ -12,7 +12,6 @@ use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\EditAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -253,9 +252,9 @@ class AsignarTurnos extends Page implements HasTable
             ->send();
     }
 
-    private function editarAsignacionAction(): EditAction
+    private function editarAsignacionAction(): Action
     {
-        return EditAction::make('editar')
+        return Action::make('editar')
             ->label('Editar')
             ->icon(Heroicon::OutlinedPencilSquare)
             ->modalHeading('Actualizar asignación')
@@ -292,7 +291,14 @@ class AsignarTurnos extends Page implements HasTable
                             ->columnSpanFull(),
                     ]),
             ])
-            ->using(fn (AsignacionTurno $record, array $data): AsignacionTurno => app(AsignacionTurnoIndividualService::class)
-                ->actualizar(auth()->user(), $record, $data));
+            ->action(function (array $data): void {
+                $contexto = $this->mountedActions[array_key_last($this->mountedActions)]['context'] ?? [];
+                $clave = $contexto['recordKey'] ?? null;
+                $asignacionId = $clave instanceof AsignacionTurno ? $clave->getKey() : $clave;
+                $asignacion = AsignacionTurno::query()->findOrFail($asignacionId);
+
+                app(AsignacionTurnoIndividualService::class)
+                    ->actualizar(auth()->user(), $asignacion, $data);
+            });
     }
 }
