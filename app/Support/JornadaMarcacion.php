@@ -151,7 +151,15 @@ final class JornadaMarcacion
             ->where('sucursal_id', $sucursal->id)
             ->where('activo', true)
             ->whereHas('turno', fn ($query) => $query->where('activo', true))
-            ->get();
+            ->get()
+            // Las estaciones pueden tener reglas históricas repetidas. Para
+            // decidir una marcación se considera una sola regla por turno y
+            // ámbito; la de menor prioridad numérica y luego menor id es la
+            // vigente de forma determinista hasta que administración depure
+            // el catálogo visualmente.
+            ->sortBy(fn (TurnoOperativo $regla): array => [$regla->prioridad, $regla->id])
+            ->unique(fn (TurnoOperativo $regla): string => ($regla->punto_venta_id ?? 'local').':'.$regla->turno_id)
+            ->values();
 
         $especificas = $puntoVenta ? $configuraciones->where('punto_venta_id', $puntoVenta->id) : collect();
         $candidatas = $especificas->isNotEmpty() ? $especificas : $configuraciones->whereNull('punto_venta_id');
