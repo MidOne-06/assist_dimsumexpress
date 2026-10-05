@@ -29,7 +29,7 @@ class TurnoPolicy
 
     public function update(AuthUser $authUser, Turno $turno): bool
     {
-        return $authUser->can('Update:Turno');
+        return $authUser->can('Update:Turno') && $turno->activo;
     }
 
     public function delete(AuthUser $authUser, Turno $turno): bool

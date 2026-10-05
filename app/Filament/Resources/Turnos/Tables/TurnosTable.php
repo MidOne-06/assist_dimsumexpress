@@ -98,6 +98,7 @@ class TurnosTable
             ])
             ->recordActions([
                 EditAction::make()
+                    ->visible(fn (Turno $record): bool => $record->activo)
                     ->using(fn (Turno $record, array $data): Turno => app(TurnoService::class)
                         ->actualizar(auth()->user(), $record, $data))
                     ->modal()

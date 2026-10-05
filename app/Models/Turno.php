@@ -169,6 +169,12 @@ class Turno extends Model
     /** @param array<string, mixed> $atributos */
     public function actualizarParaFuturo(array $atributos): self
     {
+        if (! $this->activo) {
+            throw ValidationException::withMessages([
+                'turno' => 'Los turnos históricos son de solo lectura. Crea o edita una vigencia activa.',
+            ]);
+        }
+
         $atributos = array_replace(
             Arr::only($this->getAttributes(), $this->getFillable()),
             Arr::only($atributos, $this->getFillable()),

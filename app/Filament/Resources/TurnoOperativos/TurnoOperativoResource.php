@@ -57,7 +57,11 @@ class TurnoOperativoResource extends Resource
                 ->trueLabel('Vigentes')
                 ->falseLabel('Históricos')
                 ->default(true),
-        ])->recordActions([\Filament\Actions\EditAction::make()->modal()]);
+        ])->recordActions([
+            \Filament\Actions\EditAction::make()
+                ->visible(fn (TurnoOperativo $record): bool => $record->activo)
+                ->modal(),
+        ]);
     }
     public static function getPages(): array { return ['index'=>ListTurnoOperativos::route('/')]; }
 }

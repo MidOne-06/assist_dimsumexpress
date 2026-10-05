@@ -12,6 +12,14 @@ class TurnoOperativo extends Model
 {
     protected static function booted(): void
     {
+        static::updating(function (self $regla): void {
+            if (! $regla->getOriginal('activo') && $regla->isDirty()) {
+                throw ValidationException::withMessages([
+                    'turno_operativo' => 'Las reglas históricas son de solo lectura.',
+                ]);
+            }
+        });
+
         static::saving(function (self $regla): void {
             if (! $regla->activo) {
                 return;

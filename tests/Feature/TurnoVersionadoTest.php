@@ -9,11 +9,29 @@ use App\Models\Turno;
 use App\Models\TurnoOperativo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class TurnoVersionadoTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_historical_shift_and_operational_rule_are_read_only(): void
+    {
+        $sucursal = Sucursal::create(['nombre' => 'Sucursal histórica', 'tipo' => 'planta', 'activo' => true]);
+        $turno = Turno::create(['nombre' => 'Turno histórico bloqueado', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'activo' => false]);
+        $regla = TurnoOperativo::create(['turno_id' => $turno->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 100, 'activo' => false]);
+
+        try {
+            $turno->actualizarParaFuturo(['nombre' => 'Cambio no permitido']);
+            $this->fail('Un turno histórico no debe actualizarse.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('turno', $exception->errors());
+        }
+
+        $this->expectException(ValidationException::class);
+        $regla->update(['prioridad' => 1]);
+    }
 
     public function test_editing_a_shift_with_history_versions_only_future_assignments(): void
     {
