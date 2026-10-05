@@ -19,7 +19,7 @@ class ControlVisitasSupervisorTest extends TestCase
         $this->seed(RolesYPermisosSeeder::class);
         $sucursal = Sucursal::create(['nombre' => 'Local control', 'tipo' => 'tienda', 'activo' => true]);
         $supervisor = User::factory()->create(['name' => 'Supervisora de prueba']);
-        $administrador = User::factory()->create();
+        $administrador = User::factory()->create(['activo' => true]);
         $administrador->assignRole('administrador');
         $administrador->givePermissionTo(
             Permission::findByName('Access:AdminPanel', 'web'),
@@ -36,7 +36,7 @@ class ControlVisitasSupervisorTest extends TestCase
             'ingreso_en' => now(),
         ]);
 
-        $this->actingAs($administrador)
+        $this->actingAs($administrador, 'web')
             ->get('/admin/control-visitas-supervisor')
             ->assertOk()
             ->assertSee('Control de visitas de supervisión')
@@ -47,10 +47,10 @@ class ControlVisitasSupervisorTest extends TestCase
     public function test_supervisor_cannot_open_the_administrative_visit_control(): void
     {
         $this->seed(RolesYPermisosSeeder::class);
-        $supervisor = User::factory()->create();
+        $supervisor = User::factory()->create(['activo' => true]);
         $supervisor->assignRole('supervisor');
 
-        $this->actingAs($supervisor)
+        $this->actingAs($supervisor, 'web')
             ->get('/admin/control-visitas-supervisor')
             ->assertForbidden();
     }
