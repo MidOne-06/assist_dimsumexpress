@@ -55,6 +55,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(VisitaSupervisor::class, 'supervisor_id');
     }
 
+    public function visitasSupervisorMarcaciones(): HasMany
+    {
+        return $this->hasMany(VisitaSupervisorMarcacion::class, 'supervisor_id');
+    }
+
     public function enlacesAccesoColaborador(): HasMany
     {
         return $this->hasMany(EnlaceAccesoColaborador::class);

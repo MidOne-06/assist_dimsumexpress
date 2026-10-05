@@ -124,8 +124,8 @@ class CalendarioVisitasSupervisor extends Page
         $mapa = [];
 
         $this->visitasDelPeriodo()
-            ->with(['sucursal:id,nombre', 'puntoVenta:id,nombre'])
-            ->orderBy('fecha_hora')
+            ->with(['sucursal:id,nombre', 'puntoVentaIngreso:id,nombre', 'puntoVentaSalida:id,nombre'])
+            ->orderBy('ingreso_en')
             ->get()
             ->each(function (VisitaSupervisor $visita) use (&$mapa): void {
                 $fecha = $visita->fecha->toDateString();

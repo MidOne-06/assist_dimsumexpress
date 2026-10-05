@@ -7,6 +7,7 @@ use App\Models\QrToken;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VisitaSupervisor;
+use App\Models\VisitaSupervisorMarcacion;
 use App\Support\AlcanceSupervisor;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\SvgWriter;
@@ -64,11 +65,22 @@ class VisitaSupervisorController extends Controller
     public function show(Request $request): View|Response
     {
         [$qrToken, $sucursal, $puntoVenta] = $this->resolverQrAutorizado($request);
+        $resultado = $this->accionDisponible($request->user(), $qrToken, $sucursal);
+
+        if ($resultado['accion'] === 'reutilizado') {
+            return response()->view('visitas-supervisor.reintentar', ['motivo' => 'Este código QR ya fue confirmado. Escanea el código actualizado de la estación.'], 409);
+        }
+
+        if ($resultado['accion'] === 'bloqueado') {
+            return response()->view('visitas-supervisor.bloqueada', ['visita' => $resultado['visita']], 409);
+        }
 
         // Un GET nunca modifica datos: así una previsualización de enlace,
         // la cámara nativa o una carga anticipada del navegador no puede
         // convertirse accidentalmente en una visita registrada.
-        return view('visitas-supervisor.confirmar', compact('qrToken', 'sucursal', 'puntoVenta'));
+        return view('visitas-supervisor.confirmar', compact('qrToken', 'sucursal', 'puntoVenta') + [
+            'accion' => $resultado['accion'],
+        ]);
     }
 
     /** Confirma explícitamente la visita después de leer y validar el QR. */
@@ -78,40 +90,88 @@ class VisitaSupervisorController extends Controller
         [$qrToken, $sucursal, $puntoVenta] = $this->resolverQrAutorizado($request, (string) $request->input('token'));
         $usuario = $request->user();
 
-        [$visita, $nueva] = DB::transaction(function () use ($usuario, $sucursal, $puntoVenta, $qrToken, $request): array {
-            // Serializa las confirmaciones del mismo supervisor. Conserva la
-            // regla vigente (una visita por local/día) sin depender de que el
-            // índice único dispare una excepción bajo doble toque.
+        $resultado = DB::transaction(function () use ($usuario, $sucursal, $puntoVenta, $qrToken, $request): array {
+            // Serializa las confirmaciones del mismo supervisor. Así se evita
+            // abrir dos visitas con toques simultáneos o cerrar una visita en
+            // una sucursal distinta por una segunda pestaña.
             User::query()->lockForUpdate()->findOrFail($usuario->id);
 
-            $fecha = today()->toDateString();
-            $visita = VisitaSupervisor::query()
-                ->where('supervisor_id', $usuario->id)
-                ->where('sucursal_id', $sucursal->id)
-                ->whereDate('fecha', $fecha)
-                ->first();
-
-            if ($visita) {
-                return [$visita, false];
+            $resultadoDisponible = $this->accionDisponible($usuario, $qrToken, $sucursal);
+            if ($resultadoDisponible['accion'] !== 'ingreso' && $resultadoDisponible['accion'] !== 'salida') {
+                return $resultadoDisponible;
             }
 
-            return [VisitaSupervisor::create([
+            $ahora = now();
+            $atributosEvento = [
                 'supervisor_id' => $usuario->id,
                 'sucursal_id' => $sucursal->id,
                 'punto_venta_id' => $puntoVenta?->id,
                 'qr_token_id' => $qrToken->id,
-                'fecha' => $fecha,
-                'fecha_hora' => now(),
+                'fecha_hora' => $ahora,
                 'ip_origen' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
-            ]), true];
+            ];
+
+            if ($resultadoDisponible['accion'] === 'ingreso') {
+                $visita = VisitaSupervisor::create([
+                    'supervisor_id' => $usuario->id,
+                    'sucursal_id' => $sucursal->id,
+                    // Se conserva la columna original como punto de ingreso
+                    // por compatibilidad con los reportes históricos.
+                    'punto_venta_id' => $puntoVenta?->id,
+                    'qr_token_id' => $qrToken->id,
+                    'fecha' => $ahora->toDateString(),
+                    'fecha_hora' => $ahora,
+                    'ip_origen' => $request->ip(),
+                    'user_agent' => $atributosEvento['user_agent'],
+                    'estado' => VisitaSupervisor::EN_CURSO,
+                    'ingreso_en' => $ahora,
+                    'punto_venta_ingreso_id' => $puntoVenta?->id,
+                    'ingreso_qr_token_id' => $qrToken->id,
+                    'ingreso_ip_origen' => $request->ip(),
+                    'ingreso_user_agent' => $atributosEvento['user_agent'],
+                ]);
+
+                VisitaSupervisorMarcacion::create($atributosEvento + [
+                    'visita_supervisor_id' => $visita->id,
+                    'tipo' => VisitaSupervisorMarcacion::INGRESO,
+                ]);
+
+                return ['accion' => 'ingreso', 'visita' => $visita];
+            }
+
+            /** @var VisitaSupervisor $visita */
+            $visita = $resultadoDisponible['visita'];
+            $visita->update([
+                'estado' => VisitaSupervisor::FINALIZADA,
+                'salida_en' => $ahora,
+                'punto_venta_salida_id' => $puntoVenta?->id,
+                'salida_qr_token_id' => $qrToken->id,
+                'salida_ip_origen' => $request->ip(),
+                'salida_user_agent' => $atributosEvento['user_agent'],
+            ]);
+
+            VisitaSupervisorMarcacion::create($atributosEvento + [
+                'visita_supervisor_id' => $visita->id,
+                'tipo' => VisitaSupervisorMarcacion::SALIDA,
+            ]);
+
+            return ['accion' => 'salida', 'visita' => $visita];
         });
+
+        if ($resultado['accion'] === 'reutilizado') {
+            return response()->view('visitas-supervisor.reintentar', ['motivo' => 'Este código QR ya fue confirmado. Escanea el código actualizado de la estación.'], 409);
+        }
+
+        if ($resultado['accion'] === 'bloqueado') {
+            return response()->view('visitas-supervisor.bloqueada', ['visita' => $resultado['visita']], 409);
+        }
 
         return view('visitas-supervisor.confirmada', [
             'sucursal' => $sucursal,
             'puntoVenta' => $puntoVenta,
-            'visita' => $visita,
-            'nueva' => $nueva,
+            'visita' => $resultado['visita'],
+            'accion' => $resultado['accion'],
         ]);
     }
 
@@ -136,6 +196,35 @@ class VisitaSupervisorController extends Controller
         abort_unless(AlcanceSupervisor::puedeGestionarSucursal($usuario, $sucursal->id), 403);
 
         return [$qrToken, $sucursal, $puntoVenta];
+    }
+
+    /**
+     * @return array{accion: 'ingreso'|'salida'|'bloqueado'|'reutilizado', visita: ?VisitaSupervisor}
+     */
+    private function accionDisponible(User $usuario, QrToken $qrToken, Sucursal $sucursal): array
+    {
+        if (VisitaSupervisorMarcacion::query()
+            ->where('supervisor_id', $usuario->id)
+            ->where('qr_token_id', $qrToken->id)
+            ->exists()) {
+            return ['accion' => 'reutilizado', 'visita' => null];
+        }
+
+        $visitaAbierta = VisitaSupervisor::query()
+            ->where('supervisor_id', $usuario->id)
+            ->where('estado', VisitaSupervisor::EN_CURSO)
+            ->orderBy('ingreso_en')
+            ->first();
+
+        if (! $visitaAbierta) {
+            return ['accion' => 'ingreso', 'visita' => null];
+        }
+
+        if ($visitaAbierta->sucursal_id === $sucursal->id) {
+            return ['accion' => 'salida', 'visita' => $visitaAbierta];
+        }
+
+        return ['accion' => 'bloqueado', 'visita' => $visitaAbierta->loadMissing('sucursal:id,nombre')];
     }
 
     private function validarEstacion(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta): void

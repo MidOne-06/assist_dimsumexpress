@@ -6,6 +6,7 @@ use App\Models\Sucursal;
 use App\Models\PuntoVenta;
 use App\Models\User;
 use App\Models\VisitaSupervisor;
+use App\Models\VisitaSupervisorMarcacion;
 use App\Models\QrToken;
 use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,7 +18,7 @@ class VisitaSupervisorTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_supervisor_must_confirm_the_scan_before_one_daily_visit_is_registered(): void
+    public function test_supervisor_must_confirm_an_entry_and_exit_for_the_same_visit(): void
     {
         $this->seed(RolesYPermisosSeeder::class);
         $propia = Sucursal::create(['nombre' => 'Local propio', 'tipo' => 'tienda', 'activo' => true]);
@@ -44,7 +45,7 @@ class VisitaSupervisorTest extends TestCase
         $this->actingAs($supervisor)
             ->post(route('visita-supervisor.store'), ['token' => $tokenPropio->token])
             ->assertOk()
-            ->assertSee('Visita registrada');
+            ->assertSee('Ingreso registrado');
 
         $this->assertSame(1, VisitaSupervisor::query()
             ->where('supervisor_id', $supervisor->id)
@@ -56,18 +57,61 @@ class VisitaSupervisorTest extends TestCase
             'sucursal_id' => $propia->id,
             'punto_venta_id' => $tokenPropio->punto_venta_id,
             'qr_token_id' => $tokenPropio->id,
+            'estado' => VisitaSupervisor::EN_CURSO,
         ]);
 
+        $tokenSalida = $this->emitirTokenVisita($this->puntoVenta($propia));
         $this->actingAs($supervisor)
-            ->post(route('visita-supervisor.store'), ['token' => $tokenPropio->token])
+            ->get(route('visita-supervisor.show', ['token' => $tokenSalida->token]))
             ->assertOk()
-            ->assertSee('Visita ya registrada hoy');
+            ->assertSee('Registrar salida');
+
+        $this->actingAs($supervisor)
+            ->post(route('visita-supervisor.store'), ['token' => $tokenSalida->token])
+            ->assertOk()
+            ->assertSee('Salida registrada');
+
+        $this->assertDatabaseHas('visitas_supervisor', [
+            'supervisor_id' => $supervisor->id,
+            'sucursal_id' => $propia->id,
+            'estado' => VisitaSupervisor::FINALIZADA,
+        ]);
+        $this->assertSame(2, VisitaSupervisorMarcacion::query()->where('supervisor_id', $supervisor->id)->count());
+
+        $this->actingAs($supervisor)
+            ->post(route('visita-supervisor.store'), ['token' => $tokenSalida->token])
+            ->assertStatus(409)
+            ->assertSee('Escanea nuevamente');
 
         $tokenAjeno = $this->emitirTokenVisita($this->puntoVenta($ajena));
 
         $this->actingAs($supervisor)
             ->get(route('visita-supervisor.show', ['token' => $tokenAjeno->token]))
             ->assertForbidden();
+    }
+
+    public function test_supervisor_cannot_open_a_visit_in_another_branch_before_closing_the_current_one(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $primera = Sucursal::create(['nombre' => 'Primera', 'tipo' => 'tienda', 'activo' => true]);
+        $segunda = Sucursal::create(['nombre' => 'Segunda', 'tipo' => 'tienda', 'activo' => true]);
+        $supervisor = User::factory()->create();
+        $supervisor->assignRole('supervisor');
+        $supervisor->givePermissionTo(Permission::findOrCreate('Registrar:VisitaSupervisor', 'web'));
+        $supervisor->sucursalesSupervisadas()->attach([$primera->id, $segunda->id]);
+
+        $tokenEntrada = $this->emitirTokenVisita($this->puntoVenta($primera));
+        $this->actingAs($supervisor)->post(route('visita-supervisor.store'), ['token' => $tokenEntrada->token])->assertOk();
+
+        $tokenOtroLocal = $this->emitirTokenVisita($this->puntoVenta($segunda));
+        $this->actingAs($supervisor)
+            ->get(route('visita-supervisor.show', ['token' => $tokenOtroLocal->token]))
+            ->assertStatus(409)
+            ->assertSee('Primero registra tu salida')
+            ->assertSee('Primera');
+
+        $this->assertSame(1, VisitaSupervisor::query()->where('supervisor_id', $supervisor->id)->count());
+        $this->assertSame(1, VisitaSupervisorMarcacion::query()->where('supervisor_id', $supervisor->id)->count());
     }
 
     public function test_administrator_roles_cannot_register_a_supervisor_visit_from_the_link(): void

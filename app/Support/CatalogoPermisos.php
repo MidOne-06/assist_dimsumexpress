@@ -29,6 +29,9 @@ class CatalogoPermisos
                 'Registrar:Marcacion' => 'Registrar asistencia',
                 'View:MiHorario' => 'Ver mi horario',
                 'Registrar:VisitaSupervisor' => 'Registrar visitas de supervisión',
+                'View:CalendarioVisitasSupervisor' => 'Consultar calendario de visitas de supervisión',
+                'View:ControlVisitasSupervisor' => 'Consultar control de visitas de supervisión',
+                'Regularizar:VisitaSupervisor' => 'Regularizar salidas de visitas de supervisión',
                 'Exportar:Marcacion' => 'Exportar marcaciones',
             ],
             'Turnos y cobertura' => [

@@ -69,12 +69,20 @@
                             @foreach ($visitas as $visita)
                                 @php
                                     $local = $visita->sucursal?->nombre ?? 'Local eliminado';
-                                    $punto = $visita->puntoVenta?->nombre;
-                                    $detalle = $local . ($punto ? ' · ' . $punto : '') . ' · ' . $visita->fecha_hora->format('H:i:s');
+                                    $punto = $visita->puntoVentaIngreso?->nombre ?? $visita->puntoVenta?->nombre;
+                                    $ingreso = $visita->ingreso_en ?? $visita->fecha_hora;
+                                    $salida = $visita->salida_en;
+                                    $estado = match ($visita->estado) {
+                                        \App\Models\VisitaSupervisor::EN_CURSO => $visita->fecha?->isBefore(today()) ? 'Pendiente' : 'En curso',
+                                        \App\Models\VisitaSupervisor::FINALIZADA => 'Finalizada',
+                                        \App\Models\VisitaSupervisor::REGULARIZADA => 'Regularizada',
+                                        default => 'Histórica',
+                                    };
+                                    $detalle = $local . ($punto ? ' · ' . $punto : '') . ' · ' . $ingreso->format('H:i') . ($salida ? '–' . $salida->format('H:i') : '') . ' · ' . $estado;
                                 @endphp
-                                <span class="visita-chip" title="{{ $detalle }}">
+                                <span @class(['visita-chip', 'visita-chip-pendiente' => $estado === 'Pendiente' || $estado === 'En curso', 'visita-chip-regularizada' => $estado === 'Regularizada']) title="{{ $detalle }}">
                                     <span class="visita-chip-local">{{ $local }}</span>
-                                    <span class="visita-chip-meta">{{ $punto ?? '—' }} · {{ $visita->fecha_hora->format('H:i:s') }}</span>
+                                    <span class="visita-chip-meta">{{ $ingreso->format('H:i') }}{{ $salida ? '–' . $salida->format('H:i') : ' · ' . $estado }}</span>
                                 </span>
                             @endforeach
                         </div>
@@ -118,6 +126,10 @@
         .visita-chip-local, .visita-chip-meta { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .visita-chip-meta { font-size:.62rem; font-weight:600; opacity:.82; }
         .dark .visita-chip { background:var(--primary-900); color:var(--primary-200); }
+        .visita-chip-pendiente { background:var(--warning-100); color:var(--warning-700); }
+        .dark .visita-chip-pendiente { background:var(--warning-900); color:var(--warning-200); }
+        .visita-chip-regularizada { background:var(--info-100); color:var(--info-700); }
+        .dark .visita-chip-regularizada { background:var(--info-900); color:var(--info-200); }
         .visitas-vacio { padding:1.5rem; color:var(--gray-500); text-align:center; }
         @media (max-width: 640px) { .visitas-filtros { width:100%; } .visitas-filtros select { flex:1; min-width:9rem; } }
     </style>

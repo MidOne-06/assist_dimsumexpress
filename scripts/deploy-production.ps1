@@ -31,6 +31,7 @@ tar -xf '$remoteArchive'
 printf '%s' '$resolvedCommit' > storage/app/.release-sha
 docker compose build app --quiet
 docker compose run --rm app php artisan migrate --force
+docker compose run --rm app php artisan db:seed --class=RolesYPermisosSeeder --force
 docker compose up -d --no-deps --force-recreate app worker scheduler
 docker compose exec -T -u root app sh -lc 'chown -R www-data:www-data storage bootstrap/cache && chmod -R ug+rwX storage bootstrap/cache'
 docker compose exec -T -u www-data app php artisan optimize:clear

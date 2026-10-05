@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Visita registrada</title>
+    <title>{{ $accion === 'salida' ? 'Salida registrada' : 'Ingreso registrado' }}</title>
     <x-public-theme />
     <style>
         body { margin: 0; min-height: 100vh; display: grid; place-items: center; background:var(--app-page); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color:var(--app-text); padding: 1.5rem; text-align: center; }
@@ -18,10 +18,10 @@
 <body>
     <main>
         <div class="ok"><x-heroicon-s-check-circle /></div>
-        <h1>{{ $nueva ? 'Visita registrada' : 'Visita ya registrada hoy' }}</h1>
+        <h1>{{ $accion === 'salida' ? 'Salida registrada' : 'Ingreso registrado' }}</h1>
         <p>{{ $sucursal->nombre }}</p>
         @if ($puntoVenta)<p>{{ $puntoVenta->nombre }}</p>@endif
-        <p class="hora">{{ $visita->fecha_hora->format('d/m/Y H:i') }}</p>
+        <p class="hora">{{ ($accion === 'salida' ? $visita->salida_en : $visita->ingreso_en)->format('d/m/Y H:i') }}</p>
     </main>
 </body>
 </html>

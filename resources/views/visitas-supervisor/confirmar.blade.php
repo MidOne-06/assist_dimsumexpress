@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Confirmar visita</title>
+    <title>Confirmar {{ $accion === 'salida' ? 'salida' : 'ingreso' }}</title>
     <x-pwa-head />
     <x-public-theme />
     <style>
@@ -23,13 +23,13 @@
 <body>
     <main>
         <x-heroicon-o-map-pin class="icono" />
-        <h1>Confirmar visita</h1>
-        <p>Verifica el local antes de continuar.</p>
+        <h1>Confirmar {{ $accion === 'salida' ? 'salida' : 'ingreso' }}</h1>
+        <p>{{ $accion === 'salida' ? 'Confirma el cierre de tu visita en este local.' : 'Confirma tu llegada a este local.' }}</p>
         <div class="local"><strong>{{ $sucursal->nombre }}</strong>@if ($puntoVenta)<span>{{ $puntoVenta->nombre }}</span>@endif</div>
         <form method="POST" action="{{ route('visita-supervisor.store') }}">
             @csrf
             <input type="hidden" name="token" value="{{ $qrToken->token }}">
-            <button type="submit">Registrar visita</button>
+            <button type="submit">{{ $accion === 'salida' ? 'Registrar salida' : 'Registrar ingreso' }}</button>
         </form>
         <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="salir" style="all:unset;cursor:pointer">Cerrar sesión</button></form>
     </main>
