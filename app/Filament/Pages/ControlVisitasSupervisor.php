@@ -6,6 +6,7 @@ use App\Models\PuntoVenta;
 use App\Models\Sucursal;
 use App\Models\VisitaSupervisor;
 use App\Models\VisitaSupervisorMarcacion;
+use App\Services\VisitaSupervisorSpreadsheetService;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -15,7 +16,10 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -50,13 +54,35 @@ class ControlVisitasSupervisor extends Page implements HasTable
         return static::canAccess();
     }
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('exportar')
+                ->label('Exportar')
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->color('gray')
+                ->visible(fn (): bool => auth()->user()?->can('Exportar:VisitaSupervisor') ?? false)
+                ->authorize(fn (): bool => auth()->user()?->can('Exportar:VisitaSupervisor') ?? false)
+                ->action(function () {
+                    $query = $this->getFilteredTableQuery();
+
+                    abort_if($query === null, 500, 'No se pudo preparar la exportación.');
+
+                    return app(VisitaSupervisorSpreadsheetService::class)->exportar($query->clone());
+                }),
+        ];
+    }
+
     public function table(Table $table): Table
     {
         return $table
             ->query($this->visitasQuery())
             ->columns([
                 TextColumn::make('supervisor.name')->label('Supervisor')->searchable()->sortable()->weight('medium'),
-                TextColumn::make('sucursal.nombre')->label('Local')->description(fn (VisitaSupervisor $record): ?string => $record->puntoVentaIngreso?->nombre)->searchable()->sortable(),
+                TextColumn::make('sucursal.nombre')->label('Local')->description(fn (VisitaSupervisor $record): ?string => collect([
+                    $record->puntoVentaIngreso?->nombre,
+                    $record->sucursal?->activo ? null : 'Local inactivo',
+                ])->filter()->join(' · ') ?: null)->searchable()->sortable(),
                 TextColumn::make('ingreso_en')->label('Ingreso')->dateTime('d/m/Y H:i')->placeholder('—')->sortable(),
                 TextColumn::make('salida_en')->label('Salida')->dateTime('d/m/Y H:i')->placeholder('Pendiente')->sortable(),
                 TextColumn::make('duracion')->label('Duración')->getStateUsing(fn (VisitaSupervisor $record): string => static::formatoDuracion($record->duracionEnSegundos())),
@@ -69,7 +95,12 @@ class ControlVisitasSupervisor extends Page implements HasTable
                     VisitaSupervisor::REGULARIZADA => 'Regularizada',
                     VisitaSupervisor::HISTORICA => 'Histórica',
                 ]),
-                SelectFilter::make('sucursal_id')->label('Local')->options(fn (): array => Sucursal::query()->whereIn('id', AlcanceSupervisor::sucursalIds(auth()->user()))->orderBy('nombre')->pluck('nombre', 'id')->all())->searchable(),
+                SelectFilter::make('sucursal_id')->label('Local')->options(fn (): array => Sucursal::query()
+                    ->whereIn('id', AlcanceSupervisor::sucursalIdsHistoricos(auth()->user()))
+                    ->orderBy('nombre')
+                    ->get(['id', 'nombre', 'activo'])
+                    ->mapWithKeys(fn (Sucursal $sucursal): array => [$sucursal->id => $sucursal->nombre . ($sucursal->activo ? '' : ' (inactivo)')])
+                    ->all())->searchable(),
                 Filter::make('fecha')
                     ->schema([DatePicker::make('desde')->label('Desde')->native(false), DatePicker::make('hasta')->label('Hasta')->native(false)])
                     ->query(fn (Builder $query, array $data): Builder => $query
@@ -83,7 +114,20 @@ class ControlVisitasSupervisor extends Page implements HasTable
             ->paginated([10, 25, 50])
             ->defaultPaginationPageOption(25)
             ->emptyStateHeading('Sin visitas registradas')
-            ->recordActions([$this->regularizarAction()]);
+            ->recordActions([$this->detalleAction(), $this->regularizarAction()]);
+    }
+
+    private function detalleAction(): Action
+    {
+        return Action::make('detalle')
+            ->label('Detalle')
+            ->icon(Heroicon::OutlinedDocumentMagnifyingGlass)
+            ->color('gray')
+            ->modalHeading('Detalle de visita')
+            ->modalWidth(Width::SevenExtraLarge)
+            ->schema(fn (VisitaSupervisor $record): array => static::detalleSchema($record))
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Cerrar');
     }
 
     private function regularizarAction(): Action
@@ -99,7 +143,7 @@ class ControlVisitasSupervisor extends Page implements HasTable
             ->modalCancelActionLabel('Cancelar')
             ->schema(fn (VisitaSupervisor $record): array => [
                 Grid::make(['default' => 1, 'md' => 2])->schema([
-                    DateTimePicker::make('salida_en')->label('Salida')->required()->seconds(false)->native(false)->default(now())->minDate($record->ingreso_en),
+                    DateTimePicker::make('salida_en')->label('Salida')->required()->seconds(false)->native(false)->default(now())->minDate($record->ingreso_en)->maxDate(now()),
                     Select::make('punto_venta_salida_id')
                         ->label('Punto de salida')
                         ->options(fn (): array => PuntoVenta::query()->where('sucursal_id', $record->sucursal_id)->where('activo', true)->orderBy('nombre')->pluck('nombre', 'id')->all())
@@ -113,8 +157,15 @@ class ControlVisitasSupervisor extends Page implements HasTable
     private function visitasQuery(): Builder
     {
         return VisitaSupervisor::query()
-            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIds(auth()->user()))
-            ->with(['supervisor:id,name', 'sucursal:id,nombre', 'puntoVentaIngreso:id,nombre']);
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIdsHistoricos(auth()->user()))
+            ->with([
+                'supervisor:id,name',
+                'sucursal:id,nombre,activo',
+                'puntoVentaIngreso:id,nombre',
+                'puntoVentaSalida:id,nombre',
+                'regularizadaPor:id,name',
+                'marcaciones.puntoVenta:id,nombre',
+            ]);
     }
 
     private function puedeRegularizar(VisitaSupervisor $visita): bool
@@ -139,10 +190,32 @@ class ControlVisitasSupervisor extends Page implements HasTable
                 throw ValidationException::withMessages(['salida_en' => 'La salida no puede ser anterior al ingreso.']);
             }
 
+            if ($salida->isFuture()) {
+                throw ValidationException::withMessages(['salida_en' => 'La salida no puede estar en el futuro.']);
+            }
+
+            if ($visita->fecha && $salida->toDateString() < $visita->fecha->toDateString()) {
+                throw ValidationException::withMessages(['salida_en' => 'La salida debe corresponder a la fecha de la visita.']);
+            }
+
+            $puntoSalidaId = filled($data['punto_venta_salida_id'] ?? null)
+                ? (int) $data['punto_venta_salida_id']
+                : null;
+
+            if ($puntoSalidaId !== null && ! PuntoVenta::query()
+                ->whereKey($puntoSalidaId)
+                ->where('sucursal_id', $visita->sucursal_id)
+                ->where('activo', true)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'punto_venta_salida_id' => 'Seleccione un punto de venta activo del mismo local de la visita.',
+                ]);
+            }
+
             $visita->update([
                 'estado' => VisitaSupervisor::REGULARIZADA,
                 'salida_en' => $salida,
-                'punto_venta_salida_id' => $data['punto_venta_salida_id'] ?: null,
+                'punto_venta_salida_id' => $puntoSalidaId,
                 'regularizada_por_id' => auth()->id(),
                 'regularizada_en' => now(),
                 'regularizacion_motivo' => $data['regularizacion_motivo'],
@@ -151,7 +224,7 @@ class ControlVisitasSupervisor extends Page implements HasTable
                 'visita_supervisor_id' => $visita->id,
                 'supervisor_id' => $visita->supervisor_id,
                 'sucursal_id' => $visita->sucursal_id,
-                'punto_venta_id' => $data['punto_venta_salida_id'] ?: null,
+                'punto_venta_id' => $puntoSalidaId,
                 'tipo' => VisitaSupervisorMarcacion::REGULARIZACION,
                 'fecha_hora' => $salida,
                 'ip_origen' => request()->ip(),
@@ -189,5 +262,91 @@ class ControlVisitasSupervisor extends Page implements HasTable
     private static function formatoDuracion(?int $segundos): string
     {
         return $segundos === null ? '—' : sprintf('%d h %02d min', intdiv($segundos, 3600), intdiv($segundos % 3600, 60));
+    }
+
+    /** @return array<Section> */
+    private static function detalleSchema(VisitaSupervisor $visita): array
+    {
+        $visita->loadMissing([
+            'supervisor:id,name', 'sucursal:id,nombre,activo', 'puntoVentaIngreso:id,nombre',
+            'puntoVentaSalida:id,nombre', 'regularizadaPor:id,name', 'marcaciones.puntoVenta:id,nombre',
+        ]);
+
+        return [
+            Section::make()
+                ->compact()
+                ->columns(['default' => 1, 'md' => 3])
+                ->schema([
+                    TextEntry::make('estado')->label('Estado')->state(static::etiquetaEstado($visita))->badge()->color(static::colorEstado($visita)),
+                    TextEntry::make('fecha')->label('Fecha')->state($visita->fecha)->date('d/m/Y'),
+                    TextEntry::make('duracion')->label('Duración')->state(static::formatoDuracion($visita->duracionEnSegundos())),
+                ]),
+            Section::make('Visita')
+                ->compact()
+                ->columns(['default' => 1, 'md' => 2])
+                ->schema([
+                    TextEntry::make('supervisor')->label('Supervisor')->state($visita->supervisor?->name ?? '—'),
+                    TextEntry::make('local')->label('Local')->state($visita->sucursal?->nombre ?? '—')->helperText($visita->sucursal?->activo ? null : 'Local actualmente inactivo'),
+                    TextEntry::make('ingreso')->label('Ingreso')->state($visita->ingreso_en)->dateTime('d/m/Y H:i:s')->placeholder('—'),
+                    TextEntry::make('estacion_ingreso')->label('Estación de ingreso')->state($visita->puntoVentaIngreso?->nombre ?? '—'),
+                    TextEntry::make('salida')->label('Salida')->state($visita->salida_en)->dateTime('d/m/Y H:i:s')->placeholder('Pendiente'),
+                    TextEntry::make('estacion_salida')->label('Estación de salida')->state($visita->puntoVentaSalida?->nombre ?? '—'),
+                ]),
+            Section::make('Eventos inmutables')
+                ->compact()
+                ->schema([
+                    RepeatableEntry::make('marcaciones')
+                        ->state($visita->marcaciones)
+                        ->contained()
+                        ->schema([
+                            Grid::make(['default' => 1, 'md' => 4])->schema([
+                                TextEntry::make('tipo')->label('Evento')->formatStateUsing(fn (string $state): string => static::etiquetaEvento($state))->badge()->color(fn (string $state): string => static::colorEvento($state)),
+                                TextEntry::make('fecha_hora')->label('Fecha y hora')->dateTime('d/m/Y H:i:s'),
+                                TextEntry::make('puntoVenta.nombre')->label('Estación')->placeholder('—'),
+                                TextEntry::make('referencia')->label('Registro')->state(fn (VisitaSupervisorMarcacion $record): string => '#' . $record->id),
+                            ]),
+                        ]),
+                ]),
+            Section::make('Regularización')
+                ->compact()
+                ->columns(['default' => 1, 'md' => 2])
+                ->visible($visita->regularizada_en !== null)
+                ->schema([
+                    TextEntry::make('regularizada_por')->label('Regularizada por')->state($visita->regularizadaPor?->name ?? '—'),
+                    TextEntry::make('regularizada_en')->label('Registrada el')->state($visita->regularizada_en)->dateTime('d/m/Y H:i:s'),
+                    TextEntry::make('regularizacion_motivo')->label('Motivo')->state($visita->regularizacion_motivo ?? '—')->columnSpanFull()->wrap(),
+                ]),
+            Section::make('Datos técnicos')
+                ->compact()
+                ->collapsible()
+                ->collapsed()
+                ->columns(['default' => 1, 'md' => 2])
+                ->schema([
+                    TextEntry::make('ip_ingreso')->label('IP de ingreso')->state($visita->ingreso_ip_origen ?? $visita->ip_origen ?? '—')->copyable(),
+                    TextEntry::make('ip_salida')->label('IP de salida')->state($visita->salida_ip_origen ?? '—')->copyable(),
+                    TextEntry::make('dispositivo_ingreso')->label('Dispositivo de ingreso')->state($visita->ingreso_user_agent ?? $visita->user_agent ?? '—')->copyable()->wrap()->columnSpanFull(),
+                    TextEntry::make('dispositivo_salida')->label('Dispositivo de salida')->state($visita->salida_user_agent ?? '—')->copyable()->wrap()->columnSpanFull(),
+                ]),
+        ];
+    }
+
+    private static function etiquetaEvento(string $tipo): string
+    {
+        return match ($tipo) {
+            VisitaSupervisorMarcacion::INGRESO => 'Ingreso',
+            VisitaSupervisorMarcacion::SALIDA => 'Salida',
+            VisitaSupervisorMarcacion::REGULARIZACION => 'Salida regularizada',
+            default => $tipo,
+        };
+    }
+
+    private static function colorEvento(string $tipo): string
+    {
+        return match ($tipo) {
+            VisitaSupervisorMarcacion::INGRESO => 'success',
+            VisitaSupervisorMarcacion::SALIDA => 'danger',
+            VisitaSupervisorMarcacion::REGULARIZACION => 'info',
+            default => 'gray',
+        };
     }
 }

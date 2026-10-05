@@ -10,6 +10,7 @@ use App\Filament\Resources\TurnoOperativos\TurnoOperativoResource;
 use App\Models\Colaborador;
 use App\Models\IncidenciaMarcacion;
 use App\Models\TurnoOperativo;
+use App\Models\VisitaSupervisor;
 use App\Services\SchedulerHeartbeat;
 use App\Support\AlcanceSupervisor;
 use Filament\Actions\Action;
@@ -222,6 +223,33 @@ class AuditoriaOperativa extends Page implements HasTable
                     'url' => IncidenciaMarcacionResource::getUrl('index'),
                 ]);
             });
+
+        // Una visita abierta de un día anterior nunca se cierra de forma
+        // automática: requiere revisión y regularización explícita. Incluimos
+        // locales inactivos porque el registro sigue siendo trazable, aunque
+        // ya no se permitan operaciones nuevas en ese local.
+        if ($usuario->can('Regularizar:VisitaSupervisor')) {
+            VisitaSupervisor::query()
+                ->where('estado', VisitaSupervisor::EN_CURSO)
+                ->whereDate('fecha', '<', today())
+                ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIdsHistoricos($usuario))
+                ->with(['supervisor:id,name', 'sucursal:id,nombre,activo'])
+                ->orderBy('fecha')
+                ->get()
+                ->each(function (VisitaSupervisor $visita) use ($hallazgos): void {
+                    $hallazgos->push([
+                        '__key' => "visita-supervisor-pendiente-{$visita->id}",
+                        'nivel' => 'Atención',
+                        'hallazgo' => 'Visita de supervisión sin salida',
+                        'detalle' => trim(implode(' · ', array_filter([
+                            $visita->supervisor?->name,
+                            $visita->ingreso_en?->format('d/m/Y H:i'),
+                        ]))),
+                        'local' => ($visita->sucursal?->nombre ?? '—') . ($visita->sucursal?->activo ? '' : ' (inactivo)'),
+                        'url' => ControlVisitasSupervisor::getUrl(),
+                    ]);
+                });
+        }
 
         return $hallazgos;
     }

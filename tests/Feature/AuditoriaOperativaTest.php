@@ -13,6 +13,7 @@ use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Models\TurnoOperativo;
 use App\Models\User;
+use App\Models\VisitaSupervisor;
 use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -104,6 +105,30 @@ class AuditoriaOperativaTest extends TestCase
 
         $this->assertDatabaseMissing('qr_tokens', ['id' => $unused->id]);
         $this->assertDatabaseHas('qr_tokens', ['id' => $used->id]);
+    }
+
+    public function test_audit_reports_supervisor_visits_opened_on_a_previous_day(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $administrador = User::factory()->create(['activo' => true]);
+        $administrador->assignRole('administrador');
+        $sucursal = $this->sucursal(['nombre' => 'Local con visita pendiente']);
+        $supervisor = User::factory()->create(['name' => 'Supervisora pendiente']);
+        VisitaSupervisor::create([
+            'supervisor_id' => $supervisor->id,
+            'sucursal_id' => $sucursal->id,
+            'fecha' => today()->subDay(),
+            'fecha_hora' => now()->subDay(),
+            'ingreso_en' => now()->subDay(),
+            'estado' => VisitaSupervisor::EN_CURSO,
+        ]);
+
+        $this->actingAs($administrador);
+        $hallazgos = new ReflectionMethod(app(AuditoriaOperativa::class), 'hallazgos');
+        $resultado = $hallazgos->invoke(app(AuditoriaOperativa::class));
+
+        $this->assertTrue($resultado->contains('hallazgo', 'Visita de supervisión sin salida'));
+        $this->assertSame('Atención', $resultado->firstWhere('hallazgo', 'Visita de supervisión sin salida')['nivel']);
     }
 
     public function test_only_an_active_point_of_sale_can_render_or_issue_qr(): void

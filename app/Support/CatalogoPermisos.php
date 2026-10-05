@@ -32,6 +32,7 @@ class CatalogoPermisos
                 'View:CalendarioVisitasSupervisor' => 'Consultar calendario de visitas de supervisión',
                 'View:ControlVisitasSupervisor' => 'Consultar control de visitas de supervisión',
                 'Regularizar:VisitaSupervisor' => 'Regularizar salidas de visitas de supervisión',
+                'Exportar:VisitaSupervisor' => 'Exportar visitas de supervisión',
                 'Exportar:Marcacion' => 'Exportar marcaciones',
             ],
             'Turnos y cobertura' => [

@@ -32,6 +32,24 @@ class AlcanceSupervisor
             ->all();
     }
 
+    /**
+     * Alcance de consulta histórica. A diferencia de sucursalIds(), no
+     * descarta locales desactivados: sus registros siguen siendo evidencia
+     * operativa, aunque ya no admiten nuevas acciones.
+     *
+     * @return array<int, int>
+     */
+    public static function sucursalIdsHistoricos(User $user): array
+    {
+        if ($user->hasAnyRole(['super_admin', 'administrador'])) {
+            return Sucursal::query()->pluck('id')->all();
+        }
+
+        return $user->sucursalesSupervisadas()
+            ->pluck('sucursales.id')
+            ->all();
+    }
+
     public static function sucursalesQuery(User $user): Builder
     {
         return Sucursal::query()

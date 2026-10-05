@@ -80,7 +80,7 @@ class VisitaSupervisor extends Model
 
     public function marcaciones(): HasMany
     {
-        return $this->hasMany(VisitaSupervisorMarcacion::class);
+        return $this->hasMany(VisitaSupervisorMarcacion::class)->orderBy('fecha_hora')->orderBy('id');
     }
 
     public function duracionEnSegundos(): ?int

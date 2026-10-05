@@ -25,6 +25,7 @@ class RolesYPermisosSeeder extends Seeder
             'View:CalendarioVisitasSupervisor',
             'View:ControlVisitasSupervisor',
             'Regularizar:VisitaSupervisor',
+            'Exportar:VisitaSupervisor',
             'View:ControlJornadas',
             'View:HorasEfectivasMensuales',
             'View:AparienciaSistema',
