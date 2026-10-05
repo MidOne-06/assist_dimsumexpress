@@ -78,11 +78,11 @@
                                         \App\Models\VisitaSupervisor::REGULARIZADA => 'Regularizada',
                                         default => 'Histórica',
                                     };
-                                    $detalle = $local . ($punto ? ' · ' . $punto : '') . ' · ' . $ingreso->format('H:i') . ($salida ? '–' . $salida->format('H:i') : '') . ' · ' . $estado;
+                                    $detalle = $local . ($punto ? ' · ' . $punto : '') . ' · ' . $ingreso->format('H:i:s') . ($salida ? '–' . $salida->format('H:i:s') : '') . ' · ' . $estado;
                                 @endphp
                                 <span @class(['visita-chip', 'visita-chip-pendiente' => $estado === 'Pendiente' || $estado === 'En curso', 'visita-chip-regularizada' => $estado === 'Regularizada']) title="{{ $detalle }}">
                                     <span class="visita-chip-local">{{ $local }}</span>
-                                    <span class="visita-chip-meta">{{ $ingreso->format('H:i') }}{{ $salida ? '–' . $salida->format('H:i') : ' · ' . $estado }}</span>
+                                    <span class="visita-chip-meta">{{ $ingreso->format('H:i:s') }}{{ $salida ? '–' . $salida->format('H:i:s') : ' · ' . $estado }}</span>
                                 </span>
                             @endforeach
                         </div>

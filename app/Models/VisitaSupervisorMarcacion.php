@@ -16,6 +16,8 @@ class VisitaSupervisorMarcacion extends Model
     public const SALIDA = 'salida';
     public const REGULARIZACION = 'regularizacion';
 
+    protected $table = 'visita_supervisor_marcaciones';
+
     protected function casts(): array
     {
         return [
