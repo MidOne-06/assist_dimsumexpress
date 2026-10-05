@@ -71,8 +71,8 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($colaborador->user)
             ->get(route('marcacion.confirmacion', $salida))
             ->assertOk()
-            ->assertSee('Marcación registrada')
-            ->assertSee('Tu asistencia fue registrada correctamente.')
+            ->assertSee('Registrado correctamente')
+            ->assertDontSee('Tu asistencia fue registrada correctamente.')
             ->assertDontSee('Horas efectivas trabajadas')
             ->assertDontSee('Meta 7 h')
             ->assertDontSee('Marcación excepcional');
