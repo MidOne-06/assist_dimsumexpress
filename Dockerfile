@@ -11,6 +11,15 @@ RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoload
 COPY . .
 RUN composer dump-autoload --no-dev --optimize --no-scripts
 
+FROM node:22-alpine AS frontend
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.js ./
+COPY resources ./resources
+RUN npm run build
+
 FROM php:8.3-fpm-alpine AS application
 WORKDIR /var/www/html
 
@@ -20,6 +29,7 @@ RUN apk add --no-cache bash curl libzip-dev postgresql-dev icu-dev libxml2-dev s
 
 COPY --from=dependencies /app/vendor ./vendor
 COPY . .
+COPY --from=frontend /app/public/build ./public/build
 COPY docker/app/php-fpm-pool.conf /usr/local/etc/php-fpm.d/zz-pool.conf
 
 RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
