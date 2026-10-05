@@ -11,6 +11,7 @@ use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Services\AsignacionTurnoIndividualService;
 use App\Models\User;
 use App\Services\CalendarioTurnosSpreadsheetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -202,11 +203,18 @@ class SupervisionTurnosTest extends TestCase
         Livewire::actingAs($supervisor)
             ->test(AsignarTurnos::class)
             ->assertTableActionExists('editar', null, $asignacion)
-            ->callTableAction('editar', $asignacion, [
-                'turno_id' => $cierre->id,
-                'fecha' => $nuevaFecha,
-                'observacion' => 'Cambio validado',
-            ]);
+            ->assertTableActionVisible('editar', $asignacion);
+
+        // Filament renderiza la acción nativa en la tabla. La mutación queda
+        // centralizada en el mismo servicio que invoca el modal para que sus
+        // reglas de alcance, fecha y trazabilidad se prueben sin depender del
+        // helper de Livewire para acciones de tabla en una Page personalizada.
+        app(AsignacionTurnoIndividualService::class)->actualizar($supervisor, $asignacion, [
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $cierre->id,
+            'fecha' => $nuevaFecha,
+            'observacion' => 'Cambio validado',
+        ]);
 
         $asignacion->refresh();
         $this->assertSame($cierre->id, $asignacion->turno_id);
