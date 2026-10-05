@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\User;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class PwaEndpointsTest extends TestCase
@@ -27,5 +29,18 @@ class PwaEndpointsTest extends TestCase
             ->assertHeader('Service-Worker-Allowed', '/')
             ->assertSee("url.pathname.startsWith('/images/')", false)
             ->assertSee('caches.open', false);
+    }
+
+    public function test_an_unlinked_marking_account_is_not_offered_a_qr_scanner(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+
+        $this->actingAs($user)
+            ->get(route('marcacion.show'))
+            ->assertOk()
+            ->assertSee('No podemos habilitar la marcación de esta cuenta.')
+            ->assertDontSee('Escanear QR de la estación')
+            ->assertDontSee('data-qr-scanner', false);
     }
 }
