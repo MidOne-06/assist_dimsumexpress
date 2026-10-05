@@ -559,8 +559,7 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($operador)
             ->get(route('marcacion.show'))
             ->assertOk()
-            ->assertSee('Una sola lectura')
-            ->assertSee('Escanear QR de la estación')
+            ->assertSee('Escanea el QR')
             ->assertDontSee('Turno programado')
             ->assertDontSee('Turno detectado por horario')
             ->assertDontSee('Horas efectivas trabajadas')
@@ -581,7 +580,7 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.show', ['token' => $qr->token]))
             ->assertOk()
             ->assertSee('QR escaneado correctamente')
-            ->assertSee('Registrar marcación')
+            ->assertSee('Continuar')
             ->assertDontSee('Turno programado')
             ->assertDontSee('Turno detectado por horario')
             ->assertDontSee('Horas efectivas trabajadas')
@@ -647,7 +646,7 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($operador)
             ->get(route('marcacion.show', ['token' => $nuevoQr->token]))
             ->assertOk()
-            ->assertSee('Registrar marcación');
+            ->assertSee('Continuar');
 
         $this->actingAs($operador)
             ->post(route('marcacion.store'), ['token' => $nuevoQr->token])
