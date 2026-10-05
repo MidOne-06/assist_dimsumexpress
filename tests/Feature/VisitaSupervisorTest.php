@@ -33,8 +33,8 @@ class VisitaSupervisorTest extends TestCase
         $this->actingAs($supervisor)
             ->get(route('visita-supervisor.show', ['token' => $tokenPropio->token]))
             ->assertOk()
-            ->assertSee('Confirmar visita')
-            ->assertSee('Registrar visita');
+            ->assertSee('Confirmar ingreso')
+            ->assertSee('Registrar ingreso');
 
         $this->assertDatabaseMissing('visitas_supervisor', [
             'supervisor_id' => $supervisor->id,
