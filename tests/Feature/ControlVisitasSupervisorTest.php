@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\VisitaSupervisor;
 use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class ControlVisitasSupervisorTest extends TestCase
@@ -20,6 +21,11 @@ class ControlVisitasSupervisorTest extends TestCase
         $supervisor = User::factory()->create(['name' => 'Supervisora de prueba']);
         $administrador = User::factory()->create();
         $administrador->assignRole('administrador');
+        $administrador->givePermissionTo(
+            Permission::findByName('Access:AdminPanel', 'web'),
+            Permission::findByName('View:ControlVisitasSupervisor', 'web'),
+            Permission::findByName('Regularizar:VisitaSupervisor', 'web'),
+        );
 
         VisitaSupervisor::create([
             'supervisor_id' => $supervisor->id,
