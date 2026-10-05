@@ -341,12 +341,12 @@ class JornadaMarcacionTest extends TestCase
             $this->assertDatabaseHas('marcaciones', ['colaborador_id' => $colaborador->id, 'qr_token_id' => $qr->id, 'tipo' => $tipo]);
         }
 
-        $this->assertDatabaseHas('asignaciones_turno', [
-            'colaborador_id' => $colaborador->id,
-            'turno_id' => $turno->id,
-            'fecha' => '2026-09-21',
-            'origen' => 'detectado_automaticamente',
-        ]);
+        $asignacionDetectada = AsignacionTurno::query()
+            ->where('colaborador_id', $colaborador->id)
+            ->where('turno_id', $turno->id)
+            ->where('origen', 'detectado_automaticamente')
+            ->sole();
+        $this->assertSame('2026-09-21', $asignacionDetectada->fecha->toDateString());
     }
 
     public function test_unmarked_break_caps_effective_hours_at_the_shift_target(): void
