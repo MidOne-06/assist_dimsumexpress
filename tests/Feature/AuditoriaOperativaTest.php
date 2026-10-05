@@ -15,6 +15,7 @@ use App\Models\TurnoOperativo;
 use App\Models\User;
 use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use ReflectionMethod;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
@@ -29,9 +30,11 @@ class AuditoriaOperativaTest extends TestCase
         $administrador = User::factory()->create();
         $administrador->assignRole('administrador');
         $sucursal = $this->sucursal(['nombre' => 'Local auditado']);
+        $cuenta = User::factory()->create(['activo' => false]);
         $colaborador = Colaborador::create([
+            'user_id' => $cuenta->id,
             'sucursal_id' => $sucursal->id,
-            'nombre_completo' => 'Sin cuenta ni turno',
+            'nombre_completo' => 'Cuenta inactiva sin turno',
             'documento_identidad' => 'AUD-001',
             'activo' => true,
         ]);
@@ -39,13 +42,19 @@ class AuditoriaOperativaTest extends TestCase
         $this->actingAs($administrador);
         $this->assertTrue(AuditoriaOperativa::canAccess());
 
+        Livewire::actingAs($administrador)
+            ->test(AuditoriaOperativa::class)
+            ->assertSee('Bloqueos de marcación')
+            ->assertSee('Revisión requerida')
+            ->assertHasNoErrors();
+
         $page = app(AuditoriaOperativa::class);
         $hallazgos = new ReflectionMethod($page, 'hallazgos');
         $resultadoInicial = $hallazgos->invoke($page);
 
         $this->assertCount(2, $resultadoInicial);
         $this->assertTrue($resultadoInicial->contains('hallazgo', 'Sin turno operativo aplicable'));
-        $this->assertTrue($resultadoInicial->contains('hallazgo', 'Sin cuenta de acceso'));
+        $this->assertTrue($resultadoInicial->contains('hallazgo', 'Cuenta de acceso inactiva'));
 
         $turno = Turno::create([
             'nombre' => 'Apertura',

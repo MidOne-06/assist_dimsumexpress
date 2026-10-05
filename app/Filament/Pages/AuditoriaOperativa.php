@@ -166,7 +166,7 @@ class AuditoriaOperativa extends Page implements HasTable
         Colaborador::query()
             ->where('activo', true)
             ->whereIn('sucursal_id', $sucursalIds)
-            ->with(['sucursal:id,nombre', 'puntoVenta:id,nombre'])
+            ->with(['sucursal:id,nombre', 'puntoVenta:id,nombre', 'user:id,activo'])
             ->orderBy('nombre_completo')
             ->get()
             ->each(function (Colaborador $colaborador) use ($mapeos, $hallazgos): void {
@@ -191,11 +191,11 @@ class AuditoriaOperativa extends Page implements HasTable
                     ]);
                 }
 
-                if (! $colaborador->user_id) {
+                if (! $colaborador->user?->activo) {
                     $hallazgos->push([
                         '__key' => "acceso-{$colaborador->id}",
                         'nivel' => 'Atención',
-                        'hallazgo' => 'Sin cuenta de acceso',
+                        'hallazgo' => 'Cuenta de acceso inactiva',
                         'detalle' => $colaborador->nombre_completo,
                         'local' => $colaborador->sucursal?->nombre,
                         'url' => ColaboradorResource::getUrl('index', ['search' => $colaborador->nombre_completo]),
