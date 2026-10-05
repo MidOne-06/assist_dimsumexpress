@@ -20,6 +20,7 @@ class TurnoForm
                     ->label('Nombre')
                     ->required()
                     ->maxLength(255)
+                    ->helperText('Debe ser único entre los turnos vigentes. Si ya tiene historial, editarlo crea una nueva vigencia.')
                     ->columnSpanFull(),
                 TimePicker::make('hora_inicio')
                     ->label('Hora de inicio')
@@ -115,7 +116,8 @@ class TurnoForm
                     ->placeholder('No aplica')
                     ->visible(fn (Get $get): bool => ! (bool) $get('solo_entrada')),
                 Toggle::make('activo')
-                    ->label('Activo')
+                    ->label('Disponible para nuevas asignaciones')
+                    ->helperText('Desactívalo solo para archivar este turno; sus jornadas históricas se conservan.')
                     ->default(true)
                     ->required()
                     ->columnSpanFull(),

@@ -17,6 +17,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
 class TurnoOperativoResource extends Resource
@@ -37,7 +38,7 @@ class TurnoOperativoResource extends Resource
             Select::make('punto_venta_id')->label('Caja / estación')->options(fn (Get $get): array => filled($get('sucursal_id')) ? PuntoVenta::query()->where('sucursal_id',$get('sucursal_id'))->where('activo',true)->orderBy('nombre')->pluck('nombre','id')->all() : [])->searchable()->placeholder('Hereda los turnos del local'),
             Select::make('turno_id')->label('Turno')->options(Turno::query()->where('activo',true)->orderBy('hora_inicio')->pluck('nombre','id')->all())->searchable()->required(),
             TextInput::make('prioridad')->numeric()->minValue(1)->maxValue(999)->default(100)->helperText('Menor número gana solo si dos rangos empatan.'),
-            Toggle::make('activo')->label('Detección automática activa')->default(true)->columnSpanFull(),
+            Toggle::make('activo')->label('Detección automática activa')->default(true)->helperText('Solo puede existir una regla activa por turno en cada local o caja.')->columnSpanFull(),
         ]);
     }
 
@@ -48,8 +49,15 @@ class TurnoOperativoResource extends Resource
             TextColumn::make('puntoVenta.nombre')->label('Caja / estación')->placeholder('Todo el local'),
             TextColumn::make('turno.nombre')->label('Turno')->description(fn (TurnoOperativo $r): string => $r->turno->rangoHorario()),
             TextColumn::make('prioridad')->alignCenter(),
-            IconColumn::make('activo')->label('Activo')->boolean(),
-        ])->defaultSort('sucursal_id')->recordActions([\Filament\Actions\EditAction::make()->modal()]);
+            IconColumn::make('activo')->label('Vigente')->boolean(),
+        ])->defaultSort('sucursal_id')->filters([
+            TernaryFilter::make('activo')
+                ->label('Vigencia')
+                ->placeholder('Todos')
+                ->trueLabel('Vigentes')
+                ->falseLabel('Históricos')
+                ->default(true),
+        ])->recordActions([\Filament\Actions\EditAction::make()->modal()]);
     }
     public static function getPages(): array { return ['index'=>ListTurnoOperativos::route('/')]; }
 }

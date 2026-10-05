@@ -65,8 +65,10 @@ class TurnosTable
                     ->label('Jornada abierta')
                     ->boolean(),
                 IconColumn::make('activo')
-                    ->label('Activo')
-                    ->boolean(),
+                    ->label('Vigente')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-archive-box'),
                 TextColumn::make('asignaciones_count')
                     ->label('Asignaciones')
                     ->counts('asignaciones')
@@ -82,7 +84,11 @@ class TurnosTable
             ->defaultSort('hora_inicio')
             ->filters([
                 TernaryFilter::make('activo')
-                    ->label('Activo'),
+                    ->label('Vigencia')
+                    ->placeholder('Todos')
+                    ->trueLabel('Vigentes')
+                    ->falseLabel('Históricos')
+                    ->default(true),
                 TernaryFilter::make('solo_entrada')
                     ->label('Solo entrada'),
                 TernaryFilter::make('jornada_abierta')

@@ -299,7 +299,7 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame('detectado_automaticamente', $detectada->origen);
     }
 
-    public function test_duplicate_operational_rules_use_the_highest_priority_rule_once(): void
+    public function test_duplicate_operational_rules_are_rejected_for_the_same_station_and_shift(): void
     {
         Carbon::setTestNow('2026-09-21 14:30:00');
         $sucursal = Sucursal::create(['nombre' => 'Tienda con reglas repetidas', 'tipo' => 'tienda', 'activo' => true]);
@@ -307,12 +307,10 @@ class JornadaMarcacionTest extends TestCase
         $colaborador = Colaborador::create(['user_id' => $usuario->id, 'sucursal_id' => $sucursal->id, 'nombre_completo' => 'Regla repetida', 'documento_identidad' => 'REGLA-1', 'activo' => true]);
         $turno = Turno::create(['nombre' => 'Cierre repetido', 'hora_inicio' => '14:00', 'hora_fin' => '22:00', 'tolerancia_entrada_minutos' => 10, 'incluye_refrigerio' => false, 'refrigerio_minutos' => 0, 'activo' => true]);
         TurnoOperativo::create(['turno_id' => $turno->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 100, 'activo' => true]);
-        $preferida = TurnoOperativo::create(['turno_id' => $turno->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 10, 'activo' => true]);
 
-        $detectada = JornadaMarcacion::detectarTurnoOperativo($colaborador, $sucursal, null);
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
 
-        $this->assertSame($turno->id, $detectada->turno_id);
-        $this->assertSame($preferida->id, $detectada->turno_operativo_id);
+        TurnoOperativo::create(['turno_id' => $turno->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 10, 'activo' => true]);
     }
 
     public function test_qr_only_marking_creates_a_detected_assignment_and_infers_the_full_sequence(): void

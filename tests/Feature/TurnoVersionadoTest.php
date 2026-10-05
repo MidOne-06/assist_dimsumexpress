@@ -6,6 +6,7 @@ use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Models\TurnoOperativo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -25,6 +26,7 @@ class TurnoVersionadoTest extends TestCase
             'activo' => true,
         ]);
         $turno = Turno::create(['nombre' => 'Turno base', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'activo' => true]);
+        $reglaAnterior = TurnoOperativo::create(['turno_id' => $turno->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 100, 'activo' => true]);
         $historica = AsignacionTurno::create(['colaborador_id' => $colaborador->id, 'turno_id' => $turno->id, 'fecha' => now()->subDay()->toDateString()]);
         $hoy = AsignacionTurno::create(['colaborador_id' => $colaborador->id, 'turno_id' => $turno->id, 'fecha' => now()->toDateString()]);
         $futura = AsignacionTurno::create(['colaborador_id' => $colaborador->id, 'turno_id' => $turno->id, 'fecha' => now()->addDay()->toDateString()]);
@@ -45,5 +47,12 @@ class TurnoVersionadoTest extends TestCase
         $this->assertSame($turno->id, $hoy->fresh()->turno_id);
         $this->assertSame($nuevo->id, $futura->fresh()->turno_id);
         $this->assertSame('09:00', $nuevo->hora_inicio);
+        $this->assertFalse($reglaAnterior->fresh()->activo);
+        $this->assertDatabaseHas('turnos_operativos', [
+            'turno_id' => $nuevo->id,
+            'sucursal_id' => $sucursal->id,
+            'prioridad' => 100,
+            'activo' => true,
+        ]);
     }
 }

@@ -35,6 +35,21 @@ class Turno extends Model
     protected static function booted(): void
     {
         static::saving(function (self $turno): void {
+            $turno->nombre = preg_replace('/\s+/', ' ', trim((string) $turno->nombre));
+
+            // El catálogo operativo solo puede tener una versión vigente por
+            // concepto. Las versiones anteriores se mantienen inactivas como
+            // evidencia de jornadas y asignaciones ya realizadas.
+            if ($turno->activo && static::query()
+                ->whereRaw('lower(trim(nombre)) = ?', [mb_strtolower($turno->nombre)])
+                ->where('activo', true)
+                ->when($turno->exists, fn ($query) => $query->whereKeyNot($turno->getKey()))
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'nombre' => 'Ya existe un turno activo con este nombre. Edita su configuración o crea una nueva vigencia desde ese turno.',
+                ]);
+            }
+
             $inicio = static::hora($turno->hora_inicio, 'hora_inicio');
 
             // Un turno de solo entrada no tiene cierre de jornada. Se deja la
@@ -146,6 +161,11 @@ class Turno extends Model
         return $this->hasMany(Marcacion::class);
     }
 
+    public function turnosOperativos(): HasMany
+    {
+        return $this->hasMany(TurnoOperativo::class);
+    }
+
     /** @param array<string, mixed> $atributos */
     public function actualizarParaFuturo(array $atributos): self
     {
@@ -154,21 +174,52 @@ class Turno extends Model
             Arr::only($atributos, $this->getFillable()),
         );
 
-        if (! $this->asignaciones()->where('fecha', '<=', today())->exists()) {
+        // Archivar no modifica el horario histórico ni requiere crear una
+        // versión adicional: el mismo registro pasa a ser histórico.
+        if (! ($atributos['activo'] ?? true) || ! $this->asignaciones()->where('fecha', '<=', today())->exists()) {
             $this->update($atributos);
 
             return $this;
         }
 
         return DB::transaction(function () use ($atributos): self {
+            // Se archiva primero la versión vigente. Esto permite conservar un
+            // único nombre activo y hace que una edición con historial sea una
+            // nueva vigencia, no un duplicado operativo.
+            $this->update(['activo' => false]);
+
             $nuevoTurno = static::create($atributos);
+
+            // Cada estación habilitada recibe la nueva vigencia. Las reglas
+            // anteriores quedan inactivas para que las asignaciones y
+            // marcaciones históricas sigan apuntando a su contexto original.
+            $reglasNuevas = [];
+            $this->turnosOperativos()
+                ->where('activo', true)
+                ->lockForUpdate()
+                ->get()
+                ->each(function (TurnoOperativo $regla) use ($nuevoTurno, &$reglasNuevas): void {
+                    $reglaNueva = TurnoOperativo::create([
+                        'turno_id' => $nuevoTurno->id,
+                        'sucursal_id' => $regla->sucursal_id,
+                        'punto_venta_id' => $regla->punto_venta_id,
+                        'prioridad' => $regla->prioridad,
+                        'activo' => true,
+                    ]);
+
+                    $reglasNuevas[$regla->id] = $reglaNueva->id;
+                    $regla->update(['activo' => false]);
+                });
 
             $this->asignaciones()
                 ->where('fecha', '>', today())
-                ->update(['turno_id' => $nuevoTurno->id]);
-
-            // Esta versión queda como evidencia del horario ya aplicado.
-            $this->update(['activo' => false]);
+                ->get()
+                ->each(function (AsignacionTurno $asignacion) use ($nuevoTurno, $reglasNuevas): void {
+                    $asignacion->update([
+                        'turno_id' => $nuevoTurno->id,
+                        'turno_operativo_id' => $reglasNuevas[$asignacion->turno_operativo_id] ?? $asignacion->turno_operativo_id,
+                    ]);
+                });
 
             return $nuevoTurno;
         });

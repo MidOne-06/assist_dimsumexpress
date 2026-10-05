@@ -5,10 +5,38 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Validation\ValidationException;
 
 #[Fillable(['turno_id', 'sucursal_id', 'punto_venta_id', 'prioridad', 'activo'])]
 class TurnoOperativo extends Model
 {
+    protected static function booted(): void
+    {
+        static::saving(function (self $regla): void {
+            if (! $regla->activo) {
+                return;
+            }
+
+            $duplicada = static::query()
+                ->where('sucursal_id', $regla->sucursal_id)
+                ->where('turno_id', $regla->turno_id)
+                ->when(
+                    $regla->punto_venta_id === null,
+                    fn ($query) => $query->whereNull('punto_venta_id'),
+                    fn ($query) => $query->where('punto_venta_id', $regla->punto_venta_id),
+                )
+                ->where('activo', true)
+                ->when($regla->exists, fn ($query) => $query->whereKeyNot($regla->getKey()))
+                ->exists();
+
+            if ($duplicada) {
+                throw ValidationException::withMessages([
+                    'turno_id' => 'Este turno ya está habilitado para la estación seleccionada.',
+                ]);
+            }
+        });
+    }
+
     /**
      * La base productiva usa el esquema PostgreSQL `public`, pero la
      * resolución sin esquema puede fallar con identificadores entre comillas
