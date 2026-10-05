@@ -22,6 +22,9 @@ class CatalogoPermisos
             'Apariencia del sistema' => [
                 'Gestionar:AparienciaSistema' => 'Gestionar identidad visual',
             ],
+            'Auditoría operativa' => [
+                'View:AuditoriaOperativa' => 'Consultar hallazgos operativos',
+            ],
             'Marcación y supervisión' => [
                 'Registrar:Marcacion' => 'Registrar asistencia',
                 'View:MiHorario' => 'Ver mi horario',

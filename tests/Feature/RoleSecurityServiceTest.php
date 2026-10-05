@@ -53,7 +53,7 @@ class RoleSecurityServiceTest extends TestCase
                 Permission::query()->where('guard_name', 'web')->pluck('name')->all(),
             )),
         );
-        $this->assertCount(7, CatalogoPermisos::categorias());
+        $this->assertCount(8, CatalogoPermisos::categorias());
     }
 
     public function test_it_preserves_system_roles_and_superadmin_access(): void

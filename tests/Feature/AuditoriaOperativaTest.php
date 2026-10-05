@@ -2,22 +2,79 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Pages\AuditoriaOperativa;
 use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
+use App\Models\IncidenciaMarcacion;
 use App\Models\Marcacion;
 use App\Models\PuntoVenta;
 use App\Models\QrToken;
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Models\TurnoOperativo;
 use App\Models\User;
 use Database\Seeders\RolesYPermisosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use ReflectionMethod;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class AuditoriaOperativaTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_audit_page_exposes_only_actionable_findings_in_the_allowed_scope(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $administrador = User::factory()->create();
+        $administrador->assignRole('administrador');
+        $sucursal = $this->sucursal(['nombre' => 'Local auditado']);
+        $colaborador = Colaborador::create([
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Sin cuenta ni turno',
+            'documento_identidad' => 'AUD-001',
+            'activo' => true,
+        ]);
+
+        $this->actingAs($administrador);
+        $this->assertTrue(AuditoriaOperativa::canAccess());
+
+        $page = app(AuditoriaOperativa::class);
+        $hallazgos = new ReflectionMethod($page, 'hallazgos');
+        $resultadoInicial = $hallazgos->invoke($page);
+
+        $this->assertCount(2, $resultadoInicial);
+        $this->assertTrue($resultadoInicial->contains('hallazgo', 'Sin turno operativo aplicable'));
+        $this->assertTrue($resultadoInicial->contains('hallazgo', 'Sin cuenta de acceso'));
+
+        $turno = Turno::create([
+            'nombre' => 'Apertura',
+            'hora_inicio' => '08:00',
+            'hora_fin' => '17:00',
+            'activo' => true,
+        ]);
+        TurnoOperativo::create([
+            'sucursal_id' => $sucursal->id,
+            'turno_id' => $turno->id,
+            'activo' => true,
+        ]);
+        $asignacion = AsignacionTurno::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $turno->id,
+            'fecha' => now()->toDateString(),
+        ]);
+        IncidenciaMarcacion::create([
+            'asignacion_turno_id' => $asignacion->id,
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => IncidenciaMarcacion::TIPO_SALIDA_TURNO_PENDIENTE,
+            'detectada_en' => now(),
+        ]);
+
+        $resultadoConfigurado = $hallazgos->invoke($page);
+        $this->assertFalse($resultadoConfigurado->contains('hallazgo', 'Sin turno operativo aplicable'));
+        $this->assertTrue($resultadoConfigurado->contains('hallazgo', 'Incidencia de marcación pendiente'));
+    }
 
     public function test_expired_unused_qr_tokens_are_purged_but_used_ones_are_preserved(): void
     {
