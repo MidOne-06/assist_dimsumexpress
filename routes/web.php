@@ -94,6 +94,8 @@ Route::middleware(['auth', 'throttle:30,1'])->group(function () {
         ->name('visita-supervisor.esperando');
     Route::get('/visitas-supervisor', [VisitaSupervisorController::class, 'show'])
         ->name('visita-supervisor.show');
+    Route::post('/visitas-supervisor', [VisitaSupervisorController::class, 'store'])
+        ->name('visita-supervisor.store');
 
     Route::get('/marcar', [MarcacionController::class, 'show'])->name('marcacion.show');
     Route::get('/marcar/validar-qr', [MarcacionController::class, 'validarQr'])->name('marcacion.validar-qr');

@@ -17,7 +17,7 @@ class VisitaSupervisorTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_supervisor_scan_registers_one_daily_visit_only_for_an_assigned_location(): void
+    public function test_supervisor_must_confirm_the_scan_before_one_daily_visit_is_registered(): void
     {
         $this->seed(RolesYPermisosSeeder::class);
         $propia = Sucursal::create(['nombre' => 'Local propio', 'tipo' => 'tienda', 'activo' => true]);
@@ -32,18 +32,36 @@ class VisitaSupervisorTest extends TestCase
         $this->actingAs($supervisor)
             ->get(route('visita-supervisor.show', ['token' => $tokenPropio->token]))
             ->assertOk()
-            ->assertSee('Visita registrada');
+            ->assertSee('Confirmar visita')
+            ->assertSee('Registrar visita');
+
+        $this->assertDatabaseMissing('visitas_supervisor', [
+            'supervisor_id' => $supervisor->id,
+            'sucursal_id' => $propia->id,
+            'fecha' => today()->toDateString(),
+        ]);
 
         $this->actingAs($supervisor)
-            ->get(route('visita-supervisor.show', ['token' => $tokenPropio->token]))
+            ->post(route('visita-supervisor.store'), ['token' => $tokenPropio->token])
             ->assertOk()
-            ->assertSee('Visita ya registrada hoy');
+            ->assertSee('Visita registrada');
 
         $this->assertSame(1, VisitaSupervisor::query()
             ->where('supervisor_id', $supervisor->id)
             ->where('sucursal_id', $propia->id)
             ->whereDate('fecha', today())
             ->count());
+        $this->assertDatabaseHas('visitas_supervisor', [
+            'supervisor_id' => $supervisor->id,
+            'sucursal_id' => $propia->id,
+            'punto_venta_id' => $tokenPropio->punto_venta_id,
+            'qr_token_id' => $tokenPropio->id,
+        ]);
+
+        $this->actingAs($supervisor)
+            ->post(route('visita-supervisor.store'), ['token' => $tokenPropio->token])
+            ->assertOk()
+            ->assertSee('Visita ya registrada hoy');
 
         $tokenAjeno = $this->emitirTokenVisita($this->puntoVenta($ajena));
 

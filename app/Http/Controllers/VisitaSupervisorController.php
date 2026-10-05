@@ -13,7 +13,7 @@ use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class VisitaSupervisorController extends Controller
@@ -63,13 +63,68 @@ class VisitaSupervisorController extends Controller
 
     public function show(Request $request): View|Response
     {
+        [$qrToken, $sucursal, $puntoVenta] = $this->resolverQrAutorizado($request);
+
+        // Un GET nunca modifica datos: así una previsualización de enlace,
+        // la cámara nativa o una carga anticipada del navegador no puede
+        // convertirse accidentalmente en una visita registrada.
+        return view('visitas-supervisor.confirmar', compact('qrToken', 'sucursal', 'puntoVenta'));
+    }
+
+    /** Confirma explícitamente la visita después de leer y validar el QR. */
+    public function store(Request $request): View|Response
+    {
+        $request->validate(['token' => ['required', 'string']]);
+        [$qrToken, $sucursal, $puntoVenta] = $this->resolverQrAutorizado($request, (string) $request->input('token'));
+        $usuario = $request->user();
+
+        [$visita, $nueva] = DB::transaction(function () use ($usuario, $sucursal, $puntoVenta, $qrToken, $request): array {
+            // Serializa las confirmaciones del mismo supervisor. Conserva la
+            // regla vigente (una visita por local/día) sin depender de que el
+            // índice único dispare una excepción bajo doble toque.
+            User::query()->lockForUpdate()->findOrFail($usuario->id);
+
+            $fecha = today()->toDateString();
+            $visita = VisitaSupervisor::query()
+                ->where('supervisor_id', $usuario->id)
+                ->where('sucursal_id', $sucursal->id)
+                ->whereDate('fecha', $fecha)
+                ->first();
+
+            if ($visita) {
+                return [$visita, false];
+            }
+
+            return [VisitaSupervisor::create([
+                'supervisor_id' => $usuario->id,
+                'sucursal_id' => $sucursal->id,
+                'punto_venta_id' => $puntoVenta?->id,
+                'qr_token_id' => $qrToken->id,
+                'fecha' => $fecha,
+                'fecha_hora' => now(),
+                'ip_origen' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+            ]), true];
+        });
+
+        return view('visitas-supervisor.confirmada', [
+            'sucursal' => $sucursal,
+            'puntoVenta' => $puntoVenta,
+            'visita' => $visita,
+            'nueva' => $nueva,
+        ]);
+    }
+
+    /** @return array{QrToken, Sucursal, ?PuntoVenta} */
+    private function resolverQrAutorizado(Request $request, ?string $token = null): array
+    {
         $qrToken = QrToken::query()
             ->with(['sucursal', 'puntoVenta'])
-            ->where('token', (string) $request->query('token'))
+            ->where('token', $token ?? (string) $request->query('token'))
             ->first();
 
         if (! $qrToken?->vigentePara(QrToken::PROPOSITO_VISITA_SUPERVISOR)) {
-            return response()->view('visitas-supervisor.expirada', status: 410);
+            abort(response()->view('visitas-supervisor.expirada', status: 410));
         }
 
         $sucursal = $qrToken->sucursal;
@@ -80,44 +135,7 @@ class VisitaSupervisorController extends Controller
         $this->validarSupervisor($usuario);
         abort_unless(AlcanceSupervisor::puedeGestionarSucursal($usuario, $sucursal->id), 403);
 
-        $fecha = today()->toDateString();
-        $visita = VisitaSupervisor::query()
-            ->where('supervisor_id', $usuario->id)
-            ->where('sucursal_id', $sucursal->id)
-            ->whereDate('fecha', $fecha)
-            ->first();
-        $nueva = false;
-
-        if (! $visita) {
-            try {
-                $visita = VisitaSupervisor::create([
-                    'supervisor_id' => $usuario->id,
-                    'sucursal_id' => $sucursal->id,
-                    'fecha' => $fecha,
-                    'punto_venta_id' => $puntoVenta?->id,
-                    'fecha_hora' => now(),
-                    'ip_origen' => $request->ip(),
-                    'user_agent' => substr((string) $request->userAgent(), 0, 1000),
-                ]);
-                $nueva = true;
-            } catch (UniqueConstraintViolationException) {
-                // Dos escaneos simultáneos pueden competir. El índice único
-                // conserva una sola visita; la segunda respuesta recupera
-                // la visita que ya fue registrada, sin error 500.
-                $visita = VisitaSupervisor::query()
-                    ->where('supervisor_id', $usuario->id)
-                    ->where('sucursal_id', $sucursal->id)
-                    ->whereDate('fecha', $fecha)
-                    ->firstOrFail();
-            }
-        }
-
-        return view('visitas-supervisor.confirmada', [
-            'sucursal' => $sucursal,
-            'puntoVenta' => $puntoVenta,
-            'visita' => $visita,
-            'nueva' => $nueva,
-        ]);
+        return [$qrToken, $sucursal, $puntoVenta];
     }
 
     private function validarEstacion(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta): void

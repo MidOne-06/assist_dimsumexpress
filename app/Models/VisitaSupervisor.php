@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['supervisor_id', 'sucursal_id', 'punto_venta_id', 'fecha', 'fecha_hora', 'ip_origen', 'user_agent'])]
+#[Fillable(['supervisor_id', 'sucursal_id', 'punto_venta_id', 'qr_token_id', 'fecha', 'fecha_hora', 'ip_origen', 'user_agent'])]
 class VisitaSupervisor extends Model
 {
     protected $table = 'visitas_supervisor';
@@ -32,5 +32,10 @@ class VisitaSupervisor extends Model
     public function puntoVenta(): BelongsTo
     {
         return $this->belongsTo(PuntoVenta::class);
+    }
+
+    public function qrToken(): BelongsTo
+    {
+        return $this->belongsTo(QrToken::class);
     }
 }

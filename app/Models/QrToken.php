@@ -39,6 +39,11 @@ class QrToken extends Model
         return $this->hasMany(Marcacion::class);
     }
 
+    public function visitasSupervisor(): HasMany
+    {
+        return $this->hasMany(VisitaSupervisor::class);
+    }
+
     public function vigente(): bool
     {
         return $this->expira_en->isFuture();
