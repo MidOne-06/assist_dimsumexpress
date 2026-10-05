@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -55,26 +54,19 @@ class MarcacionController extends Controller
             return $this->respuestaQrNoConfirmado('Este código QR ya fue utilizado. Espera el nuevo código de la pantalla y vuelve a escanear.');
         }
 
-        $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
-        if (! $asignacion && $this->esEstacionBase($colaborador, $qrToken)) {
-            $asignacion = JornadaMarcacion::detectarTurnoOperativo($colaborador, $qrToken->sucursal, $qrToken->puntoVenta);
-        }
+        $asignacion = $this->resolverAsignacion($colaborador, $qrToken, now());
 
         if (! $this->estacionPermitida($colaborador, $qrToken, $asignacion)) {
             return $this->respuestaQrNoConfirmado('Este código no está disponible para tu marcación. Usa el QR mostrado en tu local.');
         }
 
-        $acciones = $this->accionesMarcacion($colaborador, $asignacion);
-        $siguientesTipos = $this->tiposHabilitados($acciones);
-
-        if ($siguientesTipos === []) {
-            return $this->respuestaQrNoConfirmado('No tienes acciones disponibles por ahora.');
+        if (! $this->siguienteTipoAutomatico($colaborador, $asignacion, now())) {
+            return $this->respuestaQrNoConfirmado('Tu jornada ya no admite más marcaciones por hoy. Consulta con tu supervisor si necesitas regularizarla.');
         }
 
         return response()->json([
             'confirmado' => true,
             'mensaje' => 'QR escaneado correctamente',
-            'acciones' => $acciones,
         ]);
     }
 
@@ -104,15 +96,9 @@ class MarcacionController extends Controller
         // marcación" que un QR realmente vencido, lo cual confundía al
         // colaborador que recién se loguea.
         if (! $token) {
-            $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
-            $acciones = $this->accionesMarcacion($colaborador, $asignacion);
-
             return view('marcacion.esperando', [
                 'apariencia' => app(AparienciaSistemaService::class),
                 'colaborador' => $colaborador,
-                'asignacion' => $asignacion,
-                'siguientesTipos' => $this->tiposHabilitados($acciones),
-                'acciones' => $acciones,
             ]);
         }
 
@@ -133,10 +119,7 @@ class MarcacionController extends Controller
             ]);
         }
 
-        $asignacion = JornadaMarcacion::asignacionVigente($colaborador);
-        if (! $asignacion && $this->esEstacionBase($colaborador, $qrToken)) {
-            $asignacion = JornadaMarcacion::detectarTurnoOperativo($colaborador, $qrToken->sucursal, $qrToken->puntoVenta);
-        }
+        $asignacion = $this->resolverAsignacion($colaborador, $qrToken, now());
 
         if (! $this->estacionPermitida($colaborador, $qrToken, $asignacion)) {
             return view('marcacion.error', [
@@ -144,15 +127,16 @@ class MarcacionController extends Controller
             ]);
         }
 
-        $acciones = $this->accionesMarcacion($colaborador, $asignacion);
+        if (! $this->siguienteTipoAutomatico($colaborador, $asignacion, now())) {
+            return view('marcacion.error', [
+                'mensaje' => 'Tu jornada ya no admite más marcaciones por hoy. Consulta con tu supervisor si necesitas regularizarla.',
+            ]);
+        }
 
         return view('marcacion.show', [
             'apariencia' => app(AparienciaSistemaService::class),
             'colaborador' => $colaborador,
             'token' => $qrToken->token,
-            'asignacion' => $asignacion,
-            'siguientesTipos' => $this->tiposHabilitados($acciones),
-            'acciones' => $acciones,
         ]);
     }
 
@@ -162,12 +146,6 @@ class MarcacionController extends Controller
 
         $data = $request->validate([
             'token' => ['required', 'string'],
-            'tipo' => ['required', Rule::in([
-                Marcacion::TIPO_ENTRADA,
-                Marcacion::TIPO_SALIDA,
-                Marcacion::TIPO_SALIDA_REFRIGERIO,
-                Marcacion::TIPO_REGRESO_REFRIGERIO,
-            ])],
         ]);
 
         $colaborador = $request->user()->colaborador;
@@ -176,7 +154,7 @@ class MarcacionController extends Controller
         $qrToken = QrToken::with(['sucursal', 'puntoVenta'])->where('token', $data['token'])->first();
 
         if (! $qrToken || ! $qrToken->vigentePara(QrToken::PROPOSITO_ASISTENCIA)) {
-            return back()->withErrors(['tipo' => 'El código QR expiró. Vuelve a escanearlo desde la pantalla.']);
+            return back()->withErrors(['token' => 'El código QR expiró. Vuelve a escanearlo desde la pantalla.']);
         }
 
         $marcacion = DB::transaction(function () use ($colaborador, $data, $qrToken, $request): Marcacion {
@@ -184,33 +162,31 @@ class MarcacionController extends Controller
             $colaboradorBloqueado = Colaborador::query()->lockForUpdate()->findOrFail($colaborador->id);
 
             if (! $colaboradorBloqueado->activo) {
-                throw ValidationException::withMessages(['tipo' => 'Tu cuenta no está disponible para marcar. Consulta con tu supervisor.']);
+                throw ValidationException::withMessages(['token' => 'Tu cuenta no está disponible para marcar. Consulta con tu supervisor.']);
             }
 
             $fechaHora = now();
-            $asignacion = JornadaMarcacion::asignacionVigente($colaboradorBloqueado, $fechaHora);
-            if (! $asignacion && $this->esEstacionBase($colaboradorBloqueado, $qrToken)) {
-                $asignacion = JornadaMarcacion::detectarTurnoOperativo($colaboradorBloqueado, $qrToken->sucursal, $qrToken->puntoVenta, $fechaHora);
-            }
+            $asignacion = $this->resolverAsignacion($colaboradorBloqueado, $qrToken, $fechaHora);
 
             if (! $this->estacionPermitida($colaboradorBloqueado, $qrToken, $asignacion)) {
-                throw ValidationException::withMessages(['tipo' => 'Este código no está disponible para tu marcación. Usa el QR mostrado en tu local.']);
+                throw ValidationException::withMessages(['token' => 'Este código no está disponible para tu marcación. Usa el QR mostrado en tu local.']);
             }
 
             // Se repite dentro de la transacción, después de bloquear al
             // colaborador, para impedir que dos pestañas reutilicen el mismo
             // QR antes de que una de ellas termine de registrar la acción.
             if ($this->qrYaUsadoPorColaborador($colaboradorBloqueado, $qrToken)) {
-                throw ValidationException::withMessages(['tipo' => 'Este código QR ya fue usado para una marcación. Escanea el nuevo QR de la pantalla para continuar.']);
+                throw ValidationException::withMessages(['token' => 'Este código QR ya fue usado para una marcación. Escanea el nuevo QR de la pantalla para continuar.']);
             }
 
-            if (! in_array($data['tipo'], $this->tiposHabilitados($this->accionesMarcacion($colaboradorBloqueado, $asignacion)), true)) {
-                throw ValidationException::withMessages(['tipo' => 'Esta acción ya no está disponible. Actualiza la página e inténtalo nuevamente.']);
+            $tipo = $this->siguienteTipoAutomatico($colaboradorBloqueado, $asignacion, $fechaHora);
+            if (! $tipo) {
+                throw ValidationException::withMessages(['token' => 'Tu jornada ya no admite más marcaciones por hoy. Consulta con tu supervisor si necesitas regularizarla.']);
             }
 
             if ($asignacion && ! $asignacion->exists) {
-                if ($data['tipo'] !== Marcacion::TIPO_ENTRADA) {
-                    throw ValidationException::withMessages(['tipo' => 'Registra primero tu ingreso.']);
+                if ($tipo !== Marcacion::TIPO_ENTRADA) {
+                    throw ValidationException::withMessages(['token' => 'Registra primero tu ingreso.']);
                 }
 
                 $asignacion = AsignacionTurno::query()->firstOrCreate(
@@ -224,7 +200,7 @@ class MarcacionController extends Controller
             // turno del día. El ajuste se guarda aquí, después de validar el
             // flujo y dentro del mismo bloqueo transaccional; abrir un QR no
             // modifica por sí solo la programación semanal.
-            if ($asignacion && $data['tipo'] === Marcacion::TIPO_ENTRADA) {
+            if ($asignacion && $tipo === Marcacion::TIPO_ENTRADA) {
                 JornadaMarcacion::confirmarAjusteAutomatico($colaboradorBloqueado, $asignacion, $fechaHora);
             }
 
@@ -233,11 +209,11 @@ class MarcacionController extends Controller
                 ? $this->registrarCoberturaAutomatica($colaboradorBloqueado, $asignacion, $qrToken, $fechaHora)
                 : null;
 
-            if ($asignacion && $data['tipo'] === Marcacion::TIPO_REGRESO_REFRIGERIO) {
+            if ($asignacion && $tipo === Marcacion::TIPO_REGRESO_REFRIGERIO) {
                 $salidaRefrigerio = JornadaMarcacion::ultimaMarcacion($colaboradorBloqueado, $asignacion);
 
                 if ($salidaRefrigerio?->tipo !== Marcacion::TIPO_SALIDA_REFRIGERIO) {
-                    throw ValidationException::withMessages(['tipo' => 'No se pudo continuar con esta acción. Actualiza la página e inténtalo nuevamente.']);
+                    throw ValidationException::withMessages(['token' => 'No se pudo continuar con la marcación. Actualiza la página e inténtalo nuevamente.']);
                 }
 
                 $controlRefrigerio = JornadaMarcacion::controlRetornoRefrigerio(
@@ -251,7 +227,7 @@ class MarcacionController extends Controller
                 'colaborador_id' => $colaboradorBloqueado->id,
                 'empresa_id' => $colaboradorBloqueado->empresa_id,
                 'area_id' => $colaboradorBloqueado->area_id,
-                'tipo' => $data['tipo'],
+                'tipo' => $tipo,
                 'fecha_hora' => $fechaHora,
                 'refrigerio_retorno_esperado_en' => $controlRefrigerio['esperado'] ?? null,
                 'refrigerio_diferencia_segundos' => $controlRefrigerio['diferencia_segundos'] ?? null,
@@ -282,23 +258,37 @@ class MarcacionController extends Controller
         return view('marcacion.confirmacion', compact('marcacion'));
     }
 
-    /** @return array<int, array{tipo: string, codigo: int, etiqueta: string, habilitada: bool, motivo: ?string}> */
-    private function accionesMarcacion(Colaborador $colaborador, ?AsignacionTurno $asignacion): array
+    private function siguienteTipoAutomatico(Colaborador $colaborador, ?AsignacionTurno $asignacion, \Carbon\Carbon $momento): ?string
     {
         return $asignacion
-            ? JornadaMarcacion::acciones($colaborador, $asignacion)
-            : JornadaMarcacion::accionesSinTurno($colaborador);
+            ? JornadaMarcacion::siguienteTipoAutomatico($colaborador, $asignacion, $momento)
+            : JornadaMarcacion::siguienteTipoSinTurnoAutomatico($colaborador, $momento);
     }
 
-    /** @param array<int, array{tipo: string, habilitada: bool}> $acciones
-     * @return array<int, string>
+    /**
+     * Una asignación manual prevalece. Solo cuando no existe se toma el turno
+     * configurado en la estación por su rango horario; todavía no se escribe
+     * nada hasta que el POST confirma la primera lectura.
      */
-    private function tiposHabilitados(array $acciones): array
+    private function resolverAsignacion(Colaborador $colaborador, QrToken $qrToken, \Carbon\Carbon $momento): ?AsignacionTurno
     {
-        return collect($acciones)
-            ->filter(fn (array $accion): bool => $accion['habilitada'])
-            ->pluck('tipo')
-            ->all();
+        $asignacion = JornadaMarcacion::asignacionVigente($colaborador, $momento, false);
+        if ($asignacion) {
+            return $asignacion;
+        }
+
+        $manual = $colaborador->asignacionesTurno()
+            ->with('turno')
+            ->whereDate('fecha', $momento->toDateString())
+            ->where(fn ($query) => $query->whereNull('origen')->orWhere('origen', '!=', 'detectado_automaticamente'))
+            ->orderBy('id')
+            ->first();
+
+        if ($manual?->turno?->activo) {
+            return $manual;
+        }
+
+        return JornadaMarcacion::detectarTurnoOperativo($colaborador, $qrToken->sucursal, $qrToken->puntoVenta, $momento);
     }
 
     private function estacionPermitida(Colaborador $colaborador, QrToken $qrToken, ?AsignacionTurno $asignacion = null): bool
@@ -311,10 +301,11 @@ class MarcacionController extends Controller
             return true;
         }
 
-        // Un turno vigente permite cubrir temporalmente una estación activa
-        // sin alterar la sede base del colaborador. La cobertura se persiste
-        // recién al confirmar la marcación, no al previsualizar el QR.
-        return $asignacion !== null;
+        // Una lectura válida jamás bloquea a un colaborador por no tener una
+        // asignación previa. Si no hubo rango compatible, queda como marca
+        // excepcional trazable con la estación real; si lo hubo, se vincula
+        // al turno detectado y a la cobertura al confirmar el POST.
+        return true;
     }
 
     private function esEstacionBase(Colaborador $colaborador, QrToken $qrToken): bool

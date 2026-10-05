@@ -63,7 +63,7 @@ final class JornadaMarcacion
     }
 
     /** Busca hoy y ayer para permitir que un turno nocturno continúe tras medianoche. */
-    public static function asignacionVigente(Colaborador $colaborador, ?Carbon $momento = null): ?AsignacionTurno
+    public static function asignacionVigente(Colaborador $colaborador, ?Carbon $momento = null, bool $permitirAjusteAutomatico = true): ?AsignacionTurno
     {
         $momento ??= now();
 
@@ -101,7 +101,7 @@ final class JornadaMarcacion
         // turno activo, se presenta ese turno efectivo sin tocar todavía la
         // programación. El ajuste se persiste únicamente al confirmar la
         // entrada dentro de la transacción del controlador.
-        if ($asignacionHoy && ! static::tieneMarcacionesEnFecha($colaborador, $momento)) {
+        if ($permitirAjusteAutomatico && $asignacionHoy && ! static::tieneMarcacionesEnFecha($colaborador, $momento)) {
             $turnoAlternativo = static::turnoAlternativoParaEntrada($asignacionHoy, $momento);
 
             if ($turnoAlternativo) {
@@ -488,6 +488,76 @@ final class JornadaMarcacion
             Marcacion::TIPO_SALIDA_REFRIGERIO => [Marcacion::TIPO_REGRESO_REFRIGERIO],
             Marcacion::TIPO_SALIDA => [],
             default => [],
+        };
+    }
+
+    /**
+     * Determina la siguiente marca sin pedir al colaborador que elija una
+     * acción. La secuencia ya registrada es la fuente de verdad; cuando aún
+     * no hay refrigerio, el punto medio de un turno cerrado separa una pausa
+     * probable de la salida final. Así 08:00–17:00 interpreta 12:00 como
+     * refrigerio y 16:00 como cierre, conservando la trazabilidad original.
+     */
+    public static function siguienteTipoAutomatico(Colaborador $colaborador, AsignacionTurno $asignacion, ?Carbon $momento = null): ?string
+    {
+        $momento ??= now();
+        $ultima = static::ultimaMarcacion($colaborador, $asignacion)?->tipo;
+
+        if ($ultima === null) {
+            return Marcacion::TIPO_ENTRADA;
+        }
+
+        if ($ultima === Marcacion::TIPO_SALIDA_REFRIGERIO) {
+            return Marcacion::TIPO_REGRESO_REFRIGERIO;
+        }
+
+        if ($ultima === Marcacion::TIPO_REGRESO_REFRIGERIO) {
+            return Marcacion::TIPO_SALIDA;
+        }
+
+        if ($ultima !== Marcacion::TIPO_ENTRADA || $asignacion->turno->solo_entrada) {
+            return null;
+        }
+
+        if (static::minutosRefrigerio($asignacion) < 1 || ! static::puedeIniciarRefrigerio($asignacion, $momento)) {
+            return Marcacion::TIPO_SALIDA;
+        }
+
+        // En jornadas abiertas no existe un final contractual con el cual
+        // comparar. Antes de cerrar, se conserva la oportunidad de registrar
+        // el refrigerio configurado; la siguiente lectura será el retorno.
+        if ($asignacion->turno->jornada_abierta || ! $asignacion->turno->hora_fin) {
+            return Marcacion::TIPO_SALIDA_REFRIGERIO;
+        }
+
+        $limites = static::limites($asignacion);
+        $puntoMedio = $limites['inicio']->copy()->addSeconds(
+            intdiv($limites['fin']->getTimestamp() - $limites['inicio']->getTimestamp(), 2),
+        );
+
+        return $momento->lt($puntoMedio)
+            ? Marcacion::TIPO_SALIDA_REFRIGERIO
+            : Marcacion::TIPO_SALIDA;
+    }
+
+    /**
+     * Un QR válido nunca bloquea al colaborador solo por carecer de turno.
+     * Conserva la marca cruda para revisión: ingreso y, después, salida.
+     */
+    public static function siguienteTipoSinTurnoAutomatico(Colaborador $colaborador, ?Carbon $momento = null): ?string
+    {
+        $momento ??= now();
+        $ultima = $colaborador->marcaciones()
+            ->whereNull('turno_id')
+            ->whereBetween('fecha_hora', [$momento->copy()->startOfDay(), $momento->copy()->endOfDay()])
+            ->orderByDesc('fecha_hora')
+            ->orderByDesc('id')
+            ->value('tipo');
+
+        return match ($ultima) {
+            null => Marcacion::TIPO_ENTRADA,
+            Marcacion::TIPO_ENTRADA => Marcacion::TIPO_SALIDA,
+            default => null,
         };
     }
 
