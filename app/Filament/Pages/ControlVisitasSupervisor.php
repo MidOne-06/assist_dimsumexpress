@@ -42,10 +42,7 @@ class ControlVisitasSupervisor extends Page implements HasTable
 
     public static function canAccess(): bool
     {
-        $usuario = auth()->user();
-
-        return $usuario?->can('View:ControlVisitasSupervisor')
-            && $usuario->hasAnyRole(['super_admin', 'administrador']);
+        return auth()->user()?->can('View:ControlVisitasSupervisor') ?? false;
     }
 
     public static function shouldRegisterNavigation(): bool
