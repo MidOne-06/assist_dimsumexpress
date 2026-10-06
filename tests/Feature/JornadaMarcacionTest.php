@@ -46,7 +46,7 @@ class JornadaMarcacionTest extends TestCase
     {
         $this->withoutMiddleware();
         Carbon::setTestNow('2026-09-21 10:00:00');
-        [$colaborador] = $this->crearJornada('08:00:00', '17:00:00');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
         $usuario = $colaborador->user;
         $usuario->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
         $qr = QrToken::generarPara($colaborador->sucursal, null, 60);
@@ -57,8 +57,10 @@ class JornadaMarcacionTest extends TestCase
             ->assertSee('Ingreso de turno')
             ->assertDontSee('Salida de turno');
 
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+
         $this->actingAs($usuario)
-            ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_SALIDA])
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_REGRESO_REFRIGERIO])
             ->assertRedirect()
             ->assertSessionHasErrors('accion');
 
