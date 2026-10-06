@@ -8,11 +8,21 @@ use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
+use App\Models\Turno;
+use App\Services\RegularizacionJornadaService;
 use App\Support\AlcanceSupervisor;
 use App\Support\JornadaMarcacion;
 use BackedEnum;
 use Carbon\Carbon;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -45,6 +55,8 @@ class ControlJornadas extends Page
 
     public ?int $colaboradorId = null;
 
+    public ?string $fechaRegularizando = null;
+
     public string $mes;
 
     public function mount(): void
@@ -66,6 +78,54 @@ class ControlJornadas extends Page
         return static::canAccess();
     }
 
+    /** @return array<Action> */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('regularizarJornada')
+                ->extraAttributes(['class' => 'hidden'])
+                ->modalHeading(fn (): string => 'Regularizar jornada del ' . ($this->fechaRegularizando ? Carbon::parse($this->fechaRegularizando)->format('d/m/Y') : 'día seleccionado'))
+                ->modalWidth(Width::Large)
+                ->modalSubmitActionLabel('Regularizar jornada')
+                ->modalCancelActionLabel('Cancelar')
+                ->closeModalByClickingAway(false)
+                ->fillForm(fn (): array => [
+                    'turno_id' => null,
+                    'motivo' => null,
+                ])
+                ->schema([
+                    Section::make()
+                        ->compact()
+                        ->schema([
+                            Grid::make(['default' => 1, 'md' => 2])
+                                ->schema([
+                                    Placeholder::make('colaborador')->label('Colaborador')->content(fn (): string => $this->colaborador?->nombre_completo ?? '—'),
+                                    Placeholder::make('fecha')->label('Fecha')->content(fn (): string => $this->fechaRegularizando ? Carbon::parse($this->fechaRegularizando)->format('d/m/Y') : '—'),
+                                ]),
+                            Select::make('turno_id')
+                                ->label('Turno aplicado')
+                                ->options(fn (): array => Turno::query()
+                                    ->where('activo', true)
+                                    ->orderBy('hora_inicio')
+                                    ->get()
+                                    ->mapWithKeys(fn (Turno $turno): array => [$turno->id => $turno->nombre . ' · ' . $turno->rangoHorario()])
+                                    ->all())
+                                ->native()
+                                ->required(),
+                            Textarea::make('motivo')
+                                ->label('Motivo de regularización')
+                                ->rows(3)
+                                ->minLength(10)
+                                ->maxLength(200)
+                                ->required(),
+                        ]),
+                ])
+                ->action(function (array $data): void {
+                    $this->regularizarJornada($data);
+                }),
+        ];
+    }
+
     public function mesAnterior(): void
     {
         $this->mes = Carbon::parse("{$this->mes}-01")->subMonthNoOverflow()->format('Y-m');
@@ -80,6 +140,80 @@ class ControlJornadas extends Page
     {
         $this->mes = now()->format('Y-m');
         $this->dispatch('control-jornadas-ir-a-hoy');
+    }
+
+    public function abrirRegularizacionJornada(string $fecha): void
+    {
+        if (! $this->puedeRegularizarJornada($fecha)) {
+            Notification::make()
+                ->title('La jornada ya no está disponible para regularizar')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $this->fechaRegularizando = $fecha;
+        $this->mountAction('regularizarJornada');
+    }
+
+    /** @param array{turno_id:mixed,motivo:mixed} $data */
+    public function regularizarJornada(array $data): void
+    {
+        $colaborador = $this->colaborador;
+        $fecha = $this->fechaRegularizando;
+
+        if (! $colaborador || ! $fecha || ! $this->puedeRegularizarJornada($fecha)) {
+            Notification::make()
+                ->title('La jornada ya no está disponible para regularizar')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $asignacion = app(RegularizacionJornadaService::class)->regularizar(
+            auth()->user(),
+            $colaborador,
+            $fecha,
+            $data,
+        );
+
+        $this->fechaRegularizando = null;
+
+        Notification::make()
+            ->title('Jornada regularizada')
+            ->body($asignacion->turno->nombre . ' aplicado a las marcaciones registradas.')
+            ->success()
+            ->send();
+
+    }
+
+    public function puedeRegularizarJornada(string $fecha): bool
+    {
+        $colaborador = $this->colaborador;
+        $usuario = auth()->user();
+
+        if (! $colaborador
+            || ! $usuario?->can('Regularizar:Jornada')
+            || ! AlcanceSupervisor::puedeGestionarSucursal($usuario, (int) $colaborador->sucursal_id)) {
+            return false;
+        }
+
+        $dia = Carbon::parse($fecha, config('app.timezone'))->startOfDay();
+        if ($dia->isFuture()) {
+            return false;
+        }
+
+        return ! AsignacionTurno::query()
+            ->where('colaborador_id', $colaborador->id)
+            ->whereDate('fecha', $dia)
+            ->exists()
+            && Marcacion::query()
+                ->where('colaborador_id', $colaborador->id)
+                ->whereNull('turno_id')
+                ->whereBetween('fecha_hora', [$dia->copy()->startOfDay(), $dia->copy()->endOfDay()])
+                ->exists();
     }
 
     public function updatedSucursalId(): void

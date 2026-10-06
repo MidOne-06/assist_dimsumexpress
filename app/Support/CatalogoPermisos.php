@@ -38,6 +38,7 @@ class CatalogoPermisos
             'Turnos y cobertura' => [
                 'AsignarMasivo:AsignarTurnos' => 'Asignar turnos en bloque',
                 'Exportar:AsignacionTurno' => 'Exportar asignaciones de turno',
+                'Regularizar:Jornada' => 'Regularizar jornadas con marcaciones sin turno',
                 'Revisar:CoberturaOperativa' => 'Revisar coberturas operativas',
             ],
             'Estaciones QR' => [

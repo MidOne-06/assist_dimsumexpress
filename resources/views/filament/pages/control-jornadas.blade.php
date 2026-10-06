@@ -32,6 +32,7 @@
         .jornada-day--empty { display:grid; place-items:center; background-color:var(--gray-100, #f3f4f6); background-image:repeating-linear-gradient(45deg, color-mix(in srgb, var(--gray-300, #d1d5db) 52%, transparent) 0 1px, transparent 1px 7px); }
         .jornada-day--empty span { border:1px solid var(--gray-200, #e5e7eb); border-radius:.375rem; padding:.1875rem .375rem; background:color-mix(in srgb, var(--gray-50, #f9fafb) 88%, transparent); color:var(--gray-500, #6b7280); font-size:.6875rem; }
         .jornada-day__unmarked { position:absolute; top:.625rem; right:.375rem; left:.375rem; text-align:center; color:var(--gray-500, #6b7280); font-size:.6875rem; line-height:1.2; }
+        .jornada-day__regularize { position:absolute; z-index:3; top:2.15rem; left:50%; transform:translateX(-50%); }
         .jornada-span { position:absolute; right:.9rem; left:.9rem; min-height:.25rem; border:1px solid color-mix(in srgb, var(--success-500, #22c55e) 45%, transparent); border-radius:.375rem; background:color-mix(in srgb, var(--success-500, #22c55e) 18%, transparent); }
         .jornada-span--open { border-style:dashed; }
         .jornada-span--incident { border-color:color-mix(in srgb, var(--danger-500, #ef4444) 45%, transparent); background:color-mix(in srgb, var(--danger-500, #ef4444) 15%, transparent); }
@@ -143,6 +144,17 @@
                     <div class="jornada-day {{ ! $asignacion ? 'jornada-day--exception' : '' }} {{ $esHoy ? 'jornada-day--today' : '' }}" title="{{ $asignacion ? $asignacion->turno->nombre . ' · ' . $asignacion->turno->rangoHorario() : 'Marcaciones excepcionales sin turno detectado' }}">
                         @if (! $asignacion)
                             <span class="jornada-day__unmarked">Sin turno · marcaciones registradas</span>
+                            @if ($this->puedeRegularizarJornada($jornada['fecha']->toDateString()))
+                                <span class="jornada-day__regularize">
+                                    <x-filament::icon-button
+                                        icon="heroicon-o-wrench-screwdriver"
+                                        color="warning"
+                                        size="sm"
+                                        label="Regularizar jornada"
+                                        wire:click="abrirRegularizacionJornada('{{ $jornada['fecha']->toDateString() }}')"
+                                    />
+                                </span>
+                            @endif
                         @endif
                         @if (! $rango)
                             @if ($asignacion)
