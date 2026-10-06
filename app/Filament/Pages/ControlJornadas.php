@@ -79,10 +79,29 @@ class ControlJornadas extends Page
     }
 
     /**
+     * Filament necesita conocer la acción en la cabecera para renderizar su
+     * contenedor nativo de modales. El control permanece fuera de la
+     * interacción: la única apertura válida es la del icono de un día con
+     * marcaciones excepcionales.
+     *
+     * @return array<Action>
+     */
+    protected function getHeaderActions(): array
+    {
+        return [
+            $this->regularizarJornadaAction()
+                ->extraAttributes([
+                    'class' => 'hidden',
+                    'aria-hidden' => 'true',
+                    'tabindex' => '-1',
+                ]),
+        ];
+    }
+
+    /**
      * Acción interna: solo se monta desde abrirRegularizacionJornada(), que
-     * aporta la fecha del día excepcional. No es una acción de cabecera: al
-     * registrarla allí Filament la exponía como un control invisible capaz de
-     * abrir el modal sin argumentos y, por tanto, sin fecha.
+     * aporta la fecha del día excepcional. El montaje sin esa fecha se
+     * cancela de forma defensiva antes de renderizar el formulario.
      */
     protected function regularizarJornadaAction(): Action
     {
