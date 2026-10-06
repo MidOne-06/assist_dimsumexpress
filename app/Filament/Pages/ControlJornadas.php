@@ -177,20 +177,6 @@ class ControlJornadas extends Page
         $this->dispatch('control-jornadas-ir-a-hoy');
     }
 
-    public function abrirRegularizacionJornada(string $fecha): void
-    {
-        if (! $this->puedeRegularizarJornada($fecha)) {
-            Notification::make()
-                ->title('La jornada ya no está disponible para regularizar')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        $this->mountAction('regularizarJornada', ['fecha' => $fecha]);
-    }
-
     /** @param array{turno_id:mixed,motivo:mixed} $data */
     public function regularizarJornada(array $data): void
     {
