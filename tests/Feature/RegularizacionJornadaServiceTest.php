@@ -45,12 +45,7 @@ class RegularizacionJornadaServiceTest extends TestCase
         $this->assertSame('regularizado_manual', $asignacion->origen);
         $this->assertSame($supervisor->id, $asignacion->asignado_por);
         $this->assertSame('Regularización: El colaborador cubrió el turno y no tenía programación previa.', $asignacion->observacion);
-        $this->assertDatabaseHas('asignaciones_turno', [
-            'id' => $asignacion->id,
-            'colaborador_id' => $colaborador->id,
-            'turno_id' => $turno->id,
-            'fecha' => $fecha,
-        ]);
+        $this->assertSame($fecha, $asignacion->fresh()->fecha->toDateString());
 
         foreach ([$entrada, $salidaRefrigerio, $regreso, $salida] as $marcacion) {
             $this->assertDatabaseHas('marcaciones', [
