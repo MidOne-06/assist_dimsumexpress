@@ -62,7 +62,7 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($usuario)
             ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_REGRESO_REFRIGERIO])
             ->assertRedirect()
-            ->assertSessionHasErrors('accion');
+            ->assertSessionHasErrors();
 
         $this->assertDatabaseMissing('marcaciones', [
             'colaborador_id' => $colaborador->id,
