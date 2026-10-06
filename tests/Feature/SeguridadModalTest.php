@@ -6,10 +6,12 @@ use App\Filament\Resources\Roles\RoleResource;
 use App\Filament\Resources\Roles\Pages\ListRoles;
 use App\Filament\Resources\Users\UserResource;
 use App\Filament\Resources\Users\Pages\ListUsers;
+use App\Models\Sucursal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class SeguridadModalTest extends TestCase
@@ -48,6 +50,43 @@ class SeguridadModalTest extends TestCase
             ->test(ListUsers::class)
             ->mountAction('create')
             ->assertHasNoErrors();
+    }
+
+    public function test_user_modal_creates_a_valid_supervisor_with_the_selected_active_locations(): void
+    {
+        $usuario = User::factory()->create();
+        $usuario->givePermissionTo(
+            Permission::findOrCreate('ViewAny:User', 'web'),
+            Permission::findOrCreate('Create:User', 'web'),
+        );
+
+        $locales = collect(['Local A', 'Local B', 'Local C'])
+            ->map(fn (string $nombre): Sucursal => Sucursal::create([
+                'nombre' => $nombre,
+                'tipo' => 'tienda',
+                'activo' => true,
+            ]));
+        $supervisor = Role::findOrCreate('supervisor', 'web');
+
+        Livewire::actingAs($usuario)
+            ->test(ListUsers::class)
+            ->mountAction('create')
+            ->set('mountedActions.0.data.name', 'Supervisor de prueba')
+            ->set('mountedActions.0.data.email', 'supervisor.modal@example.test')
+            ->set('mountedActions.0.data.password', 'Wantan2026@__A')
+            ->set('mountedActions.0.data.password_confirmation', 'Wantan2026@__A')
+            ->set('mountedActions.0.data.roles', [$supervisor->id])
+            ->set('mountedActions.0.data.sucursalesSupervisadas', $locales->pluck('id')->all())
+            ->set('mountedActions.0.data.activo', true)
+            ->callMountedAction()
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('users', ['email' => 'supervisor.modal@example.test']);
+        $this->assertSame(3, User::query()
+            ->where('email', 'supervisor.modal@example.test')
+            ->firstOrFail()
+            ->sucursalesSupervisadas()
+            ->count());
     }
 
     public function test_operational_permission_labels_are_translated_to_spanish(): void
