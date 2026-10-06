@@ -3,7 +3,7 @@ import { BrowserQRCodeReader } from '@zxing/browser';
 const reader = new BrowserQRCodeReader();
 
 document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
-    const directo = root.dataset.directo === '1';
+    const validarAntes = root.dataset.validarAntes === '1';
     const iniciarBoton = root.querySelector('[data-qr-iniciar]');
     const cancelar = root.querySelector('[data-qr-cancelar]');
     const reintentar = root.querySelector('[data-qr-reintentar]');
@@ -18,7 +18,6 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
     const resultado = root.querySelector('[data-qr-resultado]');
     const titulo = root.querySelector('[data-qr-titulo]');
     const detalle = root.querySelector('[data-qr-detalle]');
-    const form = root.querySelector('#mp-form-registro');
     const rutaValidacion = root.dataset.rutaValidacion;
     const rutaPermitida = new URL(root.dataset.rutaQr, window.location.origin);
 
@@ -80,7 +79,7 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
     };
 
     const validar = async (dato) => {
-        if (!directo) {
+        if (!validarAntes) {
             destino = dato.url;
             token = dato.token;
             mostrarResultado(true);
@@ -170,12 +169,6 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
     reintentar?.addEventListener('click', iniciar);
     archivo?.addEventListener('change', leerArchivo);
     continuar?.addEventListener('click', () => {
-        if (directo && form && token) {
-            form.querySelector('input[name="token"]').value = token;
-            form.submit();
-            return;
-        }
-
         if (destino) window.location.assign(destino);
     });
     window.addEventListener('pagehide', detener);

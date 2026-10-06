@@ -16,22 +16,35 @@
         .local { margin:1.25rem 0; padding:.875rem; border:1px solid var(--app-border); border-radius:.75rem; background:var(--app-subtle); }
         .local strong,.local span { display:block; }
         .local span { margin-top:.15rem; color:var(--app-muted); font-size:.8125rem; }
-        button { width:100%; min-height:2.875rem; border:0; border-radius:.625rem; background:var(--primary,#2563eb); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+        .acciones { display:grid; gap:.625rem; margin-top:1rem; }
+        .accion { display:flex; align-items:center; gap:.625rem; width:100%; min-height:3rem; padding:.75rem .875rem; border:1px solid var(--app-border); border-radius:.625rem; background:var(--app-surface); color:var(--app-text); font:inherit; font-weight:700; text-align:left; cursor:pointer; }
+        .accion svg { width:1.125rem; height:1.125rem; }
+        .accion--ingreso:not(:disabled) { border-color:color-mix(in srgb,var(--app-success) 50%,var(--app-border)); color:var(--app-success); }
+        .accion--salida:not(:disabled) { border-color:color-mix(in srgb,var(--app-danger) 50%,var(--app-border)); color:var(--app-danger); }
+        .accion:disabled { opacity:.48; cursor:not-allowed; }
         .salir { display:inline-flex; margin-top:1rem; color:var(--app-muted); font-size:.8125rem; text-decoration:none; }
     </style>
 </head>
 <body>
     <main>
         <x-heroicon-o-map-pin class="icono" />
-        <h1>Confirmar {{ $accion === 'salida' ? 'salida' : 'ingreso' }}</h1>
-        <p>{{ $accion === 'salida' ? 'Confirma el cierre de tu visita en este local.' : 'Confirma tu llegada a este local.' }}</p>
+        <h1>Marcación de visita</h1>
+        <p>Selecciona la acción disponible para este local.</p>
         <div class="local"><strong>{{ $sucursal->nombre }}</strong>@if ($puntoVenta)<span>{{ $puntoVenta->nombre }}</span>@endif</div>
-        <form method="POST" action="{{ route('visita-supervisor.store') }}">
-            @csrf
-            <input type="hidden" name="token" value="{{ $qrToken->token }}">
-            <input type="hidden" name="accion" value="{{ $accion }}">
-            <button type="submit">{{ $accion === 'salida' ? 'Registrar salida' : 'Registrar ingreso' }}</button>
-        </form>
+        <div class="acciones">
+            <form method="POST" action="{{ route('visita-supervisor.store') }}">
+                @csrf
+                <input type="hidden" name="token" value="{{ $qrToken->token }}">
+                <input type="hidden" name="accion" value="ingreso">
+                <button class="accion accion--ingreso" type="submit" @disabled($accion !== 'ingreso')><x-heroicon-o-arrow-right-on-rectangle />Registrar ingreso de visita</button>
+            </form>
+            <form method="POST" action="{{ route('visita-supervisor.store') }}">
+                @csrf
+                <input type="hidden" name="token" value="{{ $qrToken->token }}">
+                <input type="hidden" name="accion" value="salida">
+                <button class="accion accion--salida" type="submit" @disabled($accion !== 'salida')><x-heroicon-o-arrow-left-on-rectangle />Registrar salida de visita</button>
+            </form>
+        </div>
         <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="salir" style="all:unset;cursor:pointer">Cerrar sesión</button></form>
     </main>
 </body>

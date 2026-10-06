@@ -662,6 +662,9 @@ class JornadaMarcacionTest extends TestCase
             ->assertDontSee('Horas efectivas trabajadas')
             ->assertDontSee('Marcación excepcional')
             ->assertDontSee('Marcar ingreso')
+            ->assertSee('data-validar-antes="1"', false)
+            ->assertSee('Elegir marcación')
+            ->assertDontSee('mp-form-registro', false)
             ->assertDontSee('data-mp-accion=', false)
             ->assertDontSee('data-codigo-marcacion', false);
 

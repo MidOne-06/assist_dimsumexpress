@@ -23,6 +23,7 @@
         @include('marcacion.partials.escaner', [
             'rutaQr' => '/visitas-supervisor?token=',
             'textoBoton' => 'Escanear QR de visita',
+            'textoContinuar' => 'Ver acciones de visita',
         ])
 
         <form method="POST" action="{{ route('logout') }}">

@@ -12,7 +12,7 @@
 <main class="shell">
     <header class="brand"><img src="{{ $apariencia->logoUrl() }}" alt="{{ $apariencia->nombre() }}"><span>Marcación</span></header>
     <section class="identity"><h1>Hola, {{ $colaborador->nombre_completo }}</h1><p>Escanea el QR</p></section>
-    @include('marcacion.partials.escaner', ['mostrarBoton' => true, 'registrarAccionDirecta' => true, 'textoBoton' => 'Escanear QR'])
+    @include('marcacion.partials.escaner', ['mostrarBoton' => true, 'validarAntesDeContinuar' => true, 'textoBoton' => 'Escanear QR', 'textoContinuar' => 'Elegir marcación'])
     <div class="links"><a href="{{ route('horario.show') }}"><x-heroicon-o-calendar-days />Mi horario</a><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle />Cerrar sesión</button></form></div>
 </main>
 </body>

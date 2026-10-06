@@ -33,8 +33,11 @@ class VisitaSupervisorTest extends TestCase
         $this->actingAs($supervisor)
             ->get(route('visita-supervisor.show', ['token' => $tokenPropio->token]))
             ->assertOk()
-            ->assertSee('Confirmar ingreso')
-            ->assertSee('Registrar ingreso');
+            ->assertSee('Marcación de visita')
+            ->assertSee('Registrar ingreso de visita')
+            ->assertSee('Registrar salida de visita')
+            ->assertSee('name="accion" value="ingreso"', false)
+            ->assertSee('name="accion" value="salida"', false);
 
         $this->assertDatabaseMissing('visitas_supervisor', [
             'supervisor_id' => $supervisor->id,
@@ -64,7 +67,7 @@ class VisitaSupervisorTest extends TestCase
         $this->actingAs($supervisor)
             ->get(route('visita-supervisor.show', ['token' => $tokenSalida->token]))
             ->assertOk()
-            ->assertSee('Registrar salida');
+            ->assertSee('Registrar salida de visita');
 
         $this->actingAs($supervisor)
             ->post(route('visita-supervisor.store'), ['token' => $tokenSalida->token, 'accion' => 'salida'])
@@ -238,6 +241,8 @@ class VisitaSupervisorTest extends TestCase
             ->get(route('visita-supervisor.esperando'))
             ->assertOk()
             ->assertSee('Escanear QR de visita')
+            ->assertSee('Ver acciones de visita')
+            ->assertSee('data-validar-antes="0"', false)
             ->assertSee('/visitas-supervisor?token=');
     }
 
