@@ -65,14 +65,19 @@ class SucursalService
             throw ValidationException::withMessages(['direccion' => 'La dirección no debe superar 255 caracteres.']);
         }
 
-        $consulta = Sucursal::query()->whereRaw('lower(nombre) = ?', [Str::lower($nombre)]);
+        $nombreNormalizado = $this->normalizarNombre($nombre);
+        $consulta = Sucursal::query()->select(['id', 'nombre']);
 
         if ($ignorando) {
             $consulta->whereKeyNot($ignorando->id);
         }
 
-        if ($consulta->exists()) {
-            throw ValidationException::withMessages(['nombre' => 'Ya existe una sucursal con ese nombre.']);
+        if ($consulta->get()->contains(
+            fn (Sucursal $existente): bool => $this->normalizarNombre($existente->nombre) === $nombreNormalizado,
+        )) {
+            throw ValidationException::withMessages([
+                'nombre' => 'Ya existe una sucursal con ese nombre, incluso considerando guiones, espacios y mayúsculas.',
+            ]);
         }
 
         return [
@@ -81,5 +86,15 @@ class SucursalService
             'direccion' => $direccion,
             'activo' => (bool) ($data['activo'] ?? true),
         ];
+    }
+
+    /** Clave de comparación: evita duplicados por formato, no por identidad. */
+    private function normalizarNombre(string $nombre): string
+    {
+        return Str::lower((string) preg_replace(
+            '/[^a-z0-9]/',
+            '',
+            Str::ascii(trim($nombre)),
+        ));
     }
 }

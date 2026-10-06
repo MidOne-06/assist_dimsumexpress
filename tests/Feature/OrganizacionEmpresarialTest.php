@@ -270,6 +270,29 @@ class OrganizacionEmpresarialTest extends TestCase
         $this->assertSame($sucursal->id, $colaborador->fresh()->sucursal_id);
     }
 
+    public function test_sucursal_rejects_duplicates_that_only_differ_by_formatting(): void
+    {
+        $usuario = User::factory()->create();
+        $usuario->givePermissionTo(Permission::findOrCreate('Create:Sucursal', 'web'));
+
+        Sucursal::create([
+            'nombre' => 'DIM SUM PLAZA NORTE',
+            'tipo' => 'tienda',
+            'activo' => true,
+        ]);
+
+        try {
+            app(SucursalService::class)->crear($usuario, [
+                'nombre' => '  dim-sum  plaza norte  ',
+                'tipo' => 'tienda',
+                'activo' => true,
+            ]);
+            $this->fail('No debe crearse una sucursal con el mismo nombre normalizado.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('nombre', $exception->errors());
+        }
+    }
+
     public function test_punto_de_marcado_validates_its_station_and_preserves_operational_history(): void
     {
         $usuario = User::factory()->create();
