@@ -55,6 +55,25 @@ class ControlJornadasTest extends TestCase
             ->assertSee('08:15');
     }
 
+    public function test_regularization_action_has_no_visible_header_trigger(): void
+    {
+        $sucursal = Sucursal::create(['nombre' => 'Local sin disparador', 'tipo' => 'tienda', 'activo' => true]);
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(Permission::findOrCreate('View:ControlJornadas', 'web'));
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+        Colaborador::create([
+            'user_id' => User::factory()->create()->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador sin disparador',
+            'documento_identidad' => 'CJ-OCULTO-' . uniqid(),
+            'activo' => true,
+        ]);
+
+        $pagina = Livewire::actingAs($supervisor)->test(ControlJornadas::class);
+
+        $this->assertStringContainsString('display: none !important', $pagina->html());
+    }
+
     public function test_supervisor_regularizes_an_exceptional_journey_through_the_native_modal(): void
     {
         Carbon::setTestNow('2026-10-06 18:00:00');
