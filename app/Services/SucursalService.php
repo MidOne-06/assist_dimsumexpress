@@ -97,6 +97,6 @@ class SucursalService
             '/[^a-z0-9]/',
             '',
             $nombreAscii,
-        ));
+        );
     }
 }
