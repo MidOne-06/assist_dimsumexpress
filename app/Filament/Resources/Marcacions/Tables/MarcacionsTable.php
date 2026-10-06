@@ -27,6 +27,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class MarcacionsTable
 {
+    private const TURNO_SIN_ASIGNAR = '__sin_turno__';
+
     public static function configure(Table $table): Table
     {
         $sucursalIds = AlcanceSupervisor::sucursalIds(auth()->user());
@@ -121,23 +123,19 @@ class MarcacionsTable
                     ->searchable(),
                 SelectFilter::make('punto_venta_id')
                     ->label('Punto de venta')
-                    ->options(fn (): array => PuntoVenta::query()
-                        ->whereIn('sucursal_id', $sucursalIds)
-                        ->where('activo', true)
-                        ->orderBy('nombre')
-                        ->pluck('nombre', 'id')
-                        ->all())
+                    ->options(fn (): array => self::opcionesPuntoVenta($sucursalIds))
                     ->searchable(),
                 SelectFilter::make('colaborador_id')
                     ->label('Colaborador')
                     ->options(fn (): array => self::opcionesColaborador($sucursalIds))
                     ->searchable(),
-                SelectFilter::make('turno_id')
+                SelectFilter::make('turno_concepto')
                     ->label('Turno')
-                    ->options(fn (): array => Turno::query()
-                        ->orderBy('nombre')
-                        ->pluck('nombre', 'id')
-                        ->all())
+                    ->options(fn (): array => self::opcionesTurno($sucursalIds))
+                    ->query(fn (Builder $query, array $data): Builder => self::aplicarFiltroTurnoConcepto(
+                        $query,
+                        $data['value'] ?? null,
+                    ))
                     ->searchable(),
                 SelectFilter::make('empresa_id')
                     ->label('Empresa')
@@ -220,10 +218,80 @@ class MarcacionsTable
                         ->whereIn('sucursal_id', $sucursalIds)
                         ->select('colaborador_id'));
             })
-            ->where('activo', true)
             ->orderBy('nombre_completo')
-            ->pluck('nombre_completo', 'id')
+            ->get(['id', 'nombre_completo', 'activo'])
+            ->mapWithKeys(fn (Colaborador $colaborador): array => [
+                $colaborador->id => $colaborador->nombre_completo . ($colaborador->activo ? '' : ' · Histórico'),
+            ])
             ->all();
+    }
+
+    /**
+     * Consolida las versiones históricas de un mismo turno en una sola
+     * opción. El valor mantiene el nombre normalizado, no un ID concreto,
+     * para que "Apertura" consulte su histórico completo.
+     *
+     * @param array<int, int> $sucursalIds
+     * @return array<string, string>
+     */
+    public static function opcionesTurno(array $sucursalIds): array
+    {
+        $opciones = Turno::query()
+            ->whereIn('id', Marcacion::query()
+                ->whereIn('sucursal_id', $sucursalIds)
+                ->whereNotNull('turno_id')
+                ->select('turno_id'))
+            ->get()
+            ->groupBy(fn (Turno $turno): string => self::normalizarNombre($turno->nombre))
+            ->map(function ($versiones, string $concepto): string {
+                $referencia = $versiones->firstWhere('activo', true) ?? $versiones->sortByDesc('id')->first();
+
+                return $referencia->nombre . ($versiones->count() > 1 ? ' · Histórico incluido' : '');
+            })
+            ->sortKeys(SORT_NATURAL | SORT_FLAG_CASE);
+
+        return [self::TURNO_SIN_ASIGNAR => 'Sin turno / excepción'] + $opciones->all();
+    }
+
+    /**
+     * @param array<int, int> $sucursalIds
+     * @return array<int, string>
+     */
+    public static function opcionesPuntoVenta(array $sucursalIds): array
+    {
+        return PuntoVenta::query()
+            ->with('sucursal')
+            ->whereIn('id', Marcacion::query()
+                ->whereIn('sucursal_id', $sucursalIds)
+                ->whereNotNull('punto_venta_id')
+                ->select('punto_venta_id'))
+            ->get()
+            ->sortBy(fn (PuntoVenta $puntoVenta): string => ($puntoVenta->sucursal?->nombre ?? '') . '|' . $puntoVenta->nombre)
+            ->mapWithKeys(fn (PuntoVenta $puntoVenta): array => [
+                $puntoVenta->id => ($puntoVenta->sucursal?->nombre ?? 'Local no disponible')
+                    . ' · ' . $puntoVenta->nombre
+                    . ($puntoVenta->activo ? '' : ' · Histórico'),
+            ])
+            ->all();
+    }
+
+    public static function aplicarFiltroTurnoConcepto(Builder $query, ?string $concepto): Builder
+    {
+        if (blank($concepto)) {
+            return $query;
+        }
+
+        if ($concepto === self::TURNO_SIN_ASIGNAR) {
+            return $query->whereNull('turno_id');
+        }
+
+        return $query->whereHas('turno', fn (Builder $turnos): Builder => $turnos
+            ->whereRaw('lower(trim(nombre)) = ?', [self::normalizarNombre($concepto)]));
+    }
+
+    private static function normalizarNombre(?string $nombre): string
+    {
+        return mb_strtolower(trim((string) preg_replace('/\s+/', ' ', (string) $nombre)));
     }
 
     /** @return array<Section> */

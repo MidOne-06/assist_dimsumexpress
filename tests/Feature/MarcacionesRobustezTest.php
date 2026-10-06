@@ -159,6 +159,107 @@ class MarcacionesRobustezTest extends TestCase
         $this->assertSame('Cobertura visible', $opciones[$externo->id]);
     }
 
+    public function test_marking_filters_group_shift_versions_and_keep_their_full_history(): void
+    {
+        [$colaborador, $asignacion, $sucursal] = $this->crearJornada();
+        $historico = $asignacion->turno;
+        $historico->update(['nombre' => 'Apertura', 'activo' => false]);
+        $vigente = Turno::create([
+            'nombre' => 'Apertura',
+            'hora_inicio' => '08:00:00',
+            'hora_fin' => '17:00:00',
+            'tolerancia_entrada_minutos' => 10,
+            'tolerancia_salida_minutos' => 10,
+            'activo' => true,
+        ]);
+        $historica = Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $historico->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now()->subDay(),
+        ]);
+        $actual = Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $vigente->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now(),
+        ]);
+        $sinTurno = Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now()->addMinute(),
+        ]);
+
+        $opciones = MarcacionsTable::opcionesTurno([$sucursal->id]);
+
+        $this->assertSame('Apertura · Histórico incluido', $opciones['apertura']);
+        $this->assertSame('Sin turno / excepción', $opciones['__sin_turno__']);
+        $this->assertCount(2, $opciones);
+        $this->assertEqualsCanonicalizing(
+            [$historica->id, $actual->id],
+            MarcacionsTable::aplicarFiltroTurnoConcepto(Marcacion::query(), 'apertura')->pluck('id')->all(),
+        );
+        $this->assertSame(
+            [$sinTurno->id],
+            MarcacionsTable::aplicarFiltroTurnoConcepto(Marcacion::query(), '__sin_turno__')->pluck('id')->all(),
+        );
+    }
+
+    public function test_point_of_sale_filter_uses_branch_name_and_keeps_historical_options(): void
+    {
+        [$colaborador, $asignacion, $primera] = $this->crearJornada();
+        $segunda = Sucursal::create(['nombre' => 'Segundo local', 'tipo' => 'tienda', 'activo' => true]);
+        $cajaPrimera = PuntoVenta::create(['sucursal_id' => $primera->id, 'nombre' => 'Caja 1', 'activo' => false]);
+        $cajaSegunda = PuntoVenta::create(['sucursal_id' => $segunda->id, 'nombre' => 'Caja 1', 'activo' => true]);
+
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $asignacion->turno_id,
+            'sucursal_id' => $primera->id,
+            'punto_venta_id' => $cajaPrimera->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now(),
+        ]);
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $asignacion->turno_id,
+            'sucursal_id' => $segunda->id,
+            'punto_venta_id' => $cajaSegunda->id,
+            'tipo' => Marcacion::TIPO_SALIDA,
+            'fecha_hora' => now()->addMinute(),
+        ]);
+
+        $opciones = MarcacionsTable::opcionesPuntoVenta([$primera->id, $segunda->id]);
+
+        $this->assertSame($primera->nombre . ' · Caja 1 · Histórico', $opciones[$cajaPrimera->id]);
+        $this->assertSame($segunda->nombre . ' · Caja 1', $opciones[$cajaSegunda->id]);
+    }
+
+    public function test_collaborator_filter_keeps_inactive_people_with_visible_history(): void
+    {
+        $sucursal = Sucursal::create(['nombre' => 'Local histórico', 'tipo' => 'tienda', 'activo' => true]);
+        $colaborador = Colaborador::create([
+            'user_id' => User::factory()->create()->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador histórico',
+            'documento_identidad' => 'HIS-'.uniqid(),
+            'activo' => false,
+        ]);
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now()->subMonth(),
+        ]);
+
+        $opciones = MarcacionsTable::opcionesColaborador([$sucursal->id]);
+
+        $this->assertSame('Colaborador histórico · Histórico', $opciones[$colaborador->id]);
+    }
+
     public function test_historical_break_return_uses_its_shift_duration_instead_of_a_fixed_hour(): void
     {
         [$colaborador, $asignacion, $sucursal] = $this->crearJornada();
