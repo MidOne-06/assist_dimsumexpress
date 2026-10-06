@@ -15,13 +15,15 @@ use App\Support\JornadaMarcacion;
 use BackedEnum;
 use Carbon\Carbon;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Builder;
@@ -55,8 +57,6 @@ class ControlJornadas extends Page
 
     public ?int $colaboradorId = null;
 
-    public ?string $fechaRegularizando = null;
-
     public string $mes;
 
     public function mount(): void
@@ -84,41 +84,47 @@ class ControlJornadas extends Page
         return [
             Action::make('regularizarJornada')
                 ->extraAttributes(['class' => 'hidden'])
-                ->modalHeading(fn (): string => 'Regularizar jornada del ' . ($this->fechaRegularizando ? Carbon::parse($this->fechaRegularizando)->format('d/m/Y') : 'día seleccionado'))
+                ->modalHeading('Regularizar jornada')
                 ->modalWidth(Width::Large)
                 ->modalSubmitActionLabel('Regularizar jornada')
                 ->modalCancelActionLabel('Cancelar')
                 ->closeModalByClickingAway(false)
-                ->fillForm(fn (): array => [
-                    'turno_id' => null,
-                    'motivo' => null,
-                ])
+                ->mountUsing(function (Action $action, ?Schema $schema): void {
+                    $schema?->fill([
+                        'fecha' => $action->getArguments()['fecha'] ?? null,
+                        'turno_id' => null,
+                        'motivo' => null,
+                    ]);
+                })
                 ->schema([
-                    Section::make()
-                        ->compact()
+                    Hidden::make('fecha')->required(),
+                    Grid::make(['default' => 1, 'md' => 2])
                         ->schema([
-                            Grid::make(['default' => 1, 'md' => 2])
-                                ->schema([
-                                    Placeholder::make('colaborador')->label('Colaborador')->content(fn (): string => $this->colaborador?->nombre_completo ?? '—'),
-                                    Placeholder::make('fecha')->label('Fecha')->content(fn (): string => $this->fechaRegularizando ? Carbon::parse($this->fechaRegularizando)->format('d/m/Y') : '—'),
-                                ]),
-                            Select::make('turno_id')
-                                ->label('Turno aplicado')
-                                ->options(fn (): array => Turno::query()
-                                    ->where('activo', true)
-                                    ->orderBy('hora_inicio')
-                                    ->get()
-                                    ->mapWithKeys(fn (Turno $turno): array => [$turno->id => $turno->nombre . ' · ' . $turno->rangoHorario()])
-                                    ->all())
-                                ->native()
-                                ->required(),
-                            Textarea::make('motivo')
-                                ->label('Motivo de regularización')
-                                ->rows(3)
-                                ->minLength(10)
-                                ->maxLength(200)
-                                ->required(),
+                            Placeholder::make('colaborador')
+                                ->label('Colaborador')
+                                ->content(fn (): string => $this->colaborador?->nombre_completo ?? '—'),
+                            Placeholder::make('fecha_resumen')
+                                ->label('Fecha')
+                                ->content(fn (Get $get): string => filled($get('fecha'))
+                                    ? Carbon::parse((string) $get('fecha'))->format('d/m/Y')
+                                    : '—'),
                         ]),
+                    Select::make('turno_id')
+                        ->label('Turno aplicado')
+                        ->options(fn (): array => Turno::query()
+                            ->where('activo', true)
+                            ->orderBy('hora_inicio')
+                            ->get()
+                            ->mapWithKeys(fn (Turno $turno): array => [$turno->id => $turno->nombre . ' · ' . $turno->rangoHorario()])
+                            ->all())
+                        ->native()
+                        ->required(),
+                    Textarea::make('motivo')
+                        ->label('Motivo de regularización')
+                        ->rows(3)
+                        ->minLength(10)
+                        ->maxLength(200)
+                        ->required(),
                 ])
                 ->action(function (array $data): void {
                     $this->regularizarJornada($data);
@@ -153,15 +159,14 @@ class ControlJornadas extends Page
             return;
         }
 
-        $this->fechaRegularizando = $fecha;
-        $this->mountAction('regularizarJornada');
+        $this->mountAction('regularizarJornada', ['fecha' => $fecha]);
     }
 
     /** @param array{turno_id:mixed,motivo:mixed} $data */
     public function regularizarJornada(array $data): void
     {
         $colaborador = $this->colaborador;
-        $fecha = $this->fechaRegularizando;
+        $fecha = filled($data['fecha'] ?? null) ? (string) $data['fecha'] : null;
 
         if (! $colaborador || ! $fecha || ! $this->puedeRegularizarJornada($fecha)) {
             Notification::make()
@@ -178,8 +183,6 @@ class ControlJornadas extends Page
             $fecha,
             $data,
         );
-
-        $this->fechaRegularizando = null;
 
         Notification::make()
             ->title('Jornada regularizada')

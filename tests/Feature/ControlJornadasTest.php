@@ -93,6 +93,7 @@ class ControlJornadasTest extends TestCase
             ->set('mes', now()->format('Y-m'))
             ->call('abrirRegularizacionJornada', $fecha)
             ->assertActionMounted('regularizarJornada')
+            ->assertSet('mountedActions.0.data.fecha', $fecha)
             ->set('mountedActions.0.data.turno_id', $turno->id)
             ->set('mountedActions.0.data.motivo', 'Validación de jornada no programada con lectura QR real.')
             ->callMountedAction()
