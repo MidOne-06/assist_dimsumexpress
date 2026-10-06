@@ -499,6 +499,61 @@ class JornadaMarcacionTest extends TestCase
         ]);
     }
 
+    public function test_station_range_replaces_a_scheduled_shift_before_the_first_entry_and_audits_it(): void
+    {
+        $this->withoutMiddleware();
+        Carbon::setTestNow('2026-09-21 14:10:00');
+
+        $sucursal = Sucursal::create(['nombre' => 'Sucursal por estación', 'tipo' => 'tienda', 'activo' => true]);
+        $apertura = Turno::create(['nombre' => 'Apertura de estación', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'tolerancia_entrada_minutos' => 60, 'activo' => true]);
+        $cierre = Turno::create(['nombre' => 'Cierre de estación', 'hora_inicio' => '14:00', 'hora_fin' => '22:00', 'tolerancia_entrada_minutos' => 60, 'incluye_refrigerio' => false, 'refrigerio_minutos' => 0, 'activo' => true]);
+        TurnoOperativo::create(['turno_id' => $apertura->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 100, 'activo' => true]);
+        $reglaCierre = TurnoOperativo::create(['turno_id' => $cierre->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 100, 'activo' => true]);
+        $qr = QrToken::create([
+            'sucursal_id' => $sucursal->id,
+            'token' => 'turno-operativo-' . uniqid(),
+            'proposito' => QrToken::PROPOSITO_ASISTENCIA,
+            'expira_en' => Carbon::parse('2026-09-30 23:59:59'),
+        ]);
+        $usuario = User::factory()->create();
+        $usuario->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $colaborador = Colaborador::create([
+            'user_id' => $usuario->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador por rango de estación',
+            'documento_identidad' => 'RANGO-ESTACION-1',
+            'activo' => true,
+        ]);
+        $programada = AsignacionTurno::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $apertura->id,
+            'fecha' => today(),
+            'origen' => 'manual',
+        ]);
+
+        $this->actingAs($usuario)
+            ->post(route('marcacion.store'), ['token' => $qr->token])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('asignaciones_turno', [
+            'id' => $programada->id,
+            'turno_id' => $cierre->id,
+            'turno_operativo_id' => $reglaCierre->id,
+            'origen' => 'detectado_automaticamente',
+        ]);
+        $this->assertDatabaseHas('ajustes_turno_automaticos', [
+            'asignacion_turno_id' => $programada->id,
+            'turno_programado_id' => $apertura->id,
+            'turno_efectivo_id' => $cierre->id,
+        ]);
+        $this->assertDatabaseHas('marcaciones', [
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $cierre->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+        ]);
+    }
+
     public function test_qr_return_persists_the_one_hour_refrigerio_audit(): void
     {
         $this->withoutMiddleware();

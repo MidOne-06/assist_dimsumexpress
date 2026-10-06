@@ -234,6 +234,25 @@ final class JornadaMarcacion
         $asignacion->save();
     }
 
+    /**
+     * Conserva la asignación diaria existente, pero aplica el turno que fue
+     * resuelto por la estación antes de registrar la primera marcación. Así
+     * el histórico mantiene un único registro por día y el cambio conserva
+     * trazabilidad en AjusteTurnoAutomatico al confirmarse la entrada.
+     */
+    public static function aplicarTurnoDetectado(AsignacionTurno $asignacion, AsignacionTurno $detectada): AsignacionTurno
+    {
+        $asignacion->turno_id = $detectada->turno_id;
+        $asignacion->turno_operativo_id = $detectada->turno_operativo_id;
+        $asignacion->origen = $detectada->origen;
+        $asignacion->detectado_en = $detectada->detectado_en;
+        $asignacion->observacion = $detectada->observacion;
+        $asignacion->setRelation('turno', $detectada->turno);
+        $asignacion->setRelation('turnoOperativo', $detectada->turnoOperativo);
+
+        return $asignacion;
+    }
+
     private static function tieneMarcacionesEnFecha(Colaborador $colaborador, Carbon $momento): bool
     {
         return $colaborador->marcaciones()

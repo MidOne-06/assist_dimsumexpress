@@ -266,13 +266,47 @@ class MarcacionController extends Controller
     }
 
     /**
-     * Una asignación manual prevalece. Solo cuando no existe se toma el turno
-     * configurado en la estación por su rango horario; todavía no se escribe
-     * nada hasta que el POST confirma la primera lectura.
+     * Una jornada ya iniciada conserva su turno. Antes de la primera entrada,
+     * el turno efectivo se resuelve desde la estación QR (local/caja) por su
+     * rango horario; la programación manual queda como respaldo cuando la
+     * estación no tiene una regla que aplique. El cambio no se escribe hasta
+     * que el POST confirma la lectura y queda auditado.
      */
     private function resolverAsignacion(Colaborador $colaborador, QrToken $qrToken, \Carbon\Carbon $momento): ?AsignacionTurno
     {
         $asignacion = JornadaMarcacion::asignacionVigente($colaborador, $momento, false);
+
+        if ($asignacion && JornadaMarcacion::jornadaAbierta($colaborador, $asignacion)) {
+            return $asignacion;
+        }
+
+        $yaMarcoHoy = $colaborador->marcaciones()
+            ->whereBetween('fecha_hora', [$momento->copy()->startOfDay(), $momento->copy()->endOfDay()])
+            ->exists();
+
+        if (! $yaMarcoHoy) {
+            $detectada = JornadaMarcacion::detectarTurnoOperativo(
+                $colaborador,
+                $qrToken->sucursal,
+                $qrToken->puntoVenta,
+                $momento,
+            );
+
+            if ($detectada) {
+                $programada = $colaborador->asignacionesTurno()
+                    ->with('turno')
+                    ->whereDate('fecha', $momento->toDateString())
+                    ->orderBy('id')
+                    ->first();
+
+                if (! $programada || $programada->turno_id === $detectada->turno_id) {
+                    return $programada ?? $detectada;
+                }
+
+                return JornadaMarcacion::aplicarTurnoDetectado($programada, $detectada);
+            }
+        }
+
         if ($asignacion) {
             return $asignacion;
         }

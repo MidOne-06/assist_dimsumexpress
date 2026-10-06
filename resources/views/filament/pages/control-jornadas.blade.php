@@ -38,7 +38,11 @@
         .jornada-break { position:absolute; right:calc(.9rem + 1px); left:calc(.9rem + 1px); min-height:.25rem; border-radius:.25rem; background:color-mix(in srgb, var(--warning-500, #f59e0b) 32%, transparent); }
         .jornada-break--incident { background:color-mix(in srgb, var(--danger-500, #ef4444) 24%, transparent); }
         .jornada-marker { position:absolute; z-index:2; left:50%; transform:translate(-50%, -50%); white-space:nowrap; font-size:.625rem; font-variant-numeric:tabular-nums; line-height:1; }
-        .jornada-marker .fi-badge { min-height:1.25rem; padding-inline:.3rem; }
+        /* Las horas deben leerse completas: el ancho interior por defecto de
+           un badge Filament md truncaba el último dígito en columnas angostas. */
+        .jornada-marker .fi-badge { min-width:3.55rem; min-height:1.25rem; padding-inline:.3rem; justify-content:center; }
+        .jornada-marker .fi-badge-label-ctn { flex:none; }
+        .jornada-marker .fi-badge-label { overflow:visible; text-overflow:clip; }
         .jornada-marker--entrada { color:var(--success-700, #15803d); }
         .jornada-marker--salida-refrigerio { color:var(--warning-700, #a16207); }
         .jornada-marker--regreso-refrigerio { color:var(--info-700, #0369a1); }
