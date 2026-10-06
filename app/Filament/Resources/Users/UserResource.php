@@ -97,6 +97,9 @@ class UserResource extends Resource
                         ->preload()
                         ->searchable()
                         ->live()
+                        // La acción de creación delega la sincronización al UserService.
+                        // Los selects múltiples de relación no se deshidratan por defecto.
+                        ->dehydrated()
                         ->optionsLimit(8)
                         ->required()
                         ->disabled(fn (?User $record): bool => $record?->is(auth()->user()) ?? false)
@@ -112,6 +115,8 @@ class UserResource extends Resource
                             ->all())
                         ->preload()
                         ->searchable()
+                        // Debe llegar a UserService junto con el rol Supervisor.
+                        ->dehydrated()
                         ->optionsLimit(8)
                         ->required(fn (Get $get): bool => static::esSupervisor($get('roles')))
                         ->visible(fn (Get $get): bool => static::esSupervisor($get('roles')))
