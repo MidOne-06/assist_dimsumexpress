@@ -91,8 +91,9 @@ class ControlJornadasTest extends TestCase
         Livewire::actingAs($supervisor)
             ->test(ControlJornadas::class)
             ->set('mes', now()->format('Y-m'))
-            ->mountAction('regularizarJornada', ['fecha' => $fecha])
+            ->call('abrirRegularizacionJornada', $fecha)
             ->assertActionMounted('regularizarJornada')
+            ->assertSet('fechaRegularizacion', $fecha)
             ->assertSet('mountedActions.0.data.fecha', $fecha)
             ->set('mountedActions.0.data.turno_id', $turno->id)
             ->set('mountedActions.0.data.motivo', 'Validación de jornada no programada con lectura QR real.')
@@ -132,7 +133,7 @@ class ControlJornadasTest extends TestCase
 
         Livewire::actingAs($supervisor)
             ->test(ControlJornadas::class)
-            ->mountAction('regularizarJornada')
+            ->call('abrirRegularizacionJornada', '')
             ->assertSet('mountedActions', []);
     }
 }

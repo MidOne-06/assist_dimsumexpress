@@ -151,7 +151,7 @@
                                         color="warning"
                                         size="sm"
                                         label="Regularizar jornada"
-                                        wire:click="mountAction('regularizarJornada', @js(['fecha' => $jornada['fecha']->toDateString()]))"
+                                        wire:click="abrirRegularizacionJornada('{{ $jornada['fecha']->toDateString() }}')"
                                     />
                                 </span>
                             @endif

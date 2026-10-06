@@ -59,6 +59,9 @@ class ControlJornadas extends Page
 
     public string $mes;
 
+    /** Fecha excepcional elegida antes de abrir el modal nativo. */
+    public ?string $fechaRegularizacion = null;
+
     public function mount(): void
     {
         $this->mes = now()->format('Y-m');
@@ -100,7 +103,8 @@ class ControlJornadas extends Page
 
     /**
      * Acción interna: solo se monta desde abrirRegularizacionJornada(), que
-     * aporta la fecha del día excepcional. El montaje sin esa fecha se
+     * persiste la fecha del día excepcional en el estado del componente. El
+     * montaje sin esa fecha se
      * cancela de forma defensiva antes de renderizar el formulario.
      */
     protected function regularizarJornadaAction(): Action
@@ -112,14 +116,15 @@ class ControlJornadas extends Page
             ->modalCancelActionLabel('Cancelar')
             ->closeModalByClickingAway(false)
             ->mountUsing(function (Action $action, ?Schema $schema): void {
-                $fecha = $action->getArguments()['fecha'] ?? null;
+                $fecha = $this->fechaRegularizacion;
 
                 // Esta acción no tiene botón propio: solo puede montarse por
                 // el icono del día excepcional. Cancelar aquí evita que un
-                // montaje directo renderice un modal sin contexto, sin
-                // interferir con la carga normal de argumentos de Filament.
+                // montaje directo renderice un modal sin contexto.
                 if (! filled($fecha) || ! $this->puedeRegularizarJornada((string) $fecha)) {
                     $action->cancel();
+
+                    return;
                 }
 
                 $schema?->fill([
@@ -177,6 +182,22 @@ class ControlJornadas extends Page
         $this->dispatch('control-jornadas-ir-a-hoy');
     }
 
+    /** Abre el modal solo después de fijar una jornada excepcional válida. */
+    public function abrirRegularizacionJornada(string $fecha): void
+    {
+        if (! $this->puedeRegularizarJornada($fecha)) {
+            Notification::make()
+                ->title('La jornada ya no está disponible para regularizar')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $this->fechaRegularizacion = $fecha;
+        $this->mountAction('regularizarJornada');
+    }
+
     /** @param array{turno_id:mixed,motivo:mixed} $data */
     public function regularizarJornada(array $data): void
     {
@@ -204,6 +225,8 @@ class ControlJornadas extends Page
             ->body($asignacion->turno->nombre . ' aplicado a las marcaciones registradas.')
             ->success()
             ->send();
+
+        $this->fechaRegularizacion = null;
 
     }
 
