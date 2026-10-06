@@ -78,58 +78,60 @@ class ControlJornadas extends Page
         return static::canAccess();
     }
 
-    /** @return array<Action> */
-    protected function getHeaderActions(): array
+    /**
+     * Acción interna: solo se monta desde abrirRegularizacionJornada(), que
+     * aporta la fecha del día excepcional. No es una acción de cabecera: al
+     * registrarla allí Filament la exponía como un control invisible capaz de
+     * abrir el modal sin argumentos y, por tanto, sin fecha.
+     */
+    protected function regularizarJornadaAction(): Action
     {
-        return [
-            Action::make('regularizarJornada')
-                ->extraAttributes(['class' => 'hidden'])
-                ->modalHeading('Regularizar jornada')
-                ->modalWidth(Width::Large)
-                ->modalSubmitActionLabel('Regularizar jornada')
-                ->modalCancelActionLabel('Cancelar')
-                ->closeModalByClickingAway(false)
-                ->mountUsing(function (Action $action, ?Schema $schema): void {
-                    $schema?->fill([
-                        'fecha' => $action->getArguments()['fecha'] ?? null,
-                        'turno_id' => null,
-                        'motivo' => null,
-                    ]);
-                })
-                ->schema([
-                    Hidden::make('fecha')->required(),
-                    Grid::make(['default' => 1, 'md' => 2])
-                        ->schema([
-                            Placeholder::make('colaborador')
-                                ->label('Colaborador')
-                                ->content(fn (): string => $this->colaborador?->nombre_completo ?? '—'),
-                            Placeholder::make('fecha_resumen')
-                                ->label('Fecha')
-                                ->content(fn (Get $get): string => filled($get('fecha'))
-                                    ? Carbon::parse((string) $get('fecha'))->format('d/m/Y')
-                                    : '—'),
-                        ]),
-                    Select::make('turno_id')
-                        ->label('Turno aplicado')
-                        ->options(fn (): array => Turno::query()
-                            ->where('activo', true)
-                            ->orderBy('hora_inicio')
-                            ->get()
-                            ->mapWithKeys(fn (Turno $turno): array => [$turno->id => $turno->nombre . ' · ' . $turno->rangoHorario()])
-                            ->all())
-                        ->native()
-                        ->required(),
-                    Textarea::make('motivo')
-                        ->label('Motivo de regularización')
-                        ->rows(3)
-                        ->minLength(10)
-                        ->maxLength(200)
-                        ->required(),
-                ])
-                ->action(function (array $data): void {
-                    $this->regularizarJornada($data);
-                }),
-        ];
+        return Action::make('regularizarJornada')
+            ->authorize(fn (Action $action): bool => filled($action->getArguments()['fecha'] ?? null)
+                && $this->puedeRegularizarJornada((string) $action->getArguments()['fecha']))
+            ->modalHeading('Regularizar jornada')
+            ->modalWidth(Width::Large)
+            ->modalSubmitActionLabel('Regularizar jornada')
+            ->modalCancelActionLabel('Cancelar')
+            ->closeModalByClickingAway(false)
+            ->mountUsing(function (Action $action, ?Schema $schema): void {
+                $schema?->fill([
+                    'fecha' => $action->getArguments()['fecha'],
+                    'turno_id' => null,
+                    'motivo' => null,
+                ]);
+            })
+            ->schema([
+                Hidden::make('fecha')->required(),
+                Grid::make(['default' => 1, 'md' => 2])
+                    ->schema([
+                        Placeholder::make('colaborador')
+                            ->label('Colaborador')
+                            ->content(fn (): string => $this->colaborador?->nombre_completo ?? '—'),
+                        Placeholder::make('fecha_resumen')
+                            ->label('Fecha')
+                            ->content(fn (Get $get): string => Carbon::parse((string) $get('fecha'))->format('d/m/Y')),
+                    ]),
+                Select::make('turno_id')
+                    ->label('Turno aplicado')
+                    ->options(fn (): array => Turno::query()
+                        ->where('activo', true)
+                        ->orderBy('hora_inicio')
+                        ->get()
+                        ->mapWithKeys(fn (Turno $turno): array => [$turno->id => $turno->nombre . ' · ' . $turno->rangoHorario()])
+                        ->all())
+                    ->native()
+                    ->required(),
+                Textarea::make('motivo')
+                    ->label('Motivo de regularización')
+                    ->rows(3)
+                    ->minLength(10)
+                    ->maxLength(200)
+                    ->required(),
+            ])
+            ->action(function (array $data): void {
+                $this->regularizarJornada($data);
+            });
     }
 
     public function mesAnterior(): void

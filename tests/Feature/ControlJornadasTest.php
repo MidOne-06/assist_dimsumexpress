@@ -110,4 +110,29 @@ class ControlJornadasTest extends TestCase
             'fecha_hora' => "$fecha 08:05:00",
         ]);
     }
+
+    public function test_regularization_modal_cannot_open_without_an_exceptional_day_argument(): void
+    {
+        Carbon::setTestNow('2026-10-06 18:00:00');
+        $sucursal = Sucursal::create(['nombre' => 'Local sin jornada excepcional', 'tipo' => 'tienda', 'activo' => true]);
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(
+            Permission::findOrCreate('View:ControlJornadas', 'web'),
+            Permission::findOrCreate('Regularizar:Jornada', 'web'),
+        );
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+
+        Colaborador::create([
+            'user_id' => User::factory()->create()->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador sin marcaciones excepcionales',
+            'documento_identidad' => 'CJ-SIN-' . uniqid(),
+            'activo' => true,
+        ]);
+
+        Livewire::actingAs($supervisor)
+            ->test(ControlJornadas::class)
+            ->mountAction('regularizarJornada')
+            ->assertSet('mountedActions', []);
+    }
 }
