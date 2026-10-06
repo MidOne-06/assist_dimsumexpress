@@ -46,12 +46,21 @@ class ControlJornadasTest extends TestCase
             'tipo' => Marcacion::TIPO_ENTRADA,
             'fecha_hora' => $fecha,
         ]);
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_SALIDA,
+            'fecha_hora' => $fecha->copy()->addMinute(),
+        ]);
 
         Livewire::actingAs($supervisor)
             ->test(ControlJornadas::class)
             ->set('mes', $fecha->format('Y-m'))
             ->assertSee('Colaborador excepcional')
-            ->assertSee('Sin turno · marcaciones registradas')
+            ->assertSee('Sin turno')
+            ->assertSee('2 marcaciones')
+            ->assertSee('jornada-marker--slot-0', escape: false)
+            ->assertSee('jornada-marker--slot-1', escape: false)
             ->assertSee('08:15');
     }
 
