@@ -29,6 +29,7 @@
         <form method="POST" action="{{ route('visita-supervisor.store') }}">
             @csrf
             <input type="hidden" name="token" value="{{ $qrToken->token }}">
+            <input type="hidden" name="accion" value="{{ $accion }}">
             <button type="submit">{{ $accion === 'salida' ? 'Registrar salida' : 'Registrar ingreso' }}</button>
         </form>
         <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="salir" style="all:unset;cursor:pointer">Cerrar sesión</button></form>

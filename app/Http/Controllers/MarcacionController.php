@@ -60,7 +60,7 @@ class MarcacionController extends Controller
             return $this->respuestaQrNoConfirmado('Este código no está disponible para tu marcación. Usa el QR mostrado en tu local.');
         }
 
-        if (! $this->siguienteTipoAutomatico($colaborador, $asignacion, now())) {
+        if ($this->tiposDisponibles($colaborador, $asignacion, now()) === []) {
             return $this->respuestaQrNoConfirmado('Tu jornada ya no admite más marcaciones por hoy. Consulta con tu supervisor si necesitas regularizarla.');
         }
 
@@ -127,7 +127,8 @@ class MarcacionController extends Controller
             ]);
         }
 
-        if (! $this->siguienteTipoAutomatico($colaborador, $asignacion, now())) {
+        $tiposDisponibles = $this->tiposDisponibles($colaborador, $asignacion, now());
+        if ($tiposDisponibles === []) {
             return view('marcacion.error', [
                 'mensaje' => 'Tu jornada ya no admite más marcaciones por hoy. Consulta con tu supervisor si necesitas regularizarla.',
             ]);
@@ -137,6 +138,7 @@ class MarcacionController extends Controller
             'apariencia' => app(AparienciaSistemaService::class),
             'colaborador' => $colaborador,
             'token' => $qrToken->token,
+            'acciones' => $this->accionesPresentables($tiposDisponibles),
         ]);
     }
 
@@ -146,6 +148,7 @@ class MarcacionController extends Controller
 
         $data = $request->validate([
             'token' => ['required', 'string'],
+            'accion' => ['required', 'in:entrada,salida_refrigerio,regreso_refrigerio,salida'],
         ]);
 
         $colaborador = $request->user()->colaborador;
@@ -179,9 +182,10 @@ class MarcacionController extends Controller
                 throw ValidationException::withMessages(['token' => 'Este código QR ya fue usado para una marcación. Escanea el nuevo QR de la pantalla para continuar.']);
             }
 
-            $tipo = $this->siguienteTipoAutomatico($colaboradorBloqueado, $asignacion, $fechaHora);
-            if (! $tipo) {
-                throw ValidationException::withMessages(['token' => 'Tu jornada ya no admite más marcaciones por hoy. Consulta con tu supervisor si necesitas regularizarla.']);
+            $tiposDisponibles = $this->tiposDisponibles($colaboradorBloqueado, $asignacion, $fechaHora);
+            $tipo = (string) $data['accion'];
+            if (! in_array($tipo, $tiposDisponibles, true)) {
+                throw ValidationException::withMessages(['accion' => 'Esta acción ya no está disponible. Escanea un nuevo QR y selecciona una acción válida.']);
             }
 
             if ($asignacion && ! $asignacion->exists) {
@@ -258,11 +262,27 @@ class MarcacionController extends Controller
         return view('marcacion.confirmacion', compact('marcacion'));
     }
 
-    private function siguienteTipoAutomatico(Colaborador $colaborador, ?AsignacionTurno $asignacion, \Carbon\Carbon $momento): ?string
+    /** @return array<int, string> */
+    private function tiposDisponibles(Colaborador $colaborador, ?AsignacionTurno $asignacion, \Carbon\Carbon $momento): array
     {
-        return $asignacion
-            ? JornadaMarcacion::siguienteTipoAutomatico($colaborador, $asignacion, $momento)
-            : JornadaMarcacion::siguienteTipoSinTurnoAutomatico($colaborador, $momento);
+        if ($asignacion) {
+            return JornadaMarcacion::siguientesTipos($colaborador, $asignacion);
+        }
+
+        return array_values(array_filter([
+            JornadaMarcacion::siguienteTipoSinTurnoAutomatico($colaborador, $momento),
+        ]));
+    }
+
+    /** @param array<int, string> $tipos @return array<int, array{tipo:string,etiqueta:string,icono:string,color:string}> */
+    private function accionesPresentables(array $tipos): array
+    {
+        return collect($tipos)->map(fn (string $tipo): array => match ($tipo) {
+            Marcacion::TIPO_ENTRADA => ['tipo' => $tipo, 'etiqueta' => 'Ingreso de turno', 'icono' => 'heroicon-o-arrow-right-on-rectangle', 'color' => 'success'],
+            Marcacion::TIPO_SALIDA_REFRIGERIO => ['tipo' => $tipo, 'etiqueta' => 'Salida a refrigerio', 'icono' => 'heroicon-o-clock', 'color' => 'warning'],
+            Marcacion::TIPO_REGRESO_REFRIGERIO => ['tipo' => $tipo, 'etiqueta' => 'Ingreso de refrigerio', 'icono' => 'heroicon-o-arrow-right-circle', 'color' => 'info'],
+            default => ['tipo' => $tipo, 'etiqueta' => 'Salida de turno', 'icono' => 'heroicon-o-arrow-left-on-rectangle', 'color' => 'danger'],
+        })->all();
     }
 
     /**

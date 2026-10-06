@@ -42,6 +42,32 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame(['salida'], JornadaMarcacion::siguientesTipos($colaborador, $asignacion));
     }
 
+    public function test_scanned_qr_only_accepts_an_action_available_in_the_current_sequence(): void
+    {
+        $this->withoutMiddleware();
+        Carbon::setTestNow('2026-09-21 10:00:00');
+        [$colaborador] = $this->crearJornada('08:00:00', '17:00:00');
+        $usuario = $colaborador->user;
+        $usuario->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $qr = QrToken::generarPara($colaborador->sucursal, null, 60);
+
+        $this->actingAs($usuario)
+            ->get(route('marcacion.show', ['token' => $qr->token]))
+            ->assertOk()
+            ->assertSee('Ingreso de turno')
+            ->assertDontSee('Salida de turno');
+
+        $this->actingAs($usuario)
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_SALIDA])
+            ->assertRedirect()
+            ->assertSessionHasErrors('accion');
+
+        $this->assertDatabaseMissing('marcaciones', [
+            'colaborador_id' => $colaborador->id,
+            'qr_token_id' => $qr->id,
+        ]);
+    }
+
     public function test_night_shift_keeps_its_refrigerio_flow_after_midnight(): void
     {
         [$colaborador, $asignacion] = $this->crearJornada('22:00:00', '06:00:00', true, '2026-09-21');
@@ -268,7 +294,7 @@ class JornadaMarcacionTest extends TestCase
         );
 
         $this->actingAs($usuario)
-            ->post(route('marcacion.store'), ['token' => $qr->token])
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_ENTRADA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -313,7 +339,7 @@ class JornadaMarcacionTest extends TestCase
         TurnoOperativo::create(['turno_id' => $turno->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 10, 'activo' => true]);
     }
 
-    public function test_qr_only_marking_creates_a_detected_assignment_and_infers_the_full_sequence(): void
+    public function test_qr_only_marking_creates_a_detected_assignment_with_the_selected_valid_sequence(): void
     {
         $this->withoutMiddleware();
         $sucursal = Sucursal::create(['nombre' => 'Tienda QR inteligente', 'tipo' => 'tienda', 'activo' => true]);
@@ -349,7 +375,7 @@ class JornadaMarcacionTest extends TestCase
             Carbon::setTestNow("2026-09-21 {$hora}");
             $qr = QrToken::generarPara($sucursal, $puntoVenta, 60);
             $this->actingAs($usuario)
-                ->post(route('marcacion.store'), ['token' => $qr->token])
+                ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => $tipo])
                 ->assertRedirect()
                 ->assertSessionHasNoErrors();
             $this->assertDatabaseHas('marcaciones', ['colaborador_id' => $colaborador->id, 'qr_token_id' => $qr->id, 'tipo' => $tipo]);
@@ -457,7 +483,7 @@ class JornadaMarcacionTest extends TestCase
         ]);
 
         $this->actingAs($usuarioApertura)
-            ->post(route('marcacion.store'), ['token' => $qr->token])
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_ENTRADA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -486,7 +512,7 @@ class JornadaMarcacionTest extends TestCase
         ]);
 
         $this->actingAs($usuarioCierre)
-            ->post(route('marcacion.store'), ['token' => $qr->token])
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_ENTRADA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -532,7 +558,7 @@ class JornadaMarcacionTest extends TestCase
         ]);
 
         $this->actingAs($usuario)
-            ->post(route('marcacion.store'), ['token' => $qr->token])
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_ENTRADA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -577,17 +603,17 @@ class JornadaMarcacionTest extends TestCase
             'expira_en' => Carbon::parse('2026-09-21 17:00:00'),
         ]);
 
-        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qrEntrada->token])
+        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qrEntrada->token, 'accion' => Marcacion::TIPO_ENTRADA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
         Carbon::setTestNow('2026-09-21 12:10:00');
-        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qrSalidaRefrigerio->token])
+        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qrSalidaRefrigerio->token, 'accion' => Marcacion::TIPO_SALIDA_REFRIGERIO])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
         Carbon::setTestNow('2026-09-21 13:15:00');
-        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qrRegresoRefrigerio->token])
+        $this->actingAs($usuario)->post(route('marcacion.store'), ['token' => $qrRegresoRefrigerio->token, 'accion' => Marcacion::TIPO_REGRESO_REFRIGERIO])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -649,7 +675,9 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.show', ['token' => $qr->token]))
             ->assertOk()
             ->assertSee('QR escaneado correctamente')
-            ->assertSee('Continuar')
+            ->assertSee('Selecciona una acción')
+            ->assertSee('Salida a refrigerio')
+            ->assertSee('Salida de turno')
             ->assertDontSee('Turno programado')
             ->assertDontSee('Turno detectado por horario')
             ->assertDontSee('Horas efectivas trabajadas')
@@ -663,9 +691,8 @@ class JornadaMarcacionTest extends TestCase
             ->assertDontSee('>7<', false)
             ->assertDontSee('>9<', false)
             ->assertDontSee('10:00:00')
-            ->assertDontSee('Salida de refrigerio')
             ->assertDontSee('Ingreso de refrigerio')
-            ->assertDontSee('Salida de turno');
+            ->assertDontSee('Continuar');
     }
 
     public function test_each_attendance_action_requires_a_new_dynamic_qr_scan(): void
@@ -690,7 +717,7 @@ class JornadaMarcacionTest extends TestCase
         ]);
 
         $this->actingAs($operador)
-            ->post(route('marcacion.store'), ['token' => $primerQr->token])
+            ->post(route('marcacion.store'), ['token' => $primerQr->token, 'accion' => Marcacion::TIPO_ENTRADA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -702,7 +729,7 @@ class JornadaMarcacionTest extends TestCase
             ->assertSee('ya fue usado para una marcación');
 
         $this->actingAs($operador)
-            ->post(route('marcacion.store'), ['token' => $primerQr->token])
+            ->post(route('marcacion.store'), ['token' => $primerQr->token, 'accion' => Marcacion::TIPO_SALIDA])
             ->assertRedirect()
             ->assertSessionHasErrors('token');
 
@@ -715,10 +742,12 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($operador)
             ->get(route('marcacion.show', ['token' => $nuevoQr->token]))
             ->assertOk()
-            ->assertSee('Continuar');
+            ->assertSee('Selecciona una acción')
+            ->assertSee('Salida a refrigerio')
+            ->assertSee('Salida de turno');
 
         $this->actingAs($operador)
-            ->post(route('marcacion.store'), ['token' => $nuevoQr->token])
+            ->post(route('marcacion.store'), ['token' => $nuevoQr->token, 'accion' => Marcacion::TIPO_SALIDA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -772,7 +801,7 @@ class JornadaMarcacionTest extends TestCase
         $qr = QrToken::generarPara($colaborador->sucursal, $puntoVenta, 60);
 
         $this->actingAs($colaborador->user)
-            ->post(route('marcacion.store'), ['token' => $qr->token])
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_ENTRADA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -799,7 +828,7 @@ class JornadaMarcacionTest extends TestCase
         $qr = QrToken::generarPara($otraSucursal, $puntoVenta, 60);
 
         $this->actingAs($colaborador->user)
-            ->post(route('marcacion.store'), ['token' => $qr->token])
+            ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => Marcacion::TIPO_ENTRADA])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 

@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class VisitaSupervisorController extends Controller
@@ -86,11 +87,14 @@ class VisitaSupervisorController extends Controller
     /** Confirma explícitamente la visita después de leer y validar el QR. */
     public function store(Request $request): View|Response
     {
-        $request->validate(['token' => ['required', 'string']]);
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'accion' => ['required', 'in:ingreso,salida'],
+        ]);
         [$qrToken, $sucursal, $puntoVenta] = $this->resolverQrAutorizado($request, (string) $request->input('token'));
         $usuario = $request->user();
 
-        $resultado = DB::transaction(function () use ($usuario, $sucursal, $puntoVenta, $qrToken, $request): array {
+        $resultado = DB::transaction(function () use ($usuario, $sucursal, $puntoVenta, $qrToken, $request, $data): array {
             // Serializa las confirmaciones del mismo supervisor. Así se evita
             // abrir dos visitas con toques simultáneos o cerrar una visita en
             // una sucursal distinta por una segunda pestaña.
@@ -99,6 +103,12 @@ class VisitaSupervisorController extends Controller
             $resultadoDisponible = $this->accionDisponible($usuario, $qrToken, $sucursal);
             if ($resultadoDisponible['accion'] !== 'ingreso' && $resultadoDisponible['accion'] !== 'salida') {
                 return $resultadoDisponible;
+            }
+
+            if ($resultadoDisponible['accion'] !== $data['accion']) {
+                throw ValidationException::withMessages([
+                    'accion' => 'La acción elegida ya no está disponible. Escanea un nuevo QR y vuelve a confirmarla.',
+                ]);
             }
 
             $ahora = now();

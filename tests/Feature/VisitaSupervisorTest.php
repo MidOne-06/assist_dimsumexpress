@@ -43,7 +43,7 @@ class VisitaSupervisorTest extends TestCase
         ]);
 
         $this->actingAs($supervisor)
-            ->post(route('visita-supervisor.store'), ['token' => $tokenPropio->token])
+            ->post(route('visita-supervisor.store'), ['token' => $tokenPropio->token, 'accion' => 'ingreso'])
             ->assertOk()
             ->assertSee('Ingreso registrado');
 
@@ -67,7 +67,7 @@ class VisitaSupervisorTest extends TestCase
             ->assertSee('Registrar salida');
 
         $this->actingAs($supervisor)
-            ->post(route('visita-supervisor.store'), ['token' => $tokenSalida->token])
+            ->post(route('visita-supervisor.store'), ['token' => $tokenSalida->token, 'accion' => 'salida'])
             ->assertOk()
             ->assertSee('Salida registrada');
 
@@ -79,7 +79,7 @@ class VisitaSupervisorTest extends TestCase
         $this->assertSame(2, VisitaSupervisorMarcacion::query()->where('supervisor_id', $supervisor->id)->count());
 
         $this->actingAs($supervisor)
-            ->post(route('visita-supervisor.store'), ['token' => $tokenSalida->token])
+            ->post(route('visita-supervisor.store'), ['token' => $tokenSalida->token, 'accion' => 'salida'])
             ->assertStatus(409)
             ->assertSee('Escanea nuevamente');
 
@@ -101,7 +101,7 @@ class VisitaSupervisorTest extends TestCase
         $supervisor->sucursalesSupervisadas()->attach([$primera->id, $segunda->id]);
 
         $tokenEntrada = $this->emitirTokenVisita($this->puntoVenta($primera));
-        $this->actingAs($supervisor)->post(route('visita-supervisor.store'), ['token' => $tokenEntrada->token])->assertOk();
+        $this->actingAs($supervisor)->post(route('visita-supervisor.store'), ['token' => $tokenEntrada->token, 'accion' => 'ingreso'])->assertOk();
 
         $tokenOtroLocal = $this->emitirTokenVisita($this->puntoVenta($segunda));
         $this->actingAs($supervisor)
@@ -112,6 +112,27 @@ class VisitaSupervisorTest extends TestCase
 
         $this->assertSame(1, VisitaSupervisor::query()->where('supervisor_id', $supervisor->id)->count());
         $this->assertSame(1, VisitaSupervisorMarcacion::query()->where('supervisor_id', $supervisor->id)->count());
+    }
+
+    public function test_supervisor_visit_rejects_a_stale_or_invalid_selected_action(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $sucursal = Sucursal::create(['nombre' => 'Local con acción protegida', 'tipo' => 'tienda', 'activo' => true]);
+        $supervisor = User::factory()->create();
+        $supervisor->assignRole('supervisor');
+        $supervisor->givePermissionTo(Permission::findOrCreate('Registrar:VisitaSupervisor', 'web'));
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+        $token = $this->emitirTokenVisita($this->puntoVenta($sucursal));
+
+        $this->actingAs($supervisor)
+            ->post(route('visita-supervisor.store'), ['token' => $token->token, 'accion' => 'salida'])
+            ->assertRedirect()
+            ->assertSessionHasErrors('accion');
+
+        $this->assertDatabaseMissing('visitas_supervisor', [
+            'supervisor_id' => $supervisor->id,
+            'sucursal_id' => $sucursal->id,
+        ]);
     }
 
     public function test_administrator_roles_cannot_register_a_supervisor_visit_from_the_link(): void
