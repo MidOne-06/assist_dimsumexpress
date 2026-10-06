@@ -91,10 +91,12 @@ class SucursalService
     /** Clave de comparación: evita duplicados por formato, no por identidad. */
     private function normalizarNombre(string $nombre): string
     {
-        return Str::lower((string) preg_replace(
+        $nombreAscii = Str::lower(Str::ascii(trim($nombre)));
+
+        return (string) preg_replace(
             '/[^a-z0-9]/',
             '',
-            Str::ascii(trim($nombre)),
+            $nombreAscii,
         ));
     }
 }
