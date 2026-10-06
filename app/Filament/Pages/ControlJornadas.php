@@ -83,8 +83,9 @@ class ControlJornadas extends Page
 
     /**
      * Filament necesita registrar la acción para renderizar su contenedor
-     * nativo de modales. No es un botón general: una regularización siempre
-     * requiere el día excepcional elegido desde el calendario.
+     * nativo de modales. El disparador técnico no se muestra: una
+     * regularización siempre requiere el día excepcional elegido desde el
+     * calendario.
      *
      * @return array<Action>
      */
@@ -92,7 +93,13 @@ class ControlJornadas extends Page
     {
         return [
             $this->regularizarJornadaAction()
-                ->hidden(),
+                // No usar hidden(): Filament dejaría de resolver la acción
+                // cuando el icono de un día intente montarla.
+                ->extraAttributes([
+                    'style' => 'display: none !important',
+                    'aria-hidden' => 'true',
+                    'tabindex' => '-1',
+                ]),
         ];
     }
 
