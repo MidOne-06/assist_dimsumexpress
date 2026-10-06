@@ -6,7 +6,9 @@ use App\Filament\Pages\ControlJornadas;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
+use App\Models\Turno;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -15,6 +17,13 @@ use Tests\TestCase;
 class ControlJornadasTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_exceptional_marks_without_a_detected_shift_are_visible_without_becoming_a_scheduled_journey(): void
     {
@@ -44,5 +53,60 @@ class ControlJornadasTest extends TestCase
             ->assertSee('Colaborador excepcional')
             ->assertSee('Sin turno · marcaciones registradas')
             ->assertSee('08:15');
+    }
+
+    public function test_supervisor_regularizes_an_exceptional_journey_through_the_native_modal(): void
+    {
+        Carbon::setTestNow('2026-10-06 18:00:00');
+        $sucursal = Sucursal::create(['nombre' => 'Local regularizable', 'tipo' => 'tienda', 'activo' => true]);
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(
+            Permission::findOrCreate('View:ControlJornadas', 'web'),
+            Permission::findOrCreate('Regularizar:Jornada', 'web'),
+        );
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+        $colaborador = Colaborador::create([
+            'user_id' => User::factory()->create()->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador por regularizar',
+            'documento_identidad' => 'CJ-REG-' . uniqid(),
+            'activo' => true,
+        ]);
+        $turno = Turno::create([
+            'nombre' => 'Turno para regularizar',
+            'hora_inicio' => '08:00:00',
+            'hora_fin' => '17:00:00',
+            'tolerancia_entrada_minutos' => 15,
+            'tolerancia_salida_minutos' => 15,
+            'activo' => true,
+        ]);
+        $fecha = now()->subDay()->toDateString();
+        $entrada = Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => "$fecha 08:05:00",
+        ]);
+
+        Livewire::actingAs($supervisor)
+            ->test(ControlJornadas::class)
+            ->set('mes', now()->format('Y-m'))
+            ->call('abrirRegularizacionJornada', $fecha)
+            ->assertActionMounted('regularizarJornada')
+            ->set('mountedActions.0.data.turno_id', $turno->id)
+            ->set('mountedActions.0.data.motivo', 'Validación de jornada no programada con lectura QR real.')
+            ->callMountedAction()
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('asignaciones_turno', [
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $turno->id,
+            'origen' => 'regularizado_manual',
+        ]);
+        $this->assertDatabaseHas('marcaciones', [
+            'id' => $entrada->id,
+            'turno_id' => $turno->id,
+            'fecha_hora' => "$fecha 08:05:00",
+        ]);
     }
 }
