@@ -87,16 +87,24 @@ class ControlJornadas extends Page
     protected function regularizarJornadaAction(): Action
     {
         return Action::make('regularizarJornada')
-            ->authorize(fn (Action $action): bool => filled($action->getArguments()['fecha'] ?? null)
-                && $this->puedeRegularizarJornada((string) $action->getArguments()['fecha']))
             ->modalHeading('Regularizar jornada')
             ->modalWidth(Width::Large)
             ->modalSubmitActionLabel('Regularizar jornada')
             ->modalCancelActionLabel('Cancelar')
             ->closeModalByClickingAway(false)
             ->mountUsing(function (Action $action, ?Schema $schema): void {
+                $fecha = $action->getArguments()['fecha'] ?? null;
+
+                // Esta acción no tiene botón propio: solo puede montarse por
+                // el icono del día excepcional. Cancelar aquí evita que un
+                // montaje directo renderice un modal sin contexto, sin
+                // interferir con la carga normal de argumentos de Filament.
+                if (! filled($fecha) || ! $this->puedeRegularizarJornada((string) $fecha)) {
+                    $action->cancel();
+                }
+
                 $schema?->fill([
-                    'fecha' => $action->getArguments()['fecha'],
+                    'fecha' => $fecha,
                     'turno_id' => null,
                     'motivo' => null,
                 ]);
