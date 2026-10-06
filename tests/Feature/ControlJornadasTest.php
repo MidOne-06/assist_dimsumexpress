@@ -91,6 +91,7 @@ class ControlJornadasTest extends TestCase
         Livewire::actingAs($supervisor)
             ->test(ControlJornadas::class)
             ->set('mes', now()->format('Y-m'))
+            ->assertActionHidden('regularizarJornada')
             ->call('abrirRegularizacionJornada', $fecha)
             ->assertActionMounted('regularizarJornada')
             ->assertSet('fechaRegularizacion', $fecha)

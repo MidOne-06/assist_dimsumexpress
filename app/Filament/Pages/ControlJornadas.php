@@ -82,10 +82,9 @@ class ControlJornadas extends Page
     }
 
     /**
-     * Filament necesita conocer la acción en la cabecera para renderizar su
-     * contenedor nativo de modales. El control permanece fuera de la
-     * interacción: la única apertura válida es la del icono de un día con
-     * marcaciones excepcionales.
+     * Filament necesita registrar la acción para renderizar su contenedor
+     * nativo de modales. No es un botón general: una regularización siempre
+     * requiere el día excepcional elegido desde el calendario.
      *
      * @return array<Action>
      */
@@ -93,11 +92,7 @@ class ControlJornadas extends Page
     {
         return [
             $this->regularizarJornadaAction()
-                ->extraAttributes([
-                    'class' => 'hidden',
-                    'aria-hidden' => 'true',
-                    'tabindex' => '-1',
-                ]),
+                ->hidden(),
         ];
     }
 
