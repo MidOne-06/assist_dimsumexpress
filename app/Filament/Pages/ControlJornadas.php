@@ -182,11 +182,20 @@ class ControlJornadas extends Page
             $asignacion = $asignaciones->get($fecha->toDateString());
 
             if (! $asignacion) {
+                // Una lectura excepcional sin turno operativo detectado no se
+                // transforma artificialmente en una jornada. Se muestra en
+                // el calendario para auditoría, conservando que no hay un
+                // turno con el cual calcular horas efectivas o refrigerio.
+                $eventosExcepcionales = $marcaciones
+                    ->filter(fn (Marcacion $marcacion): bool => $marcacion->turno_id === null
+                        && $marcacion->fecha_hora->isSameDay($fecha))
+                    ->values();
+
                 return [
                     'fecha' => $fecha,
                     'asignacion' => null,
-                    'marcaciones' => collect(),
-                    'jornada' => null,
+                    'marcaciones' => $eventosExcepcionales,
+                    'jornada' => $this->rangoJornada($eventosExcepcionales),
                     'refrigerio' => null,
                 ];
             }
