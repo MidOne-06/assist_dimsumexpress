@@ -20,6 +20,13 @@ if ($LASTEXITCODE -ne 0) {
     throw 'El árbol de trabajo contiene cambios fuera del commit que se va a desplegar.'
 }
 
+# Docker conserva capas por diseño. Pasar el hash del lock obliga a reconstruir
+# vendor cuando cambia una dependencia, aun si el builder remoto mantiene caché.
+$composerLockHash = (git rev-parse "$resolvedCommit`:composer.lock").Trim()
+if ([string]::IsNullOrWhiteSpace($composerLockHash)) {
+    throw "No se pudo calcular la huella de composer.lock para $resolvedCommit."
+}
+
 $archivePath = Join-Path ([System.IO.Path]::GetTempPath()) "asistencias-$resolvedCommit.tar"
 $remoteArchive = "/tmp/asistencias-$resolvedCommit.tar"
 
@@ -29,7 +36,7 @@ cd '$ProductionPath'
 trap 'rm -f "$remoteArchive"' EXIT
 tar -xf '$remoteArchive'
 printf '%s' '$resolvedCommit' > storage/app/.release-sha
-docker compose build app --quiet
+COMPOSER_LOCK_SHA='$composerLockHash' docker compose build app --quiet
 docker compose run --rm app php artisan migrate --force
 docker compose run --rm app php artisan db:seed --class=RolesYPermisosSeeder --force
 docker compose up -d --no-deps --force-recreate app worker scheduler

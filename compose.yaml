@@ -18,6 +18,8 @@ services:
     build:
       context: .
       target: application
+      args:
+        COMPOSER_LOCK_SHA: ${COMPOSER_LOCK_SHA:-development}
     image: asistencias:local
     restart: unless-stopped
     env_file:

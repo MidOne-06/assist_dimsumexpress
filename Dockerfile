@@ -7,7 +7,11 @@ RUN apk add --no-cache icu-dev libzip-dev \
     && docker-php-ext-install intl zip
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts --ignore-platform-req=ext-intl
+ARG COMPOSER_LOCK_SHA=development
+# El argumento cambia con composer.lock en cada release y evita reutilizar una
+# capa de vendor anterior cuando el builder remoto conserva su caché.
+RUN printf '%s\n' "Installing dependencies for lock: ${COMPOSER_LOCK_SHA}" \
+    && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts --ignore-platform-req=ext-intl
 COPY . .
 RUN composer dump-autoload --no-dev --optimize --no-scripts
 
