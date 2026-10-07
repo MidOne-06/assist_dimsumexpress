@@ -34,6 +34,7 @@ RUN apk add --no-cache sqlite-dev libxml2-dev oniguruma-dev \
     && docker-php-ext-install pdo_sqlite dom xml xmlwriter mbstring
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts --ignore-platform-req=ext-intl
 COPY . .
+COPY .env.example .env
 COPY --from=frontend /app/public/build ./public/build
 RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && composer dump-autoload --optimize --no-scripts
