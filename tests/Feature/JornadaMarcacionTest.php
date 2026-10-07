@@ -699,7 +699,7 @@ class JornadaMarcacionTest extends TestCase
             ->assertDontSee('>7<', false)
             ->assertDontSee('>9<', false)
             ->assertDontSee('10:00:00')
-            ->assertDontSee('Ingreso de refrigerio')
+            ->assertSee('Ingreso de refrigerio')
             ->assertDontSee('Continuar');
     }
 
