@@ -15,6 +15,15 @@ RUN printf '%s\n' "Installing dependencies for lock: ${COMPOSER_LOCK_SHA}" \
 COPY . .
 RUN composer dump-autoload --no-dev --optimize --no-scripts
 
+FROM node:22-alpine AS frontend
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.js ./
+COPY resources ./resources
+RUN npm run build
+
 FROM dependencies AS testing
 
 # La imagen de producción no contiene herramientas de prueba. Esta etapa
@@ -24,17 +33,9 @@ RUN apk add --no-cache sqlite-dev libxml2-dev oniguruma-dev \
     && docker-php-ext-install pdo_sqlite dom xml xmlwriter mbstring
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts --ignore-platform-req=ext-intl
 COPY . .
+COPY --from=frontend /app/public/build ./public/build
 RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && composer dump-autoload --optimize --no-scripts
-
-FROM node:22-alpine AS frontend
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY vite.config.js ./
-COPY resources ./resources
-RUN npm run build
 
 FROM php:8.3-fpm-alpine AS application
 WORKDIR /var/www/html
