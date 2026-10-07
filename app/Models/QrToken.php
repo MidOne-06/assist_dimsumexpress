@@ -44,6 +44,18 @@ class QrToken extends Model
         return $this->hasMany(VisitaSupervisor::class);
     }
 
+    /** Visitas cuyo QR histórico fue usado para registrar el ingreso. */
+    public function visitasSupervisorIngreso(): HasMany
+    {
+        return $this->hasMany(VisitaSupervisor::class, 'ingreso_qr_token_id');
+    }
+
+    /** Visitas cuyo QR histórico fue usado para registrar la salida. */
+    public function visitasSupervisorSalida(): HasMany
+    {
+        return $this->hasMany(VisitaSupervisor::class, 'salida_qr_token_id');
+    }
+
     public function visitaSupervisorMarcaciones(): HasMany
     {
         return $this->hasMany(VisitaSupervisorMarcacion::class);

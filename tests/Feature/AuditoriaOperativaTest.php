@@ -91,7 +91,9 @@ class AuditoriaOperativaTest extends TestCase
         $sucursal = $this->sucursal();
         $unused = QrToken::generarPara($sucursal, null, -7200);
         $used = QrToken::generarPara($sucursal, null, -7200);
+        $visitUsed = QrToken::generarPara($sucursal, null, -7200, QrToken::PROPOSITO_VISITA_SUPERVISOR);
         $colaborador = $this->colaborador($sucursal);
+        $supervisor = User::factory()->create();
 
         Marcacion::create([
             'colaborador_id' => $colaborador->id,
@@ -101,10 +103,21 @@ class AuditoriaOperativaTest extends TestCase
             'fecha_hora' => now()->subHours(2),
         ]);
 
+        VisitaSupervisor::create([
+            'supervisor_id' => $supervisor->id,
+            'sucursal_id' => $sucursal->id,
+            'fecha' => now()->subHours(2)->toDateString(),
+            'fecha_hora' => now()->subHours(2),
+            'ingreso_en' => now()->subHours(2),
+            'estado' => VisitaSupervisor::EN_CURSO,
+            'ingreso_qr_token_id' => $visitUsed->id,
+        ]);
+
         $this->artisan('qr:purge-expired', ['--hours' => 1])->assertExitCode(0);
 
         $this->assertDatabaseMissing('qr_tokens', ['id' => $unused->id]);
         $this->assertDatabaseHas('qr_tokens', ['id' => $used->id]);
+        $this->assertDatabaseHas('qr_tokens', ['id' => $visitUsed->id]);
     }
 
     public function test_audit_reports_supervisor_visits_opened_on_a_previous_day(): void

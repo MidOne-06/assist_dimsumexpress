@@ -9,7 +9,7 @@ class PurgeExpiredQrTokens extends Command
 {
     protected $signature = 'qr:purge-expired {--hours=24 : Horas de retención después de vencer}';
 
-    protected $description = 'Elimina QR vencidos que no forman parte de una marcación registrada';
+    protected $description = 'Elimina QR vencidos sin ninguna referencia histórica de asistencia o visita';
 
     public function handle(): int
     {
@@ -17,7 +17,11 @@ class PurgeExpiredQrTokens extends Command
 
         $query = QrToken::query()
             ->where('expira_en', '<', now()->subHours($hours))
-            ->whereDoesntHave('marcaciones');
+            ->whereDoesntHave('marcaciones')
+            ->whereDoesntHave('visitasSupervisor')
+            ->whereDoesntHave('visitasSupervisorIngreso')
+            ->whereDoesntHave('visitasSupervisorSalida')
+            ->whereDoesntHave('visitaSupervisorMarcaciones');
 
         $deleted = $query->delete();
 
