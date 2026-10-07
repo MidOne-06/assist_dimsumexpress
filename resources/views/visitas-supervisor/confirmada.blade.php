@@ -1,27 +1,12 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $accion === 'salida' ? 'Salida registrada' : 'Ingreso registrado' }}</title>
-    <x-public-theme />
-    <style>
-        body { margin: 0; min-height: 100vh; display: grid; place-items: center; background:var(--app-page); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color:var(--app-text); padding: 1.5rem; text-align: center; }
-        main { width: min(100%, 26rem); background:var(--app-surface); border:1px solid var(--app-border); border-radius: 1.25rem; padding: 2.5rem 2rem; }
-        .ok { display: inline-grid; place-items: center; width: 4rem; height: 4rem; border-radius: 999px; background:var(--app-success-bg); color:var(--app-success); }
-        .ok svg { width:2.25rem; height:2.25rem; }
-        h1 { margin: 1.25rem 0 .5rem; font-size: 1.4rem; }
-        p { margin: .35rem 0; color:var(--app-muted); }
-        .hora { margin-top: 1.5rem; font-size: 1.05rem; font-weight: 700; color:var(--app-success); }
-    </style>
-</head>
-<body>
-    <main>
-        <div class="ok"><x-heroicon-s-check-circle /></div>
-        <h1>{{ $accion === 'salida' ? 'Salida registrada' : 'Ingreso registrado' }}</h1>
-        <p>{{ $sucursal->nombre }}</p>
-        @if ($puntoVenta)<p>{{ $puntoVenta->nombre }}</p>@endif
-        <p class="hora">{{ ($accion === 'salida' ? $visita->salida_en : $visita->ingreso_en)->format('d/m/Y H:i') }}</p>
-    </main>
-</body>
-</html>
+<x-mobile-operacion :title="'Visita registrada'" section="Visitas">
+    <section class="mo-status">
+        <x-heroicon-s-check-circle class="mo-status__icon" style="color:var(--app-success)" />
+        <h1 class="mo-heading">{{ $accion === 'salida' ? 'Salida registrada' : 'Ingreso registrado' }}</h1>
+        <p class="mo-status__detail">{{ $sucursal->nombre }}@if ($puntoVenta) · {{ $puntoVenta->nombre }}@endif</p>
+        <p class="mo-status__time">{{ ($accion === 'salida' ? $visita->salida_en : $visita->ingreso_en)->format('H:i') }}</p>
+    </section>
+    <div class="mo-linkbar">
+        <a href="{{ route('visita-supervisor.esperando') }}"><x-heroicon-o-camera />Escanear otro QR</a>
+        <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle />Cerrar sesión</button></form>
+    </div>
+</x-mobile-operacion>

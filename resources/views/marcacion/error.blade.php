@@ -1,33 +1,11 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>No se pudo marcar</title>
-    <x-public-theme />
-    <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; min-height: 100vh; background:var(--app-page); color:var(--app-text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
-        .card { background:var(--app-surface); border:1px solid var(--app-border); border-radius: 1rem; padding: 2rem 1.75rem; width: 100%; max-width: 22rem; text-align: center; }
-        h1 { font-size: 1.05rem; margin: 0 0 0.5rem; color:var(--app-text); }
-        p { color:var(--app-muted); font-size: 0.875rem; line-height: 1.5; margin: 0 0 1.5rem; }
-        a.salir { color:var(--app-info); font-size: 0.85rem; text-decoration: none; font-weight: 600; }
-        .salir-btn { display: inline-flex; align-items: center; gap: 0.35rem; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <x-heroicon-s-exclamation-triangle style="width: 2.5rem; height: 2.5rem; color: #dc2626; margin: 0 auto 0.75rem; display: block;" />
-        <h1>No se pudo registrar tu marcación</h1>
-        <p>{{ $mensaje }}</p>
-
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button type="submit" style="all: unset; cursor: pointer;" class="salir salir-btn">
-                <x-heroicon-o-arrow-left-on-rectangle style="width: 1rem; height: 1rem;" />
-                Cerrar sesión
-            </button>
-        </form>
+<x-mobile-operacion :title="'No se pudo marcar'" section="Marcación">
+    <section class="mo-status">
+        <x-heroicon-s-exclamation-triangle class="mo-status__icon" style="color:var(--app-danger)" />
+        <h1 class="mo-heading">No se pudo registrar</h1>
+        <p class="mo-status__detail">{{ $mensaje }}</p>
+    </section>
+    <div class="mo-linkbar">
+        <a href="{{ route('marcacion.show') }}"><x-heroicon-o-camera />Volver a escanear</a>
+        <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle />Cerrar sesión</button></form>
     </div>
-</body>
-</html>
+</x-mobile-operacion>

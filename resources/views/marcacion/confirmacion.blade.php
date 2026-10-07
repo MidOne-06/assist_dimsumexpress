@@ -1,9 +1,12 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Registrado correctamente</title><x-public-theme />
-    <style>*{box-sizing:border-box}body{margin:0;min-height:100dvh;background:var(--app-page);color:var(--app-text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;place-items:center;padding:1rem}.card{width:min(100%,25rem);padding:1.5rem;text-align:center;background:var(--app-surface);border:1px solid var(--app-border);border-radius:.875rem}.icono{width:2.75rem;height:2.75rem;margin:0 auto .75rem;color:var(--app-success)}h1{font-size:1.2rem;margin:0 0 .3rem}.hora{font-size:2rem;font-weight:700;color:var(--app-success);margin:.7rem 0}.fecha{margin:0;color:var(--app-muted);font-size:.875rem}.acciones{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-top:1.25rem}a,button{display:inline-flex;align-items:center;gap:.32rem;border:0;background:none;padding:0;color:var(--app-info);font:inherit;font-size:.875rem;font-weight:600;text-decoration:none;cursor:pointer}@media(max-width:640px){body{display:block;padding:0}.card{display:flex;min-height:100dvh;width:100%;flex-direction:column;justify-content:center;padding:2rem 1.25rem calc(2rem + env(safe-area-inset-bottom));border:0;border-radius:0}}</style>
-</head>
-<body><main class="card"><x-heroicon-s-check-circle class="icono" /><h1>Registrado correctamente</h1><div class="hora">{{ $marcacion->fecha_hora->format('H:i:s') }}</div><p class="fecha">{{ $marcacion->fecha_hora->translatedFormat('l d \d\e F') }}</p><div class="acciones"><a href="{{ route('marcacion.show') }}"><x-heroicon-o-camera style="width:1rem;height:1rem" />Volver a marcar</a><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle style="width:1rem;height:1rem" />Cerrar sesión</button></form></div></main></body>
-</html>
+<x-mobile-operacion :title="'Registrado correctamente'" section="Marcación">
+    <section class="mo-status">
+        <x-heroicon-s-check-circle class="mo-status__icon" style="color:var(--app-success)" />
+        <h1 class="mo-heading">Registrado correctamente</h1>
+        <div class="mo-status__time">{{ $marcacion->fecha_hora->format('H:i:s') }}</div>
+        <p class="mo-status__detail">{{ $marcacion->fecha_hora->translatedFormat('l d \d\e F') }}</p>
+    </section>
+    <div class="mo-linkbar">
+        <a href="{{ route('marcacion.show') }}"><x-heroicon-o-camera />Volver a escanear</a>
+        <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle />Cerrar sesión</button></form>
+    </div>
+</x-mobile-operacion>

@@ -138,7 +138,7 @@ class MarcacionController extends Controller
             'apariencia' => app(AparienciaSistemaService::class),
             'colaborador' => $colaborador,
             'token' => $qrToken->token,
-            'acciones' => $this->accionesPresentables($tiposDisponibles),
+            'acciones' => $this->accionesPresentables($colaborador, $asignacion, now()),
         ]);
     }
 
@@ -274,14 +274,32 @@ class MarcacionController extends Controller
         ]));
     }
 
-    /** @param array<int, string> $tipos @return array<int, array{tipo:string,etiqueta:string,icono:string,color:string}> */
-    private function accionesPresentables(array $tipos): array
+    /**
+     * Presenta todo el flujo de la jornada, sin convertir la interfaz en una
+     * inferencia silenciosa. La validación definitiva permanece en store(),
+     * por lo que un botón deshabilitado no puede habilitarse desde el cliente.
+     *
+     * @return array<int, array{tipo:string,etiqueta:string,icono:string,color:string,habilitada:bool,motivo:?string}>
+     */
+    private function accionesPresentables(Colaborador $colaborador, ?AsignacionTurno $asignacion, \Carbon\Carbon $momento): array
     {
-        return collect($tipos)->map(fn (string $tipo): array => match ($tipo) {
-            Marcacion::TIPO_ENTRADA => ['tipo' => $tipo, 'etiqueta' => 'Ingreso de turno', 'icono' => 'heroicon-o-arrow-right-on-rectangle', 'color' => 'success'],
-            Marcacion::TIPO_SALIDA_REFRIGERIO => ['tipo' => $tipo, 'etiqueta' => 'Salida a refrigerio', 'icono' => 'heroicon-o-clock', 'color' => 'warning'],
-            Marcacion::TIPO_REGRESO_REFRIGERIO => ['tipo' => $tipo, 'etiqueta' => 'Ingreso de refrigerio', 'icono' => 'heroicon-o-arrow-right-circle', 'color' => 'info'],
-            default => ['tipo' => $tipo, 'etiqueta' => 'Salida de turno', 'icono' => 'heroicon-o-arrow-left-on-rectangle', 'color' => 'danger'],
+        $acciones = $asignacion
+            ? JornadaMarcacion::acciones($colaborador, $asignacion)
+            : JornadaMarcacion::accionesSinTurno($colaborador, $momento);
+
+        return collect($acciones)->map(function (array $accion): array {
+            $presentacion = match ($accion['tipo']) {
+                Marcacion::TIPO_ENTRADA => ['etiqueta' => 'Ingreso de turno', 'icono' => 'heroicon-o-arrow-right-on-rectangle', 'color' => 'success'],
+                Marcacion::TIPO_SALIDA_REFRIGERIO => ['etiqueta' => 'Salida a refrigerio', 'icono' => 'heroicon-o-clock', 'color' => 'warning'],
+                Marcacion::TIPO_REGRESO_REFRIGERIO => ['etiqueta' => 'Ingreso de refrigerio', 'icono' => 'heroicon-o-arrow-right-circle', 'color' => 'info'],
+                default => ['etiqueta' => 'Salida de turno', 'icono' => 'heroicon-o-arrow-left-on-rectangle', 'color' => 'danger'],
+            };
+
+            return $presentacion + [
+                'tipo' => $accion['tipo'],
+                'habilitada' => $accion['habilitada'],
+                'motivo' => $accion['motivo'],
+            ];
         })->all();
     }
 

@@ -1,51 +1,35 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Confirmar {{ $accion === 'salida' ? 'salida' : 'ingreso' }}</title>
-    <x-pwa-head />
-    <x-public-theme />
-    <style>
-        * { box-sizing: border-box; }
-        body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--app-page); color:var(--app-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; padding:1.5rem; }
-        main { width:min(100%,24rem); padding:1.5rem; text-align:center; background:var(--app-surface); border:1px solid var(--app-border); border-radius:1rem; }
-        .icono { width:3rem; height:3rem; margin:0 auto .875rem; color:var(--app-info); }
-        h1 { margin:0; font-size:1.125rem; }
-        p { margin:.5rem 0 0; color:var(--app-muted); font-size:.875rem; line-height:1.5; }
-        .local { margin:1.25rem 0; padding:.875rem; border:1px solid var(--app-border); border-radius:.75rem; background:var(--app-subtle); }
-        .local strong,.local span { display:block; }
-        .local span { margin-top:.15rem; color:var(--app-muted); font-size:.8125rem; }
-        .acciones { display:grid; gap:.625rem; margin-top:1rem; }
-        .accion { display:flex; align-items:center; gap:.625rem; width:100%; min-height:3rem; padding:.75rem .875rem; border:1px solid var(--app-border); border-radius:.625rem; background:var(--app-surface); color:var(--app-text); font:inherit; font-weight:700; text-align:left; cursor:pointer; }
-        .accion svg { width:1.125rem; height:1.125rem; }
-        .accion--ingreso:not(:disabled) { border-color:color-mix(in srgb,var(--app-success) 50%,var(--app-border)); color:var(--app-success); }
-        .accion--salida:not(:disabled) { border-color:color-mix(in srgb,var(--app-danger) 50%,var(--app-border)); color:var(--app-danger); }
-        .accion:disabled { opacity:.48; cursor:not-allowed; }
-        .salir { display:inline-flex; margin-top:1rem; color:var(--app-muted); font-size:.8125rem; text-decoration:none; }
-    </style>
-</head>
-<body>
-    <main>
-        <x-heroicon-o-map-pin class="icono" />
-        <h1>Marcación de visita</h1>
-        <p>Selecciona la acción disponible para este local.</p>
-        <div class="local"><strong>{{ $sucursal->nombre }}</strong>@if ($puntoVenta)<span>{{ $puntoVenta->nombre }}</span>@endif</div>
-        <div class="acciones">
-            <form method="POST" action="{{ route('visita-supervisor.store') }}">
-                @csrf
-                <input type="hidden" name="token" value="{{ $qrToken->token }}">
-                <input type="hidden" name="accion" value="ingreso">
-                <button class="accion accion--ingreso" type="submit" @disabled($accion !== 'ingreso')><x-heroicon-o-arrow-right-on-rectangle />Registrar ingreso de visita</button>
-            </form>
-            <form method="POST" action="{{ route('visita-supervisor.store') }}">
-                @csrf
-                <input type="hidden" name="token" value="{{ $qrToken->token }}">
-                <input type="hidden" name="accion" value="salida">
-                <button class="accion accion--salida" type="submit" @disabled($accion !== 'salida')><x-heroicon-o-arrow-left-on-rectangle />Registrar salida de visita</button>
-            </form>
-        </div>
-        <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="salir" style="all:unset;cursor:pointer">Cerrar sesión</button></form>
-    </main>
-</body>
-</html>
+<x-mobile-operacion :title="'Confirmar visita'" section="Visitas">
+    <h1 class="mo-heading">QR escaneado correctamente</h1>
+    <p class="mo-subheading">{{ $sucursal->nombre }}@if ($puntoVenta) · {{ $puntoVenta->nombre }}@endif</p>
+
+    <div class="mo-callout mo-callout--success">
+        <x-heroicon-s-check-circle />
+        <span>Elige la acción que vas a registrar.</span>
+    </div>
+
+    <div class="mo-actions">
+        <form method="POST" action="{{ route('visita-supervisor.store') }}">
+            @csrf
+            <input type="hidden" name="token" value="{{ $qrToken->token }}">
+            <input type="hidden" name="accion" value="ingreso">
+            <button class="mo-action mo-action--success" type="submit" @disabled($accion !== 'ingreso')>
+                <x-heroicon-o-arrow-right-on-rectangle /><span class="mo-action__meta">Registrar ingreso de visita</span>
+            </button>
+            @if ($accion !== 'ingreso')<span class="mo-action__hint">Hay una visita en curso en este local.</span>@endif
+        </form>
+        <form method="POST" action="{{ route('visita-supervisor.store') }}">
+            @csrf
+            <input type="hidden" name="token" value="{{ $qrToken->token }}">
+            <input type="hidden" name="accion" value="salida">
+            <button class="mo-action mo-action--danger" type="submit" @disabled($accion !== 'salida')>
+                <x-heroicon-o-arrow-left-on-rectangle /><span class="mo-action__meta">Registrar salida de visita</span>
+            </button>
+            @if ($accion !== 'salida')<span class="mo-action__hint">Primero registra el ingreso de la visita.</span>@endif
+        </form>
+    </div>
+
+    <div class="mo-linkbar">
+        <a href="{{ route('visita-supervisor.esperando') }}"><x-heroicon-o-camera />Escanear otro QR</a>
+        <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle />Cerrar sesión</button></form>
+    </div>
+</x-mobile-operacion>

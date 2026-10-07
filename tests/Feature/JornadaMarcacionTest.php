@@ -55,7 +55,10 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.show', ['token' => $qr->token]))
             ->assertOk()
             ->assertSee('Ingreso de turno')
-            ->assertDontSee('Salida de turno');
+            ->assertSee('Salida a refrigerio')
+            ->assertSee('Ingreso de refrigerio')
+            ->assertSee('Salida de turno')
+            ->assertSee('Registra primero tu entrada.');
 
         $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
 
