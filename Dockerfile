@@ -28,7 +28,8 @@ FROM dependencies AS testing
 
 # La imagen de producción no contiene herramientas de prueba. Esta etapa
 # independiente permite ejecutar la suite completa sin añadirlas al runtime.
-ENV APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+ENV APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+    APP_LOCALE=es
 RUN apk add --no-cache sqlite-dev libxml2-dev oniguruma-dev \
     && docker-php-ext-install pdo_sqlite dom xml xmlwriter mbstring
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts --ignore-platform-req=ext-intl
