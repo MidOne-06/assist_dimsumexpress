@@ -4,7 +4,7 @@
 
     <div class="mo-callout mo-callout--success">
         <x-heroicon-s-check-circle />
-        <span>Elige la acción que vas a registrar.</span>
+        <span>Selecciona una acción.</span>
     </div>
 
     @if (isset($errors) && $errors->any())
