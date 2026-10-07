@@ -15,6 +15,16 @@ RUN printf '%s\n' "Installing dependencies for lock: ${COMPOSER_LOCK_SHA}" \
 COPY . .
 RUN composer dump-autoload --no-dev --optimize --no-scripts
 
+FROM dependencies AS testing
+
+# La imagen de producción no contiene herramientas de prueba. Esta etapa
+# independiente permite ejecutar la suite completa sin añadirlas al runtime.
+RUN apk add --no-cache sqlite-dev libxml2-dev oniguruma-dev \
+    && docker-php-ext-install pdo_sqlite dom xml xmlwriter mbstring
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts --ignore-platform-req=ext-intl
+COPY . .
+RUN composer dump-autoload --optimize --no-scripts
+
 FROM node:22-alpine AS frontend
 WORKDIR /app
 
