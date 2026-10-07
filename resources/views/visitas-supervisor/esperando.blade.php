@@ -5,7 +5,7 @@
     @include('marcacion.partials.escaner', [
         'rutaQr' => '/visitas-supervisor?token=',
         'textoBoton' => 'Escanear QR de visita',
-        'textoContinuar' => 'Continuar',
+        'textoContinuar' => 'Ver acciones de visita',
     ])
 
     <div class="mo-linkbar">

@@ -6,7 +6,7 @@
         'mostrarBoton' => true,
         'validarAntesDeContinuar' => true,
         'textoBoton' => 'Escanear QR',
-        'textoContinuar' => 'Continuar',
+        'textoContinuar' => 'Elegir marcación',
     ])
 
     <div class="mo-linkbar">

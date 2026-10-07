@@ -7,7 +7,7 @@
         <span>Elige la acción que vas a registrar.</span>
     </div>
 
-    @if ($errors->any())
+    @if (isset($errors) && $errors->any())
         <div class="mo-callout mo-callout--danger" role="alert">
             <x-heroicon-s-exclamation-triangle />
             <span>@foreach ($errors->all() as $error){{ $error }}@if (! $loop->last)<br>@endif @endforeach</span>

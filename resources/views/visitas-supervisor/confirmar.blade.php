@@ -1,5 +1,6 @@
 <x-mobile-operacion :title="'Confirmar visita'" section="Visitas">
-    <h1 class="mo-heading">QR escaneado correctamente</h1>
+    <h1 class="mo-heading">Marcación de visita</h1>
+    <p class="mo-subheading">QR escaneado correctamente</p>
     <p class="mo-subheading">{{ $sucursal->nombre }}@if ($puntoVenta) · {{ $puntoVenta->nombre }}@endif</p>
 
     <div class="mo-callout mo-callout--success">
