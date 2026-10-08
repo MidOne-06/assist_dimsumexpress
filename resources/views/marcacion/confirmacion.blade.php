@@ -1,4 +1,4 @@
-<x-mobile-operacion :title="'Registrado correctamente'" section="Marcación">
+<x-mobile-operacion :title="'Registrado correctamente'" section="Marcación" layout="operation">
     <section class="mo-status">
         <x-heroicon-s-check-circle class="mo-status__icon" style="color:var(--app-success)" />
         <h1 class="mo-heading">Registrado correctamente</h1>

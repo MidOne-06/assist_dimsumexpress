@@ -1,4 +1,4 @@
-<x-mobile-operacion :title="'Visita pendiente'" section="Visitas">
+<x-mobile-operacion :title="'Visita pendiente'" section="Visitas" layout="operation">
     <section class="mo-status">
         <x-heroicon-o-exclamation-triangle class="mo-status__icon" style="color:var(--app-warning)" />
         <h1 class="mo-heading">Primero registra tu salida</h1>

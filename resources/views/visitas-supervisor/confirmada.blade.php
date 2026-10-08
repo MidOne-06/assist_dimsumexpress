@@ -1,4 +1,4 @@
-<x-mobile-operacion :title="'Visita registrada'" section="Visitas">
+<x-mobile-operacion :title="'Visita registrada'" section="Visitas" layout="operation">
     <section class="mo-status">
         <x-heroicon-s-check-circle class="mo-status__icon" style="color:var(--app-success)" />
         <h1 class="mo-heading">{{ $accion === 'salida' ? 'Salida registrada' : 'Ingreso registrado' }}</h1>

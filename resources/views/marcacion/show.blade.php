@@ -1,4 +1,4 @@
-<x-mobile-operacion :title="'Confirmar marcación'" section="Marcación" :appearance="$apariencia">
+<x-mobile-operacion :title="'Confirmar marcación'" section="Marcación" :appearance="$apariencia" layout="operation">
     <h1 class="mo-heading">QR escaneado correctamente</h1>
     <p class="mo-subheading">{{ $colaborador->nombre_completo }}</p>
 

@@ -57,6 +57,7 @@ class HorarioColaboradorTest extends TestCase
             ->assertSee('Semana 3 de 5')
             ->assertSee('<span class="number">20</span>', false)
             ->assertDontSee('<span class="number">1</span>', false)
+            ->assertSee('marcacion-dimsum-vertical.png', false)
             ->assertSee('prefers-color-scheme', false)
             ->assertDontSee('localStorage.getItem', false);
     }

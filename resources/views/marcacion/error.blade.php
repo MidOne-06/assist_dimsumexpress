@@ -1,4 +1,4 @@
-<x-mobile-operacion :title="'No se pudo marcar'" section="Marcación">
+<x-mobile-operacion :title="'No se pudo marcar'" section="Marcación" layout="operation">
     <section class="mo-status">
         <x-heroicon-s-exclamation-triangle class="mo-status__icon" style="color:var(--app-danger)" />
         <h1 class="mo-heading">No se pudo registrar</h1>

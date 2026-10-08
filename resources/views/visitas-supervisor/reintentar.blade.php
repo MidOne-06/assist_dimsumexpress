@@ -1,4 +1,4 @@
-<x-mobile-operacion :title="'Escanea nuevamente'" section="Visitas">
+<x-mobile-operacion :title="'Escanea nuevamente'" section="Visitas" layout="operation">
     <section class="mo-status">
         <x-heroicon-o-arrow-path class="mo-status__icon" style="color:var(--app-warning)" />
         <h1 class="mo-heading">Escanea nuevamente</h1>

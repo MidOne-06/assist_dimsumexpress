@@ -690,6 +690,8 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.show', ['token' => $qr->token]))
             ->assertOk()
             ->assertSee('QR escaneado correctamente')
+            ->assertSee('mo-body--operation', false)
+            ->assertSee('mo-operation-card', false)
             ->assertSee('Selecciona una acción')
             ->assertSee('Salida a refrigerio')
             ->assertSee('Salida de turno')
@@ -885,6 +887,7 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($operador)
             ->get(route('marcacion.confirmacion', $marcacion))
             ->assertOk()
+            ->assertSee('mo-body--operation', false)
             ->assertSee('10:30:45');
 
         $traza = view('filament.actions.trazabilidad-marcacion', [

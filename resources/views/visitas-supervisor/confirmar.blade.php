@@ -1,4 +1,4 @@
-<x-mobile-operacion :title="'Confirmar visita'" section="Visitas">
+<x-mobile-operacion :title="'Confirmar visita'" section="Visitas" layout="operation">
     <h1 class="mo-heading">Marcación de visita</h1>
     <p class="mo-subheading">QR escaneado correctamente</p>
     <p class="mo-subheading">{{ $sucursal->nombre }}@if ($puntoVenta) · {{ $puntoVenta->nombre }}@endif</p>

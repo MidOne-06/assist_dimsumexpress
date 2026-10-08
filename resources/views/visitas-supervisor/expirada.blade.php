@@ -1,4 +1,4 @@
-<x-mobile-operacion :title="'QR vencido'" section="Visitas">
+<x-mobile-operacion :title="'QR vencido'" section="Visitas" layout="operation">
     <section class="mo-status">
         <x-heroicon-s-exclamation-triangle class="mo-status__icon" style="color:var(--app-warning)" />
         <h1 class="mo-heading">Código QR vencido</h1>

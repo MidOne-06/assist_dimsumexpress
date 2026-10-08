@@ -107,6 +107,72 @@
             content: '';
         }
         .mo-body--marking-home .mo-content { padding-top: 0; }
+        /* Pantallas posteriores al escaneo y flujo de visitas. Comparten la
+           identidad de la portada, sin convertir la operación en una UI
+           distinta del resto de la aplicación. */
+        .mo-body--operation {
+            min-height: 100dvh;
+            background-image: linear-gradient(var(--mo-marking-overlay), var(--mo-marking-overlay)), var(--mo-marking-image);
+            background-position: center;
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+        .mo-body--operation .mo-shell {
+            width: min(100%, 30rem);
+            padding: clamp(1.5rem, 5vw, 2.25rem) clamp(1rem, 5vw, 1.75rem);
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+        }
+        .mo-body--operation .mo-brand {
+            gap: .65rem;
+            padding: 0 0 1rem;
+            border: 0;
+        }
+        .mo-body--operation .mo-brand img {
+            width: min(7rem, 30vw);
+            height: auto;
+            max-width: none;
+            max-height: 4rem;
+        }
+        .mo-body--operation .mo-brand__section {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            gap: .65rem;
+            color: #d9e7ff;
+            font-size: .75rem;
+            font-weight: 700;
+            letter-spacing: .22em;
+            line-height: 1;
+            text-align: center;
+        }
+        .mo-body--operation .mo-brand__section::before,
+        .mo-body--operation .mo-brand__section::after {
+            height: 1px;
+            flex: 1;
+            background: #e11d48;
+            content: '';
+        }
+        .mo-operation-card {
+            padding: clamp(1.15rem, 5vw, 1.5rem);
+            border: 1px solid var(--mo-marking-glass-border);
+            border-radius: 1.25rem;
+            background: var(--mo-marking-glass);
+            box-shadow: 0 1.25rem 3.5rem rgb(2 12 27 / .2);
+            color: var(--mo-marking-text);
+            backdrop-filter: blur(1rem);
+            -webkit-backdrop-filter: blur(1rem);
+        }
+        .mo-operation-card .mo-heading { color: var(--mo-marking-text); }
+        .mo-operation-card .mo-subheading,
+        .mo-operation-card .mo-action__hint,
+        .mo-operation-card .mo-status__detail { color: var(--mo-marking-muted); }
+        .mo-operation-card .mo-action { background: rgb(255 255 255 / .64); }
+        .mo-operation-card .mo-linkbar { margin-top: 1.125rem; padding-top: .75rem; border-top: 1px solid rgb(71 84 103 / .2); }
+        .mo-operation-card .mo-linkbar a,
+        .mo-operation-card .mo-linkbar button { color: var(--mo-marking-muted); }
         .mo-marking-welcome {
             padding: clamp(1.2rem, 5.5vw, 1.75rem);
             border: 1px solid var(--mo-marking-glass-border);
@@ -171,11 +237,14 @@
                 --mo-marking-text: #f8fafc;
                 --mo-marking-muted: #dbeafe;
             }
+            .mo-operation-card .mo-action { background: rgb(15 35 62 / .62); color: #f8fafc; }
+            .mo-operation-card .mo-linkbar { border-color: rgb(191 219 254 / .22); }
         }
         @media (max-width: 640px) {
             .mo-body { display: block; padding: 0; }
             .mo-shell { min-height: 100dvh; width: 100%; padding: max(1.25rem, env(safe-area-inset-top)) 1rem calc(1.25rem + env(safe-area-inset-bottom)); border: 0; border-radius: 0; box-shadow: none; }
             .mo-body--marking-home .mo-shell { min-height: 100dvh; padding-top: max(2.25rem, env(safe-area-inset-top)); padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+            .mo-body--operation .mo-shell { min-height: 100dvh; padding-top: max(2rem, env(safe-area-inset-top)); padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
         }
         @media (max-width: 22rem) {
             .mo-marking-quick-actions { grid-template-columns: 1fr; }
@@ -189,7 +258,7 @@
             <img src="{{ $appearance->logoUrl() }}" alt="{{ $appearance->nombre() }}">
             @if ($section)<span class="mo-brand__section">{{ $section }}</span>@endif
         </header>
-        <div class="mo-content">{{ $slot }}</div>
+        <div @class(['mo-content', 'mo-operation-card' => $layout === 'operation'])>{{ $slot }}</div>
     </main>
 </body>
 </html>

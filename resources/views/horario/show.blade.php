@@ -2,28 +2,29 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Mi horario — {{ $apariencia->nombre() }}</title>
     <link rel="icon" href="{{ $apariencia->iconoUrl() }}">
     <x-pwa-head />
     <style>
-        :root { color-scheme: light; --primary: {{ $apariencia->colorPrimario() }}; --page:#f8fafc; --surface:#fff; --surface-soft:#f8fafc; --ink:#111827; --muted:#667085; --line:#e4e7ec; --shadow:rgb(15 23 42 / .10); }
-        @media (prefers-color-scheme: dark) { :root { color-scheme:dark; --page:#0f172a; --surface:#18181b; --surface-soft:#27272a; --ink:#f8fafc; --muted:#a1a1aa; --line:#3f3f46; --shadow:rgb(2 6 23 / .32); } }
+        :root { color-scheme: light; --primary: {{ $apariencia->colorPrimario() }}; --page:#f8fafc; --surface:rgb(255 255 255 / .88); --surface-soft:rgb(248 250 252 / .82); --ink:#111827; --muted:#667085; --line:rgb(255 255 255 / .70); --shadow:rgb(15 23 42 / .18); --schedule-overlay:rgb(5 18 34 / .24); --schedule-image:url('{{ asset('images/marcacion-dimsum-vertical.png') }}'); }
+        @media (prefers-color-scheme: dark) { :root { color-scheme:dark; --page:#0f172a; --surface:rgb(9 27 51 / .80); --surface-soft:rgb(15 35 62 / .72); --ink:#f8fafc; --muted:#dbeafe; --line:rgb(148 196 255 / .34); --shadow:rgb(2 6 23 / .32); --schedule-overlay:rgb(3 15 30 / .34); } }
         * { box-sizing:border-box; }
-        body { min-height:100vh; margin:0; padding:clamp(1rem,3vw,2.5rem); background:var(--page); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-        .shell { width:min(100%,72rem); margin:auto; }
-        .topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.125rem; }
-        .brand { display:flex; min-width:0; align-items:center; gap:.75rem; }
-        .brand-logo { width:auto; height:2.5rem; max-width:9rem; object-fit:contain; }
+        body { min-height:100dvh; margin:0; padding:clamp(1rem,3vw,2.5rem); background-image:linear-gradient(var(--schedule-overlay),var(--schedule-overlay)),var(--schedule-image); background-position:center; background-size:cover; background-attachment:fixed; color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+        .shell { width:min(100%,48rem); margin:auto; }
+        .topbar { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:1rem; margin-bottom:1.125rem; }
+        .brand { grid-column:2; display:flex; min-width:0; align-items:center; gap:.75rem; }
+        .brand-logo { width:auto; height:3rem; max-width:9rem; object-fit:contain; }
         .brand-name { overflow:hidden; color:var(--ink); font-size:.9375rem; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
-        .logout { display:inline-flex; align-items:center; gap:.45rem; min-height:2.75rem; padding:0 .875rem; border:1px solid var(--line); border-radius:.625rem; background:var(--surface); color:var(--ink); font:inherit; font-size:.875rem; font-weight:600; cursor:pointer; }
+        .topbar form { grid-column:3; justify-self:end; }
+        .logout { display:inline-flex; align-items:center; gap:.45rem; min-height:2.75rem; padding:0 .875rem; border:1px solid var(--line); border-radius:.625rem; background:var(--surface); color:var(--ink); font:inherit; font-size:.875rem; font-weight:600; cursor:pointer; backdrop-filter:blur(.75rem); -webkit-backdrop-filter:blur(.75rem); }
         .logout:hover { border-color:color-mix(in srgb,var(--primary) 40%,var(--line)); color:var(--primary); }
-        .page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.25rem; }
+        .page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1rem; padding:1rem 1.125rem; border:1px solid var(--line); border-radius:1rem; background:var(--surface); box-shadow:0 .75rem 1.75rem var(--shadow); backdrop-filter:blur(1rem); -webkit-backdrop-filter:blur(1rem); }
         h1 { margin:0; font-size:clamp(1.375rem,3vw,1.625rem); letter-spacing:-.03em; line-height:1.2; }
         .identity { margin:.4rem 0 0; color:var(--muted); font-size:.875rem; line-height:1.45; }
         .today-link { display:inline-flex; flex:0 0 auto; align-items:center; gap:.4rem; min-height:2.75rem; padding:0 .875rem; border:1px solid var(--line); border-radius:.625rem; background:var(--surface); color:var(--ink); font-size:.875rem; font-weight:600; text-decoration:none; }
         .today-link:hover { border-color:var(--primary); color:var(--primary); }
-        .panel { overflow:hidden; border:1px solid var(--line); border-radius:.75rem; background:var(--surface); }
+        .panel { overflow:hidden; border:1px solid var(--line); border-radius:1rem; background:var(--surface); box-shadow:0 .75rem 1.75rem var(--shadow); backdrop-filter:blur(1rem); -webkit-backdrop-filter:blur(1rem); }
         .panel-head { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.875rem 1rem; border-bottom:1px solid var(--line); }
         .month-nav { display:flex; align-items:center; gap:.625rem; }
         .month { min-width:10.5rem; text-align:center; color:var(--ink); font-size:.9375rem; font-weight:700; text-transform:capitalize; }
@@ -50,7 +51,7 @@
         .actions { display:flex; justify-content:flex-start; margin-top:1.25rem; }
         .back { display:inline-flex; align-items:center; gap:.45rem; min-height:2.75rem; padding:0 .875rem; border:1px solid color-mix(in srgb,var(--primary) 35%,var(--line)); border-radius:.625rem; background:color-mix(in srgb,var(--primary) 9%,var(--surface)); color:var(--primary); font-size:.875rem; font-weight:700; text-decoration:none; }
         .back:hover { background:color-mix(in srgb,var(--primary) 16%,var(--surface)); }
-        @media (max-width:640px) { body { padding:.75rem; } .topbar { margin-bottom:.875rem; } .brand-name { display:none; } .brand-logo { height:2rem; } .page-heading { align-items:flex-end; margin-bottom:.875rem; } h1 { font-size:1.375rem; } .identity { font-size:.8125rem; } .today-link span { display:none; } .panel { border-radius:.625rem; } .panel-head { padding:.75rem .875rem; } .legend { display:none; } .month-nav { width:100%; justify-content:space-between; } .month { min-width:0; font-size:.875rem; } .week-nav { padding:.5rem .75rem; } .days { grid-template-columns:1fr; padding:0; gap:0; } .day { min-height:3.25rem; grid-template-columns:2.5rem minmax(0,1fr); gap:.5rem; padding:.5rem .75rem; border:0; border-radius:0; border-bottom:1px solid var(--line); background:transparent; } .day:last-child { border-bottom:0; } .day.today { box-shadow:none; } .date { min-height:2.25rem; border:0; border-radius:0; background:transparent; } .number { font-size:1rem; } .today-badge { top:.25rem; right:.625rem; } .logout span { display:none; } .logout { width:2.5rem; justify-content:center; padding:0; } .actions { margin-top:1rem; } }
+        @media (max-width:640px) { body { padding:max(.75rem, env(safe-area-inset-top)) .75rem calc(.75rem + env(safe-area-inset-bottom)); background-attachment:scroll; } .topbar { margin-bottom:.875rem; } .brand-name { display:none; } .brand-logo { height:2.25rem; } .page-heading { align-items:flex-end; margin-bottom:.875rem; padding:.875rem 1rem; } h1 { font-size:1.375rem; } .identity { font-size:.8125rem; } .today-link span { display:none; } .panel { border-radius:.875rem; } .panel-head { padding:.75rem .875rem; } .legend { display:none; } .month-nav { width:100%; justify-content:space-between; } .month { min-width:0; font-size:.875rem; } .week-nav { padding:.5rem .75rem; } .days { grid-template-columns:1fr; padding:0; gap:0; } .day { min-height:3.25rem; grid-template-columns:2.5rem minmax(0,1fr); gap:.5rem; padding:.5rem .75rem; border:0; border-radius:0; border-bottom:1px solid var(--line); background:transparent; } .day:last-child { border-bottom:0; } .day.today { box-shadow:none; } .date { min-height:2.25rem; border:0; border-radius:0; background:transparent; } .number { font-size:1rem; } .today-badge { top:.25rem; right:.625rem; } .logout span { display:none; } .logout { width:2.5rem; justify-content:center; padding:0; } .actions { margin-top:1rem; } }
     </style>
 </head>
 <body>

@@ -1,4 +1,4 @@
-<x-mobile-operacion :title="'Marcación de visita'" section="Visitas">
+<x-mobile-operacion :title="'Marcación de visita'" section="Visitas" layout="operation">
     <h1 class="mo-heading">Marcación de visita</h1>
     <p class="mo-subheading">Escanea el QR del local.</p>
 
