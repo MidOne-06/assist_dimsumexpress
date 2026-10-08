@@ -2,6 +2,7 @@
     'title',
     'section' => null,
     'appearance' => null,
+    'layout' => null,
 ])
 
 @php($appearance ??= app(\App\Services\AparienciaSistemaService::class))
@@ -15,7 +16,15 @@
     <x-pwa-head />
     <x-public-theme />
     <style>
-        :root { --mo-primary: {{ $appearance->colorPrimario() }}; }
+        :root {
+            --mo-primary: {{ $appearance->colorPrimario() }};
+            --mo-marking-image: url('{{ asset('images/marcacion-dimsum.png') }}');
+            --mo-marking-overlay: rgb(5 18 34 / .54);
+            --mo-marking-glass: rgb(255 255 255 / .86);
+            --mo-marking-glass-border: rgb(255 255 255 / .72);
+            --mo-marking-text: #172033;
+            --mo-marking-muted: #475467;
+        }
         * { box-sizing: border-box; }
         .mo-body { min-height: 100dvh; margin: 0; display: grid; place-items: center; padding: 1rem; background: var(--app-page); color: var(--app-text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
         .mo-shell { width: min(100%, 30rem); padding: 1.25rem; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 1rem; box-shadow: 0 12px 28px rgb(16 24 40 / .08); }
@@ -49,13 +58,130 @@
         .mo-status__icon { width: 3rem; height: 3rem; margin-bottom: .875rem; }
         .mo-status__time { margin-top: .75rem; color: var(--app-success); font-size: 1.75rem; font-weight: 700; }
         .mo-status__detail { margin: .25rem 0 0; color: var(--app-muted); font-size: .875rem; line-height: 1.45; }
+
+        /* Pantalla inicial de marcación: mantiene la operación sencilla, pero
+           da prioridad al escaneo y a la identidad de la marca en móvil. */
+        .mo-body--marking-home {
+            min-height: 100dvh;
+            background-image: linear-gradient(var(--mo-marking-overlay), var(--mo-marking-overlay)), var(--mo-marking-image);
+            background-position: 40% center;
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+        .mo-body--marking-home .mo-shell {
+            width: min(100%, 32rem);
+            padding: clamp(1.5rem, 5vw, 2.5rem) clamp(1rem, 5vw, 2rem);
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+        }
+        .mo-body--marking-home .mo-brand {
+            gap: 1.25rem;
+            padding: 0 0 clamp(1.5rem, 5vw, 2.25rem);
+            border: 0;
+        }
+        .mo-body--marking-home .mo-brand img {
+            width: min(13rem, 52vw);
+            height: auto;
+            max-width: none;
+            max-height: 7rem;
+        }
+        .mo-body--marking-home .mo-brand__section {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            gap: .9rem;
+            color: #d9e7ff;
+            font-size: clamp(.85rem, 3.8vw, 1.15rem);
+            font-weight: 700;
+            letter-spacing: .28em;
+            line-height: 1;
+            text-align: center;
+        }
+        .mo-body--marking-home .mo-brand__section::before,
+        .mo-body--marking-home .mo-brand__section::after {
+            height: 1px;
+            flex: 1;
+            background: #e11d48;
+            content: '';
+        }
+        .mo-body--marking-home .mo-content { padding-top: 0; }
+        .mo-marking-welcome {
+            padding: clamp(1.5rem, 7vw, 2.5rem);
+            border: 1px solid var(--mo-marking-glass-border);
+            border-radius: 1.5rem;
+            background: var(--mo-marking-glass);
+            box-shadow: 0 1.25rem 3.5rem rgb(2 12 27 / .2);
+            color: var(--mo-marking-text);
+            backdrop-filter: blur(1rem);
+            -webkit-backdrop-filter: blur(1rem);
+        }
+        .mo-marking-greeting { margin: 0; font-size: clamp(2.25rem, 10vw, 3.5rem); font-weight: 400; letter-spacing: -.04em; line-height: .95; }
+        .mo-marking-name { margin: .35rem 0 0; font-size: clamp(2.75rem, 13vw, 4.5rem); font-weight: 750; letter-spacing: -.065em; line-height: .98; }
+        .mo-marking-welcome .mp-escaner { margin-top: clamp(1.5rem, 8vw, 2.5rem); }
+        .mo-marking-welcome .mp-escanear {
+            min-height: clamp(4.5rem, 17vw, 5.75rem);
+            margin-top: 0;
+            padding: .9rem 1.25rem;
+            border: 1px solid rgb(255 255 255 / .45);
+            border-radius: 1.25rem;
+            background: #1677ff;
+            box-shadow: 0 .8rem 1.5rem rgb(22 119 255 / .27);
+            color: #fff;
+            font-size: clamp(1.25rem, 6vw, 2rem);
+            font-weight: 750;
+        }
+        .mo-marking-welcome .mp-escanear::after { margin-left: auto; content: '›'; font-size: 2.5rem; font-weight: 300; line-height: .5; }
+        .mo-marking-welcome .mp-escanear svg { width: clamp(1.65rem, 7vw, 2.3rem) !important; height: clamp(1.65rem, 7vw, 2.3rem) !important; }
+        .mo-marking-quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; margin-top: .9rem; }
+        .mo-marking-quick-action {
+            display: flex;
+            min-height: 7.25rem;
+            align-items: center;
+            gap: .7rem;
+            padding: 1rem;
+            border: 1px solid rgb(148 196 255 / .48);
+            border-radius: 1.2rem;
+            background: rgb(7 25 48 / .7);
+            box-shadow: 0 .75rem 1.75rem rgb(2 12 27 / .14);
+            color: #fff;
+            font-size: clamp(.95rem, 4.3vw, 1.2rem);
+            font-weight: 700;
+            line-height: 1.15;
+            text-decoration: none;
+            backdrop-filter: blur(.75rem);
+            -webkit-backdrop-filter: blur(.75rem);
+        }
+        .mo-marking-quick-action button { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+        .mo-marking-quick-action__icon { display: inline-flex; width: 2.8rem; height: 2.8rem; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 999px; background: rgb(147 197 253 / .16); color: #dbeafe; }
+        .mo-marking-quick-action__icon svg { width: 1.5rem; height: 1.5rem; }
+        .mo-marking-quick-action > svg { width: 1.35rem; height: 1.35rem; margin-left: auto; color: #bfdbfe; }
+        .mo-marking-quick-action form { width: 100%; }
+        .mo-marking-quick-action--logout { cursor: pointer; }
+        .mo-marking-quick-action--logout button { display: flex; min-height: 5.25rem; align-items: center; gap: .7rem; }
+        .mo-marking-quick-action--logout button > svg { width: 1.35rem; height: 1.35rem; margin-left: auto; color: #bfdbfe; }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --mo-marking-overlay: rgb(3 15 30 / .66);
+                --mo-marking-glass: rgb(9 27 51 / .74);
+                --mo-marking-glass-border: rgb(148 196 255 / .55);
+                --mo-marking-text: #f8fafc;
+                --mo-marking-muted: #dbeafe;
+            }
+        }
         @media (max-width: 640px) {
             .mo-body { display: block; padding: 0; }
             .mo-shell { min-height: 100dvh; width: 100%; padding: max(1.25rem, env(safe-area-inset-top)) 1rem calc(1.25rem + env(safe-area-inset-bottom)); border: 0; border-radius: 0; box-shadow: none; }
+            .mo-body--marking-home .mo-shell { min-height: 100dvh; padding-top: max(1.5rem, env(safe-area-inset-top)); padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+        }
+        @media (max-width: 22rem) {
+            .mo-marking-quick-actions { grid-template-columns: 1fr; }
+            .mo-marking-quick-action { min-height: 4.5rem; }
         }
     </style>
 </head>
-<body class="mo-body">
+<body @class(['mo-body', 'mo-body--' . $layout => filled($layout)])>
     <main class="mo-shell">
         <header class="mo-brand">
             <img src="{{ $appearance->logoUrl() }}" alt="{{ $appearance->nombre() }}">

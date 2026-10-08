@@ -1,16 +1,34 @@
-<x-mobile-operacion :title="'Marcación'" section="Marcación" :appearance="$apariencia">
-    <h1 class="mo-heading">Hola, {{ $colaborador->nombre_completo }}</h1>
-    <p class="mo-subheading">Escanea el QR</p>
+@php
+    $nombre = trim((string) $colaborador->nombre_completo);
+    $primerNombre = explode(' ', preg_replace('/\s+/', ' ', $nombre))[0] ?: $nombre;
+@endphp
 
-    @include('marcacion.partials.escaner', [
-        'mostrarBoton' => true,
-        'validarAntesDeContinuar' => true,
-        'textoBoton' => 'Escanear QR',
-        'textoContinuar' => 'Elegir marcación',
-    ])
+<x-mobile-operacion :title="'Marcación'" section="Marcación" :appearance="$apariencia" layout="marking-home">
+    <section class="mo-marking-welcome" aria-labelledby="marcacion-saludo">
+        <p class="mo-marking-greeting">Hola,</p>
+        <h1 id="marcacion-saludo" class="mo-marking-name">{{ $primerNombre }}</h1>
 
-    <div class="mo-linkbar">
-        <a href="{{ route('horario.show') }}"><x-heroicon-o-calendar-days />Mi horario</a>
-        <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle />Cerrar sesión</button></form>
-    </div>
+        @include('marcacion.partials.escaner', [
+            'mostrarBoton' => true,
+            'validarAntesDeContinuar' => true,
+            'textoBoton' => 'Escanear QR',
+            'textoContinuar' => 'Elegir marcación',
+        ])
+    </section>
+
+    <nav class="mo-marking-quick-actions" aria-label="Acciones de marcación">
+        <a class="mo-marking-quick-action" href="{{ route('horario.show') }}">
+            <span class="mo-marking-quick-action__icon"><x-heroicon-o-calendar-days /></span>
+            <span>Mi horario</span>
+            <x-heroicon-o-chevron-right />
+        </a>
+        <form class="mo-marking-quick-action mo-marking-quick-action--logout" method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit">
+                <span class="mo-marking-quick-action__icon"><x-heroicon-o-arrow-left-on-rectangle /></span>
+                <span>Cerrar sesión</span>
+                <x-heroicon-o-chevron-right />
+            </button>
+        </form>
+    </nav>
 </x-mobile-operacion>
