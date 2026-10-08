@@ -662,7 +662,7 @@ class JornadaMarcacionTest extends TestCase
             ->assertSee('Escanear QR')
             ->assertSee('mo-marking-welcome', false)
             ->assertSee('mo-marking-quick-actions', false)
-            ->assertSee('marcacion-dimsum.png', false)
+            ->assertSee('marcacion-dimsum-vertical.png', false)
             ->assertSee('Hola,')
             ->assertDontSee($colaborador->nombre_completo)
             ->assertDontSee('Turno programado')

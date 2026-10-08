@@ -18,8 +18,8 @@
     <style>
         :root {
             --mo-primary: {{ $appearance->colorPrimario() }};
-            --mo-marking-image: url('{{ asset('images/marcacion-dimsum.png') }}');
-            --mo-marking-overlay: rgb(5 18 34 / .54);
+            --mo-marking-image: url('{{ asset('images/marcacion-dimsum-vertical.png') }}');
+            --mo-marking-overlay: rgb(5 18 34 / .22);
             --mo-marking-glass: rgb(255 255 255 / .86);
             --mo-marking-glass-border: rgb(255 255 255 / .72);
             --mo-marking-text: #172033;
@@ -64,7 +64,7 @@
         .mo-body--marking-home {
             min-height: 100dvh;
             background-image: linear-gradient(var(--mo-marking-overlay), var(--mo-marking-overlay)), var(--mo-marking-image);
-            background-position: 40% center;
+            background-position: center;
             background-size: cover;
             background-repeat: no-repeat;
         }
@@ -165,7 +165,7 @@
         .mo-marking-quick-action--logout button > svg { width: 1.15rem; height: 1.15rem; margin-left: auto; color: #bfdbfe; }
         @media (prefers-color-scheme: dark) {
             :root {
-                --mo-marking-overlay: rgb(3 15 30 / .66);
+                --mo-marking-overlay: rgb(3 15 30 / .18);
                 --mo-marking-glass: rgb(9 27 51 / .74);
                 --mo-marking-glass-border: rgb(148 196 255 / .55);
                 --mo-marking-text: #f8fafc;
