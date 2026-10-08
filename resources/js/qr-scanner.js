@@ -21,6 +21,11 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
     const rutaValidacion = root.dataset.rutaValidacion;
     const rutaPermitida = new URL(root.dataset.rutaQr, window.location.origin);
 
+    // La pantalla de inicio usa un efecto de vidrio que crea un nuevo
+    // contenedor para elementos fijos. El lector debe vivir al nivel del
+    // documento para cubrir realmente toda la pantalla al abrir la cámara.
+    document.body.append(overlay);
+
     let controles = null;
     let procesando = false;
     let destino = null;
@@ -49,6 +54,7 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
         detener();
         restaurar();
         overlay.classList.remove('activo');
+        document.documentElement.classList.remove('mp-escaner-activo');
     };
 
     const mostrarResultado = (ok, mensaje = '') => {
@@ -126,6 +132,7 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
         restaurar();
         procesando = false;
         overlay.classList.add('activo');
+        document.documentElement.classList.add('mp-escaner-activo');
 
         try {
             controles = await reader.decodeFromConstraints(
@@ -137,6 +144,7 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
             );
         } catch (_) {
             overlay.classList.remove('activo');
+            document.documentElement.classList.remove('mp-escaner-activo');
             avisoPermiso.style.display = 'block';
         }
     };
