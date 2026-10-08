@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class ColaboradorEstadoAccesoTest extends TestCase
@@ -71,6 +72,7 @@ class ColaboradorEstadoAccesoTest extends TestCase
         ]);
 
         $colaborador->reactivarAcceso();
+        $usuario->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
 
         $this->withSession(['_token' => 'csrf-reactivacion'])->post(route('login'), [
             '_token' => 'csrf-reactivacion',

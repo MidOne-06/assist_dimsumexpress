@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\AparienciaSistemaService;
+use App\Support\PortalAccesos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -45,20 +46,14 @@ class ColaboradorLoginController extends Controller
         $request->session()->regenerate();
         $request->session()->forget('acceso_operativo_via_enlace');
 
-        // Supervisión es un flujo operativo distinto de asistencia. Un
-        // supervisor no necesita (ni debe tener) ficha de colaborador para
-        // registrar su visita mediante el QR del local asignado.
-        if ($usuario?->hasRole('supervisor') && ! $usuario->colaborador) {
-            return redirect()->intended(route('visita-supervisor.esperando'));
-        }
+        // No se usa redirect()->intended(): si una supervisora abrió /admin
+        // por error, esa URL no debe imponerse sobre su operación real.
+        // Las cuentas con más de una capacidad eligen explícitamente.
+        $accesos = PortalAccesos::disponibles($usuario);
 
-        // Las cuentas administrativas puras tampoco deben terminar en el
-        // flujo de marcación, que solo corresponde a colaboradores.
-        if ($usuario?->can('Access:AdminPanel') && ! $usuario->colaborador) {
-            return redirect()->intended(route('filament.admin.pages.dashboard'));
-        }
-
-        return redirect()->intended(route('marcacion.show'));
+        return count($accesos) === 1
+            ? redirect()->to($accesos[0]['ruta'])
+            : redirect()->route('acceso.portal');
     }
 
     public function destroy(Request $request): RedirectResponse

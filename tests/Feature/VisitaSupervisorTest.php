@@ -218,7 +218,7 @@ class VisitaSupervisorTest extends TestCase
             ->assertSee('Vuelve a escanear');
     }
 
-    public function test_supervisor_without_a_collaborator_profile_is_sent_to_the_visit_qr_flow(): void
+    public function test_supervisor_without_a_collaborator_profile_is_offered_visits_and_administration(): void
     {
         $this->seed(RolesYPermisosSeeder::class);
         $supervisor = User::factory()->create([
@@ -235,7 +235,13 @@ class VisitaSupervisorTest extends TestCase
                 'email' => $supervisor->email,
                 'password' => 'ClaveDePrueba123!',
             ])
-            ->assertRedirect(route('visita-supervisor.esperando'));
+            ->assertRedirect(route('acceso.portal'));
+
+        $this->actingAs($supervisor)
+            ->get(route('acceso.portal'))
+            ->assertOk()
+            ->assertSee('Registrar visita')
+            ->assertSee('Panel administrativo');
 
         $this->actingAs($supervisor)
             ->get(route('visita-supervisor.esperando'))

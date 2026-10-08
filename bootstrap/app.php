@@ -5,6 +5,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use App\Support\PortalAccesos;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,12 +15,16 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
-        // Sin esta ruta explícita, Laravel usa "/" para sesiones activas.
-        // Como la raíz redirige a /login, un colaborador autenticado entraba
-        // en un bucle infinito entre ambas URLs.
-        $middleware->redirectUsersTo(fn (Request $request): string => $request->user()?->can('Access:AdminPanel')
-            ? route('filament.admin.pages.dashboard')
-            : route('marcacion.show'));
+        // Una sesión con una sola operación va directo a ella. Las cuentas
+        // mixtas regresan al portal para elegir, sin obedecer una URL previa.
+        $middleware->redirectUsersTo(function (Request $request): string {
+            $usuario = $request->user();
+            $accesos = $usuario ? PortalAccesos::disponibles($usuario) : [];
+
+            return count($accesos) === 1
+                ? $accesos[0]['ruta']
+                : route('acceso.portal');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

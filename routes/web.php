@@ -7,11 +7,12 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HorarioColaboradorController;
 use App\Http\Controllers\MarcacionController;
 use App\Http\Controllers\PwaController;
+use App\Http\Controllers\PortalAccesoController;
 use App\Http\Controllers\VisitaSupervisorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return redirect()->route('login');
+    return redirect()->route('acceso.portal');
 });
 
 // Monitor externo: comprueba aplicación, base de datos y scheduler sin
@@ -90,6 +91,10 @@ Route::middleware('throttle:30,1')->group(function () {
 });
 
 Route::middleware(['auth', 'throttle:30,1'])->group(function () {
+    // Acceso principal de la aplicación. Para una sola capacidad, redirige
+    // automáticamente; para cuentas mixtas muestra una elección explícita.
+    Route::get('/ingresar', PortalAccesoController::class)->name('acceso.portal');
+
     Route::get('/visitas-supervisor/esperando', [VisitaSupervisorController::class, 'esperando'])
         ->name('visita-supervisor.esperando');
     Route::get('/visitas-supervisor', [VisitaSupervisorController::class, 'show'])
