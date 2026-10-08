@@ -659,7 +659,7 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($operador)
             ->get(route('marcacion.show'))
             ->assertOk()
-            ->assertSee('Escanea el QR')
+            ->assertSee('Escanear QR')
             ->assertSee('mo-marking-welcome', false)
             ->assertSee('mo-marking-quick-actions', false)
             ->assertSee('marcacion-dimsum.png', false)
