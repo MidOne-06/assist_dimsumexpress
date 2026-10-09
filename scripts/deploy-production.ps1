@@ -61,6 +61,12 @@ docker compose -p asistencias exec -T -u www-data app php artisan optimize:clear
 docker compose -p asistencias exec -T -u www-data app php artisan config:cache
 docker compose -p asistencias exec -T -u www-data app php artisan route:cache
 docker compose -p asistencias exec -T -u www-data app php artisan view:cache
+# El gateway público conserva la IP del upstream al cargar Nginx. Al recrear
+# `web`, se recarga si existe para que resuelva inmediatamente el contenedor
+# nuevo antes de ejecutar las verificaciones externas.
+if docker ps --format '{{.Names}}' | grep -qx 'dsi-gateway'; then
+  docker exec dsi-gateway nginx -s reload
+fi
 curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/admin/login
 curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/health
 
