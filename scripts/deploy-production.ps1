@@ -67,6 +67,16 @@ docker compose -p asistencias exec -T -u www-data app php artisan view:cache
 if docker ps --format '{{.Names}}' | grep -qx 'dsi-gateway'; then
   docker exec dsi-gateway nginx -s reload
 fi
+# La recarga de Nginx es asíncrona. Se da una ventana breve al gateway antes
+# de fallar el release por un 502 transitorio del upstream recién recreado.
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  if curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/admin/login \
+    && curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/health; then
+    break
+  fi
+
+  sleep 2
+done
 curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/admin/login
 curl -fsS -o /dev/null https://assist.dimsumexpress.cloud/health
 
