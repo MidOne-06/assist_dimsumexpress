@@ -18,7 +18,7 @@ class PortalAccesoTest extends TestCase
     public function test_single_operation_accounts_are_sent_directly_to_their_operation(): void
     {
         $sucursal = Sucursal::create(['nombre' => 'Local portal', 'tipo' => 'tienda', 'activo' => true]);
-        $colaborador = User::factory()->create();
+        $colaborador = User::factory()->create(['activo' => true]);
         $colaborador->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
         Colaborador::create([
             'user_id' => $colaborador->id,
@@ -28,7 +28,7 @@ class PortalAccesoTest extends TestCase
             'activo' => true,
         ]);
 
-        $administrador = User::factory()->create();
+        $administrador = User::factory()->create(['activo' => true]);
         $administrador->givePermissionTo(Permission::findOrCreate('Access:AdminPanel', 'web'));
 
         $this->actingAs($colaborador)
@@ -46,6 +46,7 @@ class PortalAccesoTest extends TestCase
         $supervisor = User::factory()->create([
             'email' => 'supervisor.portal@example.test',
             'password' => Hash::make('ClavePrueba2026!'),
+            'activo' => true,
         ]);
         $supervisor->assignRole('supervisor');
 
@@ -71,7 +72,7 @@ class PortalAccesoTest extends TestCase
     {
         $this->seed(RolesYPermisosSeeder::class);
         $sucursal = Sucursal::create(['nombre' => 'Local mixto', 'tipo' => 'tienda', 'activo' => true]);
-        $usuario = User::factory()->create();
+        $usuario = User::factory()->create(['activo' => true]);
         $usuario->assignRole('supervisor');
         Colaborador::create([
             'user_id' => $usuario->id,

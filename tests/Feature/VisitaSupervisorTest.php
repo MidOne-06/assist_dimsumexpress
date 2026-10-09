@@ -224,6 +224,7 @@ class VisitaSupervisorTest extends TestCase
         $supervisor = User::factory()->create([
             'email' => 'supervisor@example.test',
             'password' => Hash::make('ClaveDePrueba123!'),
+            'activo' => true,
         ]);
         $supervisor->assignRole('supervisor');
 

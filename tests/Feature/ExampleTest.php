@@ -12,10 +12,10 @@ class ExampleTest extends TestCase
     /**
      * A basic test example.
      */
-    public function test_the_root_redirects_to_the_collaborator_login(): void
+    public function test_the_root_redirects_to_the_main_access_portal(): void
     {
         $response = $this->get('/');
 
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('acceso.portal'));
     }
 }
