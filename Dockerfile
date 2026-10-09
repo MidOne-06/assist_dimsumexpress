@@ -42,6 +42,9 @@ RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/fra
 FROM php:8.3-fpm-alpine AS application
 WORKDIR /var/www/html
 
+ARG RELEASE_SHA=unknown
+LABEL org.opencontainers.image.revision=$RELEASE_SHA
+
 RUN apk add --no-cache bash curl libzip-dev postgresql-dev icu-dev libxml2-dev su-exec \
     && docker-php-ext-install pdo_pgsql zip intl opcache pcntl \
     && rm -rf /tmp/*

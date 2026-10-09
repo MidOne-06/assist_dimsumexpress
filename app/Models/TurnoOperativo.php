@@ -25,6 +25,17 @@ class TurnoOperativo extends Model
                 return;
             }
 
+            $turnoVigente = Turno::query()
+                ->whereKey($regla->turno_id)
+                ->where('activo', true)
+                ->exists();
+
+            if (! $turnoVigente) {
+                throw ValidationException::withMessages([
+                    'turno_id' => 'Solo se puede habilitar una regla para un turno vigente.',
+                ]);
+            }
+
             $duplicada = static::query()
                 ->where('sucursal_id', $regla->sucursal_id)
                 ->where('turno_id', $regla->turno_id)

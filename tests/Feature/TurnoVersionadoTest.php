@@ -33,6 +33,26 @@ class TurnoVersionadoTest extends TestCase
         $regla->update(['prioridad' => 1]);
     }
 
+    public function test_an_active_operational_rule_cannot_reference_an_archived_shift(): void
+    {
+        $sucursal = Sucursal::create(['nombre' => 'Sucursal validada', 'tipo' => 'planta', 'activo' => true]);
+        $turnoArchivado = Turno::create([
+            'nombre' => 'Turno archivado',
+            'hora_inicio' => '08:00',
+            'hora_fin' => '17:00',
+            'activo' => false,
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        TurnoOperativo::create([
+            'turno_id' => $turnoArchivado->id,
+            'sucursal_id' => $sucursal->id,
+            'prioridad' => 100,
+            'activo' => true,
+        ]);
+    }
+
     public function test_editing_a_shift_with_history_versions_only_future_assignments(): void
     {
         $sucursal = Sucursal::create(['nombre' => 'Sucursal de prueba', 'tipo' => 'planta', 'activo' => true]);

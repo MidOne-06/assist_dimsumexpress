@@ -6,9 +6,12 @@ namespace App\Filament\Pages;
 
 use App\Filament\Resources\Colaboradors\ColaboradorResource;
 use App\Filament\Resources\IncidenciaMarcacions\IncidenciaMarcacionResource;
+use App\Filament\Resources\Marcacions\MarcacionResource;
 use App\Filament\Resources\TurnoOperativos\TurnoOperativoResource;
 use App\Models\Colaborador;
 use App\Models\IncidenciaMarcacion;
+use App\Models\Marcacion;
+use App\Models\PuntoVenta;
 use App\Models\TurnoOperativo;
 use App\Models\VisitaSupervisor;
 use App\Services\SchedulerHeartbeat;
@@ -164,6 +167,61 @@ class AuditoriaOperativa extends Page implements HasTable
             ->get(['id', 'sucursal_id', 'punto_venta_id'])
             ->groupBy('sucursal_id');
 
+        // Una regla histórica nunca debe mostrarse como vigente. Aunque el
+        // detector ya excluye turnos inactivos, este hallazgo evita que una
+        // estación parezca configurada cuando en realidad no tiene un turno
+        // aplicable.
+        TurnoOperativo::query()
+            ->where('activo', true)
+            ->whereIn('sucursal_id', $sucursalIds)
+            ->whereDoesntHave('turno', fn ($query) => $query->where('activo', true))
+            ->with(['sucursal:id,nombre', 'puntoVenta:id,nombre', 'turno:id,nombre'])
+            ->orderBy('sucursal_id')
+            ->get()
+            ->each(function (TurnoOperativo $regla) use ($hallazgos): void {
+                $hallazgos->push([
+                    '__key' => "turno-inactivo-{$regla->id}",
+                    'nivel' => 'Crítico',
+                    'hallazgo' => 'Regla activa con turno archivado',
+                    'detalle' => trim(implode(' · ', array_filter([
+                        $regla->turno?->nombre,
+                        $regla->puntoVenta?->nombre,
+                    ]))),
+                    'local' => $regla->sucursal?->nombre,
+                    'url' => TurnoOperativoResource::getUrl('index'),
+                ]);
+            });
+
+        // Se revisa cada estación activa incluso si aún no tiene
+        // colaboradores. Así una caja nueva no queda disponible para QR sin
+        // un turno que permita interpretar la marcación.
+        PuntoVenta::query()
+            ->where('activo', true)
+            ->whereIn('sucursal_id', $sucursalIds)
+            ->with('sucursal:id,nombre')
+            ->orderBy('sucursal_id')
+            ->get()
+            ->each(function (PuntoVenta $puntoVenta) use ($mapeos, $hallazgos): void {
+                $mapeosLocal = $mapeos->get($puntoVenta->sucursal_id, collect());
+                $tieneRegla = $mapeosLocal
+                    ->where('punto_venta_id', $puntoVenta->id)
+                    ->isNotEmpty()
+                    || $mapeosLocal->whereNull('punto_venta_id')->isNotEmpty();
+
+                if ($tieneRegla) {
+                    return;
+                }
+
+                $hallazgos->push([
+                    '__key' => "estacion-sin-turno-{$puntoVenta->id}",
+                    'nivel' => 'Crítico',
+                    'hallazgo' => 'Estación sin turno operativo',
+                    'detalle' => $puntoVenta->nombre,
+                    'local' => $puntoVenta->sucursal?->nombre,
+                    'url' => TurnoOperativoResource::getUrl('index'),
+                ]);
+            });
+
         Colaborador::query()
             ->where('activo', true)
             ->whereIn('sucursal_id', $sucursalIds)
@@ -202,6 +260,48 @@ class AuditoriaOperativa extends Page implements HasTable
                         'url' => ColaboradorResource::getUrl('index', ['search' => $colaborador->nombre_completo]),
                     ]);
                 }
+
+                if ($colaborador->user?->activo && ! $colaborador->user->can('Registrar:Marcacion')) {
+                    $hallazgos->push([
+                        '__key' => "permiso-marcacion-{$colaborador->id}",
+                        'nivel' => 'Crítico',
+                        'hallazgo' => 'Cuenta sin permiso para marcar',
+                        'detalle' => $colaborador->nombre_completo,
+                        'local' => $colaborador->sucursal?->nombre,
+                        'url' => ColaboradorResource::getUrl('index', ['search' => $colaborador->nombre_completo]),
+                    ]);
+                }
+            });
+
+        // Una marca excepcional se conserva, pero no puede quedar invisible:
+        // requiere que RR. HH. aplique un turno desde Control de jornadas.
+        Marcacion::query()
+            ->whereNull('turno_id')
+            ->whereIn('sucursal_id', $sucursalIds)
+            ->where('fecha_hora', '<=', now())
+            ->with(['colaborador:id,nombre_completo', 'sucursal:id,nombre'])
+            ->orderBy('fecha_hora')
+            ->get()
+            ->groupBy(fn (Marcacion $marcacion): string => $marcacion->colaborador_id . ':' . $marcacion->fecha_hora->toDateString())
+            ->each(function (Collection $marcaciones, string $clave) use ($hallazgos): void {
+                $primera = $marcaciones->first();
+
+                if (! $primera) {
+                    return;
+                }
+
+                $hallazgos->push([
+                    '__key' => "marcacion-sin-turno-{$clave}",
+                    'nivel' => 'Atención',
+                    'hallazgo' => 'Marcaciones pendientes de regularizar',
+                    'detalle' => trim(implode(' · ', array_filter([
+                        $primera->colaborador?->nombre_completo,
+                        $primera->fecha_hora->format('d/m/Y'),
+                        $marcaciones->count() . ' lectura(s)',
+                    ]))),
+                    'local' => $primera->sucursal?->nombre,
+                    'url' => MarcacionResource::getUrl('index'),
+                ]);
             });
 
         IncidenciaMarcacion::query()

@@ -120,6 +120,34 @@ class AuditoriaOperativaTest extends TestCase
         $this->assertDatabaseHas('qr_tokens', ['id' => $visitUsed->id]);
     }
 
+    public function test_audit_reports_a_station_without_an_operational_shift_and_unassigned_marks(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $administrador = User::factory()->create();
+        $administrador->assignRole('administrador');
+        $sucursal = $this->sucursal(['nombre' => 'Local con estación pendiente']);
+        $puntoVenta = PuntoVenta::create([
+            'sucursal_id' => $sucursal->id,
+            'nombre' => 'Caja pendiente',
+            'activo' => true,
+        ]);
+        $colaborador = $this->colaborador($sucursal);
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'punto_venta_id' => $puntoVenta->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now(),
+        ]);
+
+        $this->actingAs($administrador);
+        $hallazgos = new ReflectionMethod(app(AuditoriaOperativa::class), 'hallazgos');
+        $resultado = $hallazgos->invoke(app(AuditoriaOperativa::class));
+
+        $this->assertTrue($resultado->contains('hallazgo', 'Estación sin turno operativo'));
+        $this->assertTrue($resultado->contains('hallazgo', 'Marcaciones pendientes de regularizar'));
+    }
+
     public function test_audit_reports_supervisor_visits_opened_on_a_previous_day(): void
     {
         $this->seed(RolesYPermisosSeeder::class);

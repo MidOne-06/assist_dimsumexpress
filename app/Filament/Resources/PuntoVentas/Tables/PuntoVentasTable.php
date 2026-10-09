@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PuntoVentas\Tables;
 
 use App\Models\PuntoVenta;
 use App\Models\Sucursal;
+use App\Models\TurnoOperativo;
 use App\Services\PuntoVentaService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -39,6 +40,29 @@ class PuntoVentasTable
                         'almacen' => 'Almacén',
                         default => 'Otro',
                     }),
+                IconColumn::make('turno_operativo_configurado')
+                    ->label('Turno')
+                    ->state(function (PuntoVenta $record): bool {
+                        $reglas = TurnoOperativo::query()
+                            ->where('sucursal_id', $record->sucursal_id)
+                            ->where('activo', true)
+                            ->whereHas('turno', fn ($query) => $query->where('activo', true));
+
+                        $tieneReglaPropia = (clone $reglas)
+                            ->where('punto_venta_id', $record->id)
+                            ->exists();
+
+                        return $tieneReglaPropia
+                            || $reglas->whereNull('punto_venta_id')->exists();
+                    })
+                    ->boolean()
+                    ->trueIcon(Heroicon::OutlinedCheckCircle)
+                    ->falseIcon(Heroicon::OutlinedExclamationTriangle)
+                    ->trueColor('success')
+                    ->falseColor('danger')
+                    ->tooltip(fn (bool $state): string => $state
+                        ? 'Turno operativo listo para detección automática'
+                        : 'Falta configurar un turno operativo'),
                 TextColumn::make('colaboradores_count')
                     ->label('Colaboradores')
                     ->counts('colaboradores')
