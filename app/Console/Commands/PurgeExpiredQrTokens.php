@@ -7,7 +7,9 @@ use Illuminate\Console\Command;
 
 class PurgeExpiredQrTokens extends Command
 {
-    protected $signature = 'qr:purge-expired {--hours=24 : Horas de retención después de vencer}';
+    protected $signature = 'qr:purge-expired
+                            {--hours=24 : Horas de retención después de vencer}
+                            {--dry-run : Muestra los QR que se eliminarían sin modificar datos}';
 
     protected $description = 'Elimina QR vencidos sin ninguna referencia histórica de asistencia o visita';
 
@@ -22,6 +24,12 @@ class PurgeExpiredQrTokens extends Command
             ->whereDoesntHave('visitasSupervisorIngreso')
             ->whereDoesntHave('visitasSupervisorSalida')
             ->whereDoesntHave('visitaSupervisorMarcaciones');
+
+        if ($this->option('dry-run')) {
+            $this->info("QR vencidos que se eliminarían: {$query->count()}");
+
+            return self::SUCCESS;
+        }
 
         $deleted = $query->delete();
 

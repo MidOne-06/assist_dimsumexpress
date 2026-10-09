@@ -113,6 +113,12 @@ class AuditoriaOperativaTest extends TestCase
             'ingreso_qr_token_id' => $visitUsed->id,
         ]);
 
+        $this->artisan('qr:purge-expired', ['--hours' => 1, '--dry-run' => true])
+            ->expectsOutput('QR vencidos que se eliminarían: 1')
+            ->assertExitCode(0);
+
+        $this->assertDatabaseHas('qr_tokens', ['id' => $unused->id]);
+
         $this->artisan('qr:purge-expired', ['--hours' => 1])->assertExitCode(0);
 
         $this->assertDatabaseMissing('qr_tokens', ['id' => $unused->id]);
