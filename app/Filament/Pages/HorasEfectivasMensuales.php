@@ -211,10 +211,10 @@ class HorasEfectivasMensuales extends Page implements HasTable
     {
         return [
             Section::make()->compact()->columns(['default' => 1, 'md' => 4])->schema([
-                TextEntry::make('efectivas')->label('Efectivas')->state($record['jornadas_cerradas'] ? static::formatoSegundos($record['efectivos_segundos']) : '—')->weight('medium'),
-                TextEntry::make('objetivo')->label('Objetivo')->state($record['jornadas_cerradas'] ? static::formatoSegundos($record['objetivo_segundos']) : '—'),
-                TextEntry::make('diferencia')->label('Diferencia')->state($record['jornadas_cerradas'] ? static::formatoSegundos($record['diferencia_segundos']) : '—')->color($record['diferencia_segundos'] < 0 ? 'danger' : 'success'),
-                TextEntry::make('extras')->label('Extras')->state($record['jornadas_cerradas'] ? static::formatoSegundos($record['extras_segundos']) : '—')->color('warning'),
+                TextEntry::make('efectivas')->label('Efectivas')->state($record['jornadas_cerradas'] ? HorasEfectivasMensualesService::formatoSegundos($record['efectivos_segundos']) : '—')->weight('medium'),
+                TextEntry::make('objetivo')->label('Objetivo')->state($record['jornadas_cerradas'] ? HorasEfectivasMensualesService::formatoSegundos($record['objetivo_segundos']) : '—'),
+                TextEntry::make('diferencia')->label('Diferencia')->state($record['jornadas_cerradas'] ? HorasEfectivasMensualesService::formatoSegundos($record['diferencia_segundos']) : '—')->color($record['diferencia_segundos'] < 0 ? 'danger' : 'success'),
+                TextEntry::make('extras')->label('Extras')->state($record['jornadas_cerradas'] ? HorasEfectivasMensualesService::formatoSegundos($record['extras_segundos']) : '—')->color('warning'),
             ]),
             Section::make('Jornadas')->compact()->schema([
                 RepeatableEntry::make('jornadas')->state($record['jornadas'])->contained()->schema([
@@ -252,26 +252,6 @@ class HorasEfectivasMensuales extends Page implements HasTable
         }
 
         return ! $record['jornadas_cerradas'] ? 'warning' : ($record['diferencia_segundos'] < 0 ? 'danger' : 'success');
-    }
-
-    public static function formatoHoras(int $minutos): string
-    {
-        $horas = intdiv(abs($minutos), 60);
-        $resto = abs($minutos) % 60;
-        $valor = "{$horas} h" . ($resto ? " {$resto} min" : '');
-
-        return $minutos < 0 ? "−{$valor}" : $valor;
-    }
-
-    public static function formatoSegundos(int $segundos): string
-    {
-        $absoluto = abs($segundos);
-        $horas = intdiv($absoluto, 3600);
-        $minutos = intdiv($absoluto % 3600, 60);
-        $restantes = $absoluto % 60;
-        $valor = "{$horas} h {$minutos} min" . ($restantes ? " {$restantes} s" : '');
-
-        return $segundos < 0 ? "−{$valor}" : $valor;
     }
 
     private function inicioPeriodo(): Carbon
