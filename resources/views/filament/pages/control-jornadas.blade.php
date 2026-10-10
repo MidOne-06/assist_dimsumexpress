@@ -109,7 +109,7 @@
                         </x-filament::input.wrapper>
                     </div>
                     <div class="jornada-person__profile">
-                        <span class="jornada-avatar">{{ \App\Filament\Pages\ControlJornadas::iniciales($colaborador->nombre_completo) }}</span>
+                        <span class="jornada-avatar">{{ \App\Services\JornadaCalendarioService::iniciales($colaborador->nombre_completo) }}</span>
                         <div>
                             <div class="jornada-person__name">{{ $colaborador->nombre_completo }}</div>
                             <div class="jornada-person__role">{{ $colaborador->cargo ?: 'Colaborador' }}{{ $colaborador->area ? ' · ' . $colaborador->area->nombre : '' }}</div>
@@ -127,7 +127,7 @@
 
                 <aside class="jornada-person" aria-label="Colaborador seleccionado">
                     <div class="jornada-scale" aria-label="Escala horaria">
-                        @foreach (\App\Filament\Pages\ControlJornadas::horasEscala() as $hora)
+                        @foreach (\App\Services\JornadaCalendarioService::horasEscala() as $hora)
                             <span class="jornada-scale__label" style="top: {{ (($hora - 6) / 16) * 100 }}%">{{ str_pad((string) $hora, 2, '0', STR_PAD_LEFT) }}:00</span>
                         @endforeach
                     </div>
@@ -180,7 +180,7 @@
                         @foreach ($eventos as $evento)
                             @php
                                 $tipo = $evento->tipo;
-                                $posicion = \App\Filament\Pages\ControlJornadas::porcentajeHora($evento->fecha_hora);
+                                $posicion = \App\Services\JornadaCalendarioService::porcentajeHora($evento->fecha_hora);
                                 $marcadoresCercanos = collect($posicionesMarcadores)
                                     ->filter(fn (float $anterior): bool => abs($anterior - $posicion) < 3)
                                     ->count();

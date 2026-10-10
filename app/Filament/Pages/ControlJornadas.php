@@ -9,9 +9,9 @@ use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
+use App\Services\JornadaCalendarioService;
 use App\Services\RegularizacionJornadaService;
 use App\Support\AlcanceSupervisor;
-use App\Support\JornadaMarcacion;
 use BackedEnum;
 use Carbon\Carbon;
 use Filament\Actions\Action;
@@ -47,11 +47,6 @@ class ControlJornadas extends Page
     protected static ?string $title = 'Calendario de turnos';
 
     protected string $view = 'filament.pages.control-jornadas';
-
-    /** La escala solicitada: de 06:00 a 22:00. */
-    public const HORA_INICIO_ESCALA = 6 * 60;
-
-    public const HORA_FIN_ESCALA = 22 * 60;
 
     public ?int $sucursalId = null;
 
@@ -320,7 +315,7 @@ class ControlJornadas extends Page
      *     asignacion:?AsignacionTurno,
      *     marcaciones:SupportCollection<int, Marcacion>,
      *     jornada:?array<string, mixed>,
-     *     refrigerio:?array{inicio:int, fin:int, incidencia:bool}
+     *     refrigerio:?array{inicio:float, fin:float, incidencia:bool}
      * }>
      */
     public function getJornadasProperty(): SupportCollection
@@ -331,90 +326,7 @@ class ControlJornadas extends Page
             return collect();
         }
 
-        $inicioMes = Carbon::parse("{$this->mes}-01")->startOfDay();
-        $finMes = $inicioMes->copy()->endOfMonth()->endOfDay();
-
-        $asignaciones = AsignacionTurno::query()
-            ->with('turno')
-            ->where('colaborador_id', $colaborador->id)
-            ->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])
-            ->get()
-            ->keyBy(fn (AsignacionTurno $asignacion): string => $asignacion->fecha->toDateString());
-
-        // Las jornadas nocturnas y abiertas pueden terminar después de
-        // medianoche. Se carga una ventana ampliada y se vuelve a limitar con
-        // JornadaMarcacion para cada turno, evitando consultas por columna.
-        $marcaciones = Marcacion::query()
-            ->where('colaborador_id', $colaborador->id)
-            ->whereBetween('fecha_hora', [
-                $inicioMes->copy()->subDay(),
-                $finMes->copy()->addMinutes(JornadaMarcacion::MAXIMO_JORNADA_MINUTOS),
-            ])
-            ->orderBy('fecha_hora')
-            ->orderBy('id')
-            ->get();
-
-        return collect($this->dias)->map(function (Carbon $fecha) use ($asignaciones, $marcaciones, $colaborador): array {
-            /** @var ?AsignacionTurno $asignacion */
-            $asignacion = $asignaciones->get($fecha->toDateString());
-
-            if (! $asignacion) {
-                // Una lectura excepcional sin turno operativo detectado no se
-                // transforma artificialmente en una jornada. Se muestra en
-                // el calendario para auditoría, conservando que no hay un
-                // turno con el cual calcular horas efectivas o refrigerio.
-                $eventosExcepcionales = $marcaciones
-                    ->filter(fn (Marcacion $marcacion): bool => $marcacion->turno_id === null
-                        && $marcacion->fecha_hora->isSameDay($fecha))
-                    ->values();
-
-                return [
-                    'fecha' => $fecha,
-                    'asignacion' => null,
-                    'marcaciones' => $eventosExcepcionales,
-                    'jornada' => $this->rangoJornada($eventosExcepcionales),
-                    'refrigerio' => null,
-                ];
-            }
-
-            $limites = JornadaMarcacion::limites($asignacion);
-            $eventos = $marcaciones
-                ->filter(fn (Marcacion $marcacion): bool => $marcacion->turno_id === $asignacion->turno_id
-                    && $marcacion->fecha_hora->betweenIncluded($limites['ventana_inicio'], $limites['jornada_fin_maximo']))
-                ->values();
-
-            return [
-                'fecha' => $fecha,
-                'asignacion' => $asignacion,
-                'marcaciones' => $eventos,
-                'jornada' => $this->rangoJornada($eventos),
-                'refrigerio' => $this->rangoRefrigerio($asignacion, $eventos),
-            ];
-        });
-    }
-
-    public static function iniciales(string $nombre): string
-    {
-        return collect(preg_split('/\s+/', trim($nombre)))
-            ->filter()
-            ->take(2)
-            ->map(fn (string $parte): string => mb_strtoupper(mb_substr($parte, 0, 1)))
-            ->implode('');
-    }
-
-    /** Posición vertical dentro de la escala, limitada a su rango visible. */
-    public static function porcentajeHora(Carbon $hora): float
-    {
-        $minutos = ($hora->hour * 60) + $hora->minute + ($hora->second / 60);
-        $rango = self::HORA_FIN_ESCALA - self::HORA_INICIO_ESCALA;
-
-        return max(0, min(100, (($minutos - self::HORA_INICIO_ESCALA) / $rango) * 100));
-    }
-
-    /** @return array<int, int> */
-    public static function horasEscala(): array
-    {
-        return range(6, 22, 2);
+        return app(JornadaCalendarioService::class)->construir($colaborador, $this->mes, $this->dias);
     }
 
     private function normalizarSeleccion(): void
@@ -443,49 +355,4 @@ class ControlJornadas extends Page
             ->when($this->sucursalId, fn (Builder $query): Builder => $query->where('sucursal_id', $this->sucursalId));
     }
 
-    /** @param SupportCollection<int, Marcacion> $marcaciones */
-    private function rangoJornada(SupportCollection $marcaciones): ?array
-    {
-        $entrada = $marcaciones->firstWhere('tipo', Marcacion::TIPO_ENTRADA);
-
-        if (! $entrada) {
-            return null;
-        }
-
-        $salida = $marcaciones
-            ->filter(fn (Marcacion $marcacion): bool => $marcacion->tipo === Marcacion::TIPO_SALIDA)
-            ->last();
-        $ultimoEvento = $salida ?? $marcaciones->last();
-
-        return [
-            'inicio' => self::porcentajeHora($entrada->fecha_hora),
-            'fin' => max(self::porcentajeHora($ultimoEvento->fecha_hora), self::porcentajeHora($entrada->fecha_hora) + 0.75),
-            'cerrada' => (bool) $salida,
-        ];
-    }
-
-    /** @param SupportCollection<int, Marcacion> $marcaciones */
-    private function rangoRefrigerio(AsignacionTurno $asignacion, SupportCollection $marcaciones): ?array
-    {
-        if (! $asignacion->turno->incluye_refrigerio) {
-            return null;
-        }
-
-        $salida = $marcaciones->firstWhere('tipo', Marcacion::TIPO_SALIDA_REFRIGERIO);
-        $regreso = $marcaciones->firstWhere('tipo', Marcacion::TIPO_REGRESO_REFRIGERIO);
-
-        if (! $salida && ! $regreso) {
-            return null;
-        }
-
-        $duracion = max(1, (int) $asignacion->turno->refrigerio_minutos);
-        $inicio = $salida?->fecha_hora ?? $regreso->fecha_hora->copy()->subMinutes($duracion);
-        $fin = $regreso?->fecha_hora ?? $salida->fecha_hora->copy()->addMinutes($duracion);
-
-        return [
-            'inicio' => self::porcentajeHora($inicio),
-            'fin' => max(self::porcentajeHora($fin), self::porcentajeHora($inicio) + 0.75),
-            'incidencia' => ! $salida || ! $regreso,
-        ];
-    }
 }
