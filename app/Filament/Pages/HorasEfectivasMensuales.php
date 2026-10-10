@@ -3,13 +3,10 @@
 namespace App\Filament\Pages;
 
 use App\Models\Area;
-use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Empresa;
-use App\Models\Marcacion;
-use App\Models\ResumenJornada;
+use App\Services\HorasEfectivasMensualesService;
 use App\Support\AlcanceSupervisor;
-use App\Support\JornadaMarcacion;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -113,13 +110,13 @@ class HorasEfectivasMensuales extends Page implements HasTable
                     ->sortable(),
                 TextColumn::make('efectivos_minutos')
                     ->label('Efectivas')
-                    ->getStateUsing(fn (array $record): string => $record['jornadas_cerradas'] ? static::formatoSegundos($record['efectivos_segundos']) : '—')
+                    ->getStateUsing(fn (array $record): string => $record['jornadas_cerradas'] ? HorasEfectivasMensualesService::formatoSegundos($record['efectivos_segundos']) : '—')
                     ->alignEnd()
                     ->sortable()
                     ->weight('medium'),
                 TextColumn::make('objetivo_minutos')
                     ->label('Objetivo')
-                    ->getStateUsing(fn (array $record): string => $record['jornadas_cerradas'] ? static::formatoSegundos($record['objetivo_segundos']) : '—')
+                    ->getStateUsing(fn (array $record): string => $record['jornadas_cerradas'] ? HorasEfectivasMensualesService::formatoSegundos($record['objetivo_segundos']) : '—')
                     ->alignEnd()
                     ->sortable(),
                 TextColumn::make('cumplimiento')
@@ -130,13 +127,13 @@ class HorasEfectivasMensuales extends Page implements HasTable
                     ->alignCenter(),
                 TextColumn::make('diferencia_minutos')
                     ->label('Diferencia')
-                    ->getStateUsing(fn (array $record): string => $record['jornadas_cerradas'] ? static::formatoSegundos($record['diferencia_segundos']) : '—')
+                    ->getStateUsing(fn (array $record): string => $record['jornadas_cerradas'] ? HorasEfectivasMensualesService::formatoSegundos($record['diferencia_segundos']) : '—')
                     ->color(fn (array $record): string => $record['diferencia_segundos'] < 0 ? 'danger' : 'success')
                     ->alignEnd()
                     ->sortable(),
                 TextColumn::make('extras_minutos')
                     ->label('Extras')
-                    ->getStateUsing(fn (array $record): string => $record['jornadas_cerradas'] ? static::formatoSegundos($record['extras_segundos']) : '—')
+                    ->getStateUsing(fn (array $record): string => $record['jornadas_cerradas'] ? HorasEfectivasMensualesService::formatoSegundos($record['extras_segundos']) : '—')
                     ->color('warning')
                     ->alignEnd()
                     ->sortable(),
@@ -202,116 +199,11 @@ class HorasEfectivasMensuales extends Page implements HasTable
     /** @return Collection<int, array<string, mixed>> */
     private function resumenes(?int $sucursalId, ?int $empresaId, ?int $areaId, mixed $estadoColaborador, ?int $colaboradorId): Collection
     {
-        $inicio = $this->inicioPeriodo();
-        $fin = $inicio->copy()->endOfMonth();
-        $asignaciones = AsignacionTurno::query()
-            ->with(['colaborador.sucursal', 'colaborador.empresa', 'colaborador.area', 'turno', 'resumenJornada'])
-            ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
-            ->whereIn('colaborador_id', $this->colaboradoresPermitidos($sucursalId, $empresaId, $areaId, $estadoColaborador)->select('id'))
-            ->when($colaboradorId, fn (Builder $query) => $query->where('colaborador_id', $colaboradorId))
-            ->orderBy('fecha')
-            ->get();
-
-        if ($asignaciones->isEmpty()) {
-            return collect();
-        }
-
-        $marcacionesPorColaborador = Marcacion::query()
-            ->with(['sucursal', 'puntoVenta'])
-            ->whereIn('colaborador_id', $asignaciones->pluck('colaborador_id')->unique())
-            ->whereIn('turno_id', $asignaciones->pluck('turno_id')->unique())
-            ->whereBetween('fecha_hora', [$inicio->copy()->startOfDay(), $fin->copy()->endOfDay()->addMinutes(JornadaMarcacion::MAXIMO_JORNADA_MINUTOS)])
-            ->orderBy('fecha_hora')
-            ->orderBy('id')
-            ->get()
-            ->groupBy('colaborador_id');
-        $resumenes = collect();
-
-        foreach ($asignaciones as $asignacion) {
-            $limites = JornadaMarcacion::limites($asignacion);
-            $marcaciones = ($marcacionesPorColaborador->get($asignacion->colaborador_id) ?? collect())
-                ->filter(fn (Marcacion $marcacion): bool => $marcacion->turno_id === $asignacion->turno_id && $marcacion->fecha_hora->betweenIncluded($limites['ventana_inicio'], $limites['jornada_fin_maximo']))
-                ->values();
-            $tieneEntrada = $marcaciones->contains('tipo', Marcacion::TIPO_ENTRADA);
-
-            if (! $tieneEntrada) {
-                continue;
-            }
-
-            $jornada = $asignacion->resumenJornada
-                ? static::jornadaConsolidada($asignacion->resumenJornada)
-                : JornadaMarcacion::resumen($asignacion->colaborador, $asignacion, $marcaciones);
-            $id = $asignacion->colaborador_id;
-            $fila = $resumenes->get($id, static::filaVacia($asignacion->colaborador));
-            $detalle = static::detalleJornada($asignacion, $marcaciones, $jornada);
-
-            if ($jornada['estado'] === 'en_curso') {
-                $fila['jornadas_abiertas']++;
-            } elseif ($jornada['estado'] === 'inconsistente') {
-                $fila['jornadas_inconsistentes']++;
-            } else {
-                $fila['jornadas_cerradas']++;
-                $fila['efectivos_segundos'] += $jornada['efectivos_segundos'];
-                $fila['objetivo_segundos'] += $jornada['objetivo_segundos'];
-                $fila['diferencia_segundos'] += $jornada['diferencia_segundos'];
-                $fila['extras_segundos'] += $jornada['extras_segundos'];
-                $fila['efectivos_minutos'] += $jornada['efectivos_minutos'];
-                $fila['objetivo_minutos'] += $jornada['objetivo_minutos'];
-                $fila['diferencia_minutos'] += $jornada['diferencia_minutos'];
-                $fila['extras_minutos'] += $jornada['extras_minutos'];
-            }
-
-            $fila['jornadas'][] = $detalle;
-            $resumenes->put($id, $fila);
-        }
-
-        return $resumenes->values();
-    }
-
-    /** @return array{estado:string, efectivos_segundos:int, objetivo_segundos:int, extras_segundos:int, diferencia_segundos:int, refrigerio_segundos:int, efectivos_minutos:int, objetivo_minutos:int, extras_minutos:int, diferencia_minutos:int, inconsistencias:array<int, string>} */
-    private static function jornadaConsolidada(ResumenJornada $resumen): array
-    {
-        return [
-            'estado' => $resumen->estado,
-            'efectivos_segundos' => $resumen->efectivos_segundos,
-            'objetivo_segundos' => $resumen->objetivo_segundos,
-            'extras_segundos' => $resumen->extras_segundos,
-            'diferencia_segundos' => $resumen->diferencia_segundos,
-            'refrigerio_segundos' => $resumen->refrigerio_segundos,
-            'efectivos_minutos' => intdiv($resumen->efectivos_segundos, 60),
-            'objetivo_minutos' => intdiv($resumen->objetivo_segundos, 60),
-            'extras_minutos' => intdiv($resumen->extras_segundos, 60),
-            'diferencia_minutos' => ($resumen->diferencia_segundos < 0 ? -1 : 1) * intdiv(abs($resumen->diferencia_segundos), 60),
-            'inconsistencias' => [],
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private static function filaVacia(Colaborador $colaborador): array
-    {
-        return ['__key' => 'colaborador-' . $colaborador->id, 'colaborador' => $colaborador, 'jornadas_cerradas' => 0, 'jornadas_abiertas' => 0, 'jornadas_inconsistentes' => 0, 'efectivos_segundos' => 0, 'objetivo_segundos' => 0, 'diferencia_segundos' => 0, 'extras_segundos' => 0, 'efectivos_minutos' => 0, 'objetivo_minutos' => 0, 'diferencia_minutos' => 0, 'extras_minutos' => 0, 'jornadas' => []];
-    }
-
-    /** @param Collection<int, Marcacion> $marcaciones
-     *  @param array{estado:string, efectivos_segundos:?int, objetivo_segundos:int, extras_segundos:?int, diferencia_segundos:?int, inconsistencias:array<int, string>} $jornada
-     *  @return array<string, string>
-     */
-    private static function detalleJornada(AsignacionTurno $asignacion, Collection $marcaciones, array $jornada): array
-    {
-        $entrada = $marcaciones->firstWhere('tipo', Marcacion::TIPO_ENTRADA);
-        $salida = $marcaciones->filter(fn (Marcacion $marcacion): bool => $marcacion->tipo === Marcacion::TIPO_SALIDA)->last();
-        $local = $entrada?->sucursal?->nombre ?? $asignacion->colaborador->sucursal?->nombre ?? '—';
-        $puntoVenta = $entrada?->puntoVenta?->nombre;
-
-        return [
-            'fecha' => $asignacion->fecha->format('d/m/Y'), 'turno' => $asignacion->turno->nombre,
-            'entrada' => $entrada?->fecha_hora?->format('H:i:s') ?? '—', 'salida' => $salida?->fecha_hora?->format('H:i:s') ?? '—',
-            'local' => $puntoVenta ? "{$local} · {$puntoVenta}" : $local,
-            'efectivas' => $jornada['efectivos_segundos'] === null ? '—' : static::formatoSegundos($jornada['efectivos_segundos']),
-            'objetivo' => static::formatoSegundos($jornada['objetivo_segundos']),
-            'diferencia' => $jornada['diferencia_segundos'] === null ? '—' : static::formatoSegundos($jornada['diferencia_segundos']),
-            'estado' => match ($jornada['estado']) { 'en_curso' => 'En curso', 'inconsistente' => 'Observada', 'pendiente' => 'Parcial', default => 'Cumplida' },
-        ];
+        return app(HorasEfectivasMensualesService::class)->resumenes(
+            $this->inicioPeriodo(),
+            $this->colaboradoresPermitidos($sucursalId, $empresaId, $areaId, $estadoColaborador),
+            $colaboradorId,
+        );
     }
 
     /** @return array<Section> */
