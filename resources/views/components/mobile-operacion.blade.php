@@ -20,8 +20,10 @@
             --mo-primary: {{ $appearance->colorPrimario() }};
             --mo-marking-image: url('{{ asset('images/marcacion-dimsum-vertical.png') }}');
             --mo-marking-overlay: rgb(5 18 34 / .22);
-            --mo-marking-glass: rgb(255 255 255 / .86);
-            --mo-marking-glass-border: rgb(255 255 255 / .72);
+            /* En claro el panel conserva el fondo de marcación visible. La
+               legibilidad viene del desenfoque, no de una superficie opaca. */
+            --mo-marking-glass: rgb(255 255 255 / .58);
+            --mo-marking-glass-border: rgb(255 255 255 / .68);
             --mo-marking-text: #172033;
             --mo-marking-muted: #475467;
         }
@@ -160,16 +162,16 @@
             border: 1px solid var(--mo-marking-glass-border);
             border-radius: 1.25rem;
             background: var(--mo-marking-glass);
-            box-shadow: 0 1.25rem 3.5rem rgb(2 12 27 / .2);
+            box-shadow: 0 1.25rem 3.5rem rgb(2 12 27 / .16);
             color: var(--mo-marking-text);
-            backdrop-filter: blur(1rem);
-            -webkit-backdrop-filter: blur(1rem);
+            backdrop-filter: blur(1.125rem) saturate(1.08);
+            -webkit-backdrop-filter: blur(1.125rem) saturate(1.08);
         }
         .mo-operation-card .mo-heading { color: var(--mo-marking-text); }
         .mo-operation-card .mo-subheading,
         .mo-operation-card .mo-action__hint,
         .mo-operation-card .mo-status__detail { color: var(--mo-marking-muted); }
-        .mo-operation-card .mo-action { background: rgb(255 255 255 / .64); }
+        .mo-operation-card .mo-action { background: rgb(255 255 255 / .42); }
         .mo-operation-card .mo-linkbar { margin-top: 1.125rem; padding-top: .75rem; border-top: 1px solid rgb(71 84 103 / .2); }
         .mo-operation-card .mo-linkbar a,
         .mo-operation-card .mo-linkbar button { color: var(--mo-marking-muted); }
@@ -178,10 +180,10 @@
             border: 1px solid var(--mo-marking-glass-border);
             border-radius: 1.5rem;
             background: var(--mo-marking-glass);
-            box-shadow: 0 1.25rem 3.5rem rgb(2 12 27 / .2);
+            box-shadow: 0 1.25rem 3.5rem rgb(2 12 27 / .16);
             color: var(--mo-marking-text);
-            backdrop-filter: blur(1rem);
-            -webkit-backdrop-filter: blur(1rem);
+            backdrop-filter: blur(1.125rem) saturate(1.08);
+            -webkit-backdrop-filter: blur(1.125rem) saturate(1.08);
         }
         .mo-marking-greeting { margin: 0; font-size: clamp(1.9rem, 8vw, 2.45rem); font-weight: 400; letter-spacing: -.04em; line-height: .95; }
         .mo-marking-name { margin: .3rem 0 0; font-size: clamp(2.45rem, 11vw, 3.2rem); font-weight: 750; letter-spacing: -.065em; line-height: .98; }
@@ -232,12 +234,12 @@
         @media (prefers-color-scheme: dark) {
             :root {
                 --mo-marking-overlay: rgb(3 15 30 / .18);
-                --mo-marking-glass: rgb(9 27 51 / .74);
+                --mo-marking-glass: rgb(9 27 51 / .68);
                 --mo-marking-glass-border: rgb(148 196 255 / .55);
                 --mo-marking-text: #f8fafc;
                 --mo-marking-muted: #dbeafe;
             }
-            .mo-operation-card .mo-action { background: rgb(15 35 62 / .62); color: #f8fafc; }
+            .mo-operation-card .mo-action { background: rgb(15 35 62 / .5); color: #f8fafc; }
             .mo-operation-card .mo-linkbar { border-color: rgb(191 219 254 / .22); }
         }
         @media (max-width: 640px) {
