@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PuntoVenta;
 use App\Models\QrToken;
 use App\Models\Sucursal;
+use App\Services\EstacionQrAccessService;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Http\JsonResponse;
@@ -19,9 +20,13 @@ class EstacionMarcadoController extends Controller
      */
     private const VIGENCIA_SEGUNDOS = 60;
 
+    public function __construct(private readonly EstacionQrAccessService $estacionAccess)
+    {
+    }
+
     public function show(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): View
     {
-        $this->validarEstacion($request, $sucursal, $puntoVenta);
+        $this->estacionAccess->validarRequest($request, $sucursal, $puntoVenta);
 
         return view('estacion-marcado.show', [
             'sucursal' => $sucursal,
@@ -33,7 +38,7 @@ class EstacionMarcadoController extends Controller
 
     public function token(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): JsonResponse
     {
-        $this->validarEstacion($request, $sucursal, $puntoVenta);
+        $this->estacionAccess->validarRequest($request, $sucursal, $puntoVenta);
 
         $qrToken = QrToken::generarPara($sucursal, $puntoVenta, self::VIGENCIA_SEGUNDOS);
 
@@ -54,28 +59,4 @@ class EstacionMarcadoController extends Controller
         ]);
     }
 
-    /**
-     * Sin esta validación, cualquiera que conociera o enumerara un ID
-     * numérico de sucursal/punto de venta (1, 2, 3...) podía generar un QR
-     * válido y marcar asistencia sin estar físicamente en la tienda. La
-     * "clave" es un secreto largo y aleatorio (token_pantalla) que solo debe
-     * conocer la pantalla física de esa estación -- se compara con
-     * hash_equals para evitar timing attacks.
-     */
-    private function validarEstacion(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta): void
-    {
-        // Una estación de asistencia siempre representa un punto de venta.
-        // La sucursal es únicamente su contenedor organizacional.
-        abort_unless($puntoVenta instanceof PuntoVenta, 404);
-        abort_if($puntoVenta->sucursal_id !== $sucursal->id, 404);
-        abort_unless($sucursal->activo && $puntoVenta->activo, 404);
-
-        $claveEsperada = $puntoVenta->token_pantalla;
-        $claveRecibida = (string) $request->query('clave');
-
-        abort_unless(
-            $claveEsperada && $claveRecibida !== '' && hash_equals($claveEsperada, $claveRecibida),
-            404
-        );
-    }
 }

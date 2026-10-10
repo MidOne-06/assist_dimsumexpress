@@ -8,6 +8,7 @@ use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VisitaSupervisor;
 use App\Models\VisitaSupervisorMarcacion;
+use App\Services\EstacionQrAccessService;
 use App\Support\AlcanceSupervisor;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\SvgWriter;
@@ -22,6 +23,10 @@ class VisitaSupervisorController extends Controller
 {
     private const VIGENCIA_SEGUNDOS = 60;
 
+    public function __construct(private readonly EstacionQrAccessService $estacionAccess)
+    {
+    }
+
     /** Punto de entrada móvil para un supervisor, antes de escanear el QR. */
     public function esperando(Request $request): View
     {
@@ -33,7 +38,7 @@ class VisitaSupervisorController extends Controller
     /** Pantalla física del QR; abrirla no crea una visita. */
     public function estacion(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): View
     {
-        $this->validarEstacion($request, $sucursal, $puntoVenta);
+        $this->estacionAccess->validarRequest($request, $sucursal, $puntoVenta);
 
         return view('estacion-visita.show', [
             'sucursal' => $sucursal,
@@ -46,7 +51,7 @@ class VisitaSupervisorController extends Controller
     /** Emite un QR de visita que vence en segundos, como el de asistencia. */
     public function token(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta = null): JsonResponse
     {
-        $this->validarEstacion($request, $sucursal, $puntoVenta);
+        $this->estacionAccess->validarRequest($request, $sucursal, $puntoVenta);
 
         $qrToken = QrToken::generarPara(
             $sucursal,
@@ -235,18 +240,6 @@ class VisitaSupervisorController extends Controller
         }
 
         return ['accion' => 'bloqueado', 'visita' => $visitaAbierta->loadMissing('sucursal:id,nombre')];
-    }
-
-    private function validarEstacion(Request $request, Sucursal $sucursal, ?PuntoVenta $puntoVenta): void
-    {
-        // Igual que asistencia, la visita se registra contra una estación de
-        // punto de venta; una sucursal no puede emitir QR por sí sola.
-        abort_unless($puntoVenta instanceof PuntoVenta, 404);
-        abort_if($puntoVenta->sucursal_id !== $sucursal->id, 404);
-        abort_unless($sucursal->activo && $puntoVenta->activo, 404);
-
-        $claveEsperada = $puntoVenta->token_pantalla;
-        abort_unless($claveEsperada && hash_equals($claveEsperada, (string) $request->query('clave')), 404);
     }
 
     private function validarSupervisor(mixed $usuario): void

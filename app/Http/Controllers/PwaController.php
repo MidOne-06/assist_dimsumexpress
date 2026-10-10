@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PuntoVenta;
 use App\Models\Sucursal;
 use App\Services\AparienciaSistemaService;
+use App\Services\EstacionQrAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -51,18 +52,14 @@ class PwaController extends Controller
         Sucursal $sucursal,
         PuntoVenta $puntoVenta,
         AparienciaSistemaService $apariencia,
+        EstacionQrAccessService $estacionAccess,
     ): JsonResponse {
         abort_unless(in_array($tipo, ['asistencia', 'visita'], true), 404);
         abort_if($puntoVenta->sucursal_id !== $sucursal->id, 404);
         abort_unless($sucursal->activo && $puntoVenta->activo, 404);
 
         $clave = (string) $request->query('clave');
-        abort_unless(
-            $clave !== ''
-                && $puntoVenta->token_pantalla
-                && hash_equals($puntoVenta->token_pantalla, $clave),
-            404,
-        );
+        $estacionAccess->validarClave($sucursal, $puntoVenta, $clave);
 
         $esAsistencia = $tipo === 'asistencia';
         $rutaEstacion = route($esAsistencia ? 'estacion-marcado.show' : 'estacion-visita.show', [
