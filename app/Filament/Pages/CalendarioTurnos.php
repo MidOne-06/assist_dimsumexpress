@@ -533,21 +533,6 @@ class CalendarioTurnos extends Page
         return auth()->user()?->can('update', $asignacion) ?? false;
     }
 
-    /**
-     * "Ana Torres Quispe" -> "Ana T." -- para que quepa en una celda angosta;
-     * el nombre completo siempre está disponible en el tooltip.
-     */
-    public static function abreviarNombre(string $nombreCompleto): string
-    {
-        $partes = preg_split('/\s+/', trim($nombreCompleto));
-
-        if (count($partes) < 2) {
-            return $nombreCompleto;
-        }
-
-        return "{$partes[0]} " . mb_substr($partes[1], 0, 1) . '.';
-    }
-
     public function tooltipNombres(\Illuminate\Support\Collection $asignaciones): HtmlString
     {
         return new HtmlString(
@@ -566,32 +551,6 @@ class CalendarioTurnos extends Page
     }
 
     /**
-     * Ícono y color del estado de asistencia, para pintar un indicador
-     * pequeño sobre el nombre del colaborador en la celda.
-     */
-    public static function iconoEstado(string $estado): ?string
-    {
-        return match ($estado) {
-            'a_tiempo' => 'heroicon-s-check-circle',
-            'tardanza' => 'heroicon-s-exclamation-triangle',
-            'falta' => 'heroicon-s-x-circle',
-            'turno_distinto' => 'heroicon-s-arrow-path',
-            default => null, // pendiente: aún no corresponde marcar, sin ícono
-        };
-    }
-
-    public static function colorEstado(string $estado): string
-    {
-        return match ($estado) {
-            'a_tiempo' => '#16a34a',
-            'tardanza' => '#f59e0b',
-            'falta' => '#dc2626',
-            'turno_distinto' => '#7c3aed',
-            default => '#9ca3af',
-        };
-    }
-
-    /**
      * El peor estado entre varios colaboradores del mismo turno/día, para
      * decidir si el badge resumen (">2 colaboradores") debe avisar de algo.
      *
@@ -607,31 +566,4 @@ class CalendarioTurnos extends Page
             ->first() ?? 'pendiente';
     }
 
-    /**
-     * Color determinístico por turno para que el mismo turno siempre pinte
-     * igual en toda la grilla, sin necesitar que el usuario elija un color.
-     *
-     * Se usan valores hexadecimales reales (no clases Tailwind) porque el
-     * CSS que Filament v5 distribuye es un build propio (Tailwind v4) que
-     * solo contiene las clases que sus propios componentes usan -- clases
-     * utilitarias arbitrarias como "bg-emerald-100" no existen en ese
-     * bundle y no pintarían nada en el navegador.
-     *
-     * @return array{bg: string, text: string}
-     */
-    public static function colorParaTurno(int $turnoId): array
-    {
-        $paleta = [
-            ['bg' => '#22c55e', 'text' => '#ffffff'], // verde
-            ['bg' => '#3b82f6', 'text' => '#ffffff'], // azul
-            ['bg' => '#f97316', 'text' => '#ffffff'], // naranja
-            ['bg' => '#a855f7', 'text' => '#ffffff'], // púrpura
-            ['bg' => '#ef4444', 'text' => '#ffffff'], // rojo
-            ['bg' => '#06b6d4', 'text' => '#ffffff'], // cian
-            ['bg' => '#eab308', 'text' => '#1f2937'], // amarillo (texto oscuro por contraste)
-            ['bg' => '#84cc16', 'text' => '#1f2937'], // lima (texto oscuro por contraste)
-        ];
-
-        return $paleta[$turnoId % count($paleta)];
-    }
 }

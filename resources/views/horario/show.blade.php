@@ -115,7 +115,7 @@
                         </div>
                         <div class="content">
                             @if ($asignacion && $asignacion->turno)
-                                @php $color = \App\Filament\Pages\CalendarioTurnos::colorParaTurno($asignacion->turno->id); @endphp
+                                @php $color = \App\Support\CalendarioTurnosPresentacion::colorParaTurno($asignacion->turno->id); @endphp
                                 <span class="badge" style="background-color:{{ $color['bg'] }};color:{{ $color['text'] }};">{{ $asignacion->turno->nombre }}</span>
                                 <div class="hours">{{ $asignacion->turno->rangoHorario() }}</div>
                             @else

@@ -151,7 +151,7 @@
                             $turno = $fila['turno'];
                             $sucursalFila = $fila['sucursal'];
                         @endphp
-                        @php $color = \App\Filament\Pages\CalendarioTurnos::colorParaTurno($turno->id); @endphp
+                        @php $color = \App\Support\CalendarioTurnosPresentacion::colorParaTurno($turno->id); @endphp
                         <div class="cal-row-turno">
                             <div class="cal-row-turno-nombre">
                                 <span class="cal-swatch" style="background-color: {{ $color['bg'] }};"></span>
@@ -175,8 +175,8 @@
                                     @foreach ($lista as $asignacion)
                                         @php
                                             $estado = $this->estadoAsignacion($asignacion);
-                                            $icono = \App\Filament\Pages\CalendarioTurnos::iconoEstado($estado['estado']);
-                                            $colorEstado = \App\Filament\Pages\CalendarioTurnos::colorEstado($estado['estado']);
+                                            $icono = \App\Support\CalendarioTurnosPresentacion::iconoEstado($estado['estado']);
+                                            $colorEstado = \App\Support\CalendarioTurnosPresentacion::colorEstado($estado['estado']);
                                             $tooltipTexto = $asignacion->colaborador->nombre_completo . ' — ' . $estado['label'] . ($estado['hora'] ? " ({$estado['hora']})" : '');
                                             $puedeEditar = $this->puedeEditarAsignacion($asignacion);
                                             $accionEditar = $puedeEditar ? "abrirEdicionAsignacion({$asignacion->id})" : null;
@@ -191,14 +191,14 @@
                                             @if ($icono)
                                                 <x-dynamic-component :component="$icono" style="width: 0.7rem; height: 0.7rem; color: {{ $colorEstado }}; flex-shrink: 0;" />
                                             @endif
-                                            {{ \App\Filament\Pages\CalendarioTurnos::abreviarNombre($asignacion->colaborador->nombre_completo) }}
+                                            {{ \App\Support\CalendarioTurnosPresentacion::abreviarNombre($asignacion->colaborador->nombre_completo) }}
                                         </x-filament::badge>
                                     @endforeach
                                 @else
                                     @php
                                         $peorEstado = $this->peorEstado($lista);
-                                        $iconoResumen = \App\Filament\Pages\CalendarioTurnos::iconoEstado($peorEstado);
-                                        $colorResumen = \App\Filament\Pages\CalendarioTurnos::colorEstado($peorEstado);
+                                        $iconoResumen = \App\Support\CalendarioTurnosPresentacion::iconoEstado($peorEstado);
+                                        $colorResumen = \App\Support\CalendarioTurnosPresentacion::colorEstado($peorEstado);
                                     @endphp
                                     <x-filament::badge
                                         :color="null"
@@ -219,7 +219,7 @@
 
             <div class="cal-legend">
                 @foreach ($turnos as $turno)
-                    @php $color = \App\Filament\Pages\CalendarioTurnos::colorParaTurno($turno->id); @endphp
+                    @php $color = \App\Support\CalendarioTurnosPresentacion::colorParaTurno($turno->id); @endphp
                     <span>
                         <span class="cal-legend-swatch" style="background-color: {{ $color['bg'] }};"></span>
                         {{ $turno->nombre }}
