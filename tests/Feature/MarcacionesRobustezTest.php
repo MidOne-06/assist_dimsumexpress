@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Console\Commands\DetectarIncidenciasMarcacion;
 use App\Filament\Resources\Marcacions\MarcacionResource;
 use App\Filament\Resources\Marcacions\Tables\MarcacionsTable;
+use App\Filament\Resources\Marcacions\Tables\MarcacionFilterOptions;
 use App\Filament\Widgets\ResumenMarcaciones;
 use App\Models\AsignacionTurno;
 use App\Models\CoberturaOperativa;
@@ -154,7 +155,7 @@ class MarcacionesRobustezTest extends TestCase
             'fecha_hora' => now(),
         ]);
 
-        $opciones = MarcacionsTable::opcionesColaborador([$localVisible->id]);
+        $opciones = MarcacionFilterOptions::colaboradores([$localVisible->id]);
 
         $this->assertSame('Cobertura visible', $opciones[$externo->id]);
     }
@@ -193,18 +194,18 @@ class MarcacionesRobustezTest extends TestCase
             'fecha_hora' => now()->addMinute(),
         ]);
 
-        $opciones = MarcacionsTable::opcionesTurno([$sucursal->id]);
+        $opciones = MarcacionFilterOptions::turnos([$sucursal->id]);
 
         $this->assertSame('Apertura · Histórico incluido', $opciones['apertura']);
         $this->assertSame('Sin turno / excepción', $opciones['__sin_turno__']);
         $this->assertCount(2, $opciones);
         $this->assertEqualsCanonicalizing(
             [$historica->id, $actual->id],
-            MarcacionsTable::aplicarFiltroTurnoConcepto(Marcacion::query(), 'apertura')->pluck('id')->all(),
+            MarcacionFilterOptions::aplicarTurno(Marcacion::query(), 'apertura')->pluck('id')->all(),
         );
         $this->assertSame(
             [$sinTurno->id],
-            MarcacionsTable::aplicarFiltroTurnoConcepto(Marcacion::query(), '__sin_turno__')->pluck('id')->all(),
+            MarcacionFilterOptions::aplicarTurno(Marcacion::query(), '__sin_turno__')->pluck('id')->all(),
         );
     }
 
@@ -232,7 +233,7 @@ class MarcacionesRobustezTest extends TestCase
             'fecha_hora' => now()->addMinute(),
         ]);
 
-        $opciones = MarcacionsTable::opcionesPuntoVenta([$primera->id, $segunda->id]);
+        $opciones = MarcacionFilterOptions::puntosVenta([$primera->id, $segunda->id]);
 
         $this->assertSame($primera->nombre . ' · Caja 1 · Histórico', $opciones[$cajaPrimera->id]);
         $this->assertSame($segunda->nombre . ' · Caja 1', $opciones[$cajaSegunda->id]);
@@ -255,7 +256,7 @@ class MarcacionesRobustezTest extends TestCase
             'fecha_hora' => now()->subMonth(),
         ]);
 
-        $opciones = MarcacionsTable::opcionesColaborador([$sucursal->id]);
+        $opciones = MarcacionFilterOptions::colaboradores([$sucursal->id]);
 
         $this->assertSame('Colaborador histórico · Histórico', $opciones[$colaborador->id]);
     }
