@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Console\Commands\DetectarIncidenciasMarcacion;
 use App\Filament\Resources\Marcacions\MarcacionResource;
-use App\Filament\Resources\Marcacions\Tables\MarcacionsTable;
 use App\Filament\Resources\Marcacions\Tables\MarcacionFilterOptions;
+use App\Filament\Resources\Marcacions\Tables\MarcacionInfolistSchemas;
 use App\Filament\Widgets\ResumenMarcaciones;
 use App\Models\AsignacionTurno;
 use App\Models\CoberturaOperativa;
@@ -300,7 +300,7 @@ class MarcacionesRobustezTest extends TestCase
 
     public function test_jornada_duration_formats_seconds_without_decimal_minutes(): void
     {
-        $metodo = new \ReflectionMethod(MarcacionsTable::class, 'formatearDuracionSegundos');
+        $metodo = new \ReflectionMethod(MarcacionInfolistSchemas::class, 'formatearDuracionSegundos');
 
         $this->assertSame('3 h 49 min 49 s', $metodo->invoke(null, 13_789));
     }
