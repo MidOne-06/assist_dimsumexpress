@@ -9,6 +9,7 @@ use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Services\CalendarioTurnosSpreadsheetService;
+use App\Services\CalendarioTurnosEstadoService;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
@@ -449,34 +450,7 @@ class CalendarioTurnos extends Page
      */
     public function getEntradasProperty(): array
     {
-        $colaboradores = $this->colaboradores;
-
-        if ($colaboradores->isEmpty()) {
-            return [];
-        }
-
-        $inicio = Carbon::parse("{$this->mes}-01")->toDateString();
-        $fin = Carbon::parse("{$this->mes}-01")->endOfMonth()->toDateString();
-
-        $mapa = [];
-
-        Marcacion::query()
-            ->whereIn('colaborador_id', $colaboradores->pluck('id'))
-            ->where('tipo', Marcacion::TIPO_ENTRADA)
-            ->whereBetween('fecha_hora', ["{$inicio} 00:00:00", "{$fin} 23:59:59"])
-            ->orderBy('fecha_hora')
-            ->get()
-            ->each(function (Marcacion $marcacion) use (&$mapa) {
-                // Si por algún motivo hay más de una entrada para el mismo
-                // turno, se conserva la primera. Las entradas de otro turno
-                // se mantienen separadas para no validar erróneamente una
-                // asignación que no les corresponde.
-                $fecha = $marcacion->fecha_hora->toDateString();
-                $turnoId = $marcacion->turno_id ?? 0;
-                $mapa[$marcacion->colaborador_id][$fecha][$turnoId] ??= $marcacion;
-            });
-
-        return $mapa;
+        return app(CalendarioTurnosEstadoService::class)->entradas($this->colaboradores, $this->mes);
     }
 
     /**
@@ -489,43 +463,7 @@ class CalendarioTurnos extends Page
      */
     public function estadoAsignacion(AsignacionTurno $asignacion): array
     {
-        $entradasDelDia = $this->entradas[$asignacion->colaborador_id][$asignacion->fecha->toDateString()] ?? [];
-        $entrada = $entradasDelDia[$asignacion->turno_id] ?? null;
-        $turno = $asignacion->turno;
-
-        $limite = Carbon::parse($asignacion->fecha->toDateString() . ' ' . $turno->hora_inicio)
-            ->addMinutes($turno->tolerancia_entrada_minutos);
-
-        if ($entrada) {
-            if ($entrada->fecha_hora->lte($limite)) {
-                return ['estado' => 'a_tiempo', 'label' => 'A tiempo', 'hora' => $entrada->fecha_hora->format('H:i:s')];
-            }
-
-            $minutosTarde = (int) ceil($limite->diffInSeconds($entrada->fecha_hora) / 60);
-
-            return ['estado' => 'tardanza', 'label' => "Tardanza de {$minutosTarde} min", 'hora' => $entrada->fecha_hora->format('H:i:s')];
-        }
-
-        if ($entradasDelDia !== []) {
-            $entradaOtroTurno = reset($entradasDelDia);
-
-            return [
-                'estado' => 'turno_distinto',
-                'label' => 'Marcó otro turno',
-                'hora' => $entradaOtroTurno->fecha_hora->format('H:i:s'),
-            ];
-        }
-
-        // Sin marcación todavía: si el límite de tolerancia de hoy aún no
-        // pasó (o la fecha es futura), no es una falta, solo está pendiente.
-        $aunNoVence = $asignacion->fecha->isFuture()
-            || ($asignacion->fecha->isToday() && now()->lt($limite));
-
-        if ($aunNoVence) {
-            return ['estado' => 'pendiente', 'label' => 'Pendiente', 'hora' => null];
-        }
-
-        return ['estado' => 'falta', 'label' => 'Falta (sin marcar entrada)', 'hora' => null];
+        return app(CalendarioTurnosEstadoService::class)->estado($asignacion, $this->entradas);
     }
 
     public function puedeEditarAsignacion(AsignacionTurno $asignacion): bool
@@ -535,19 +473,7 @@ class CalendarioTurnos extends Page
 
     public function tooltipNombres(\Illuminate\Support\Collection $asignaciones): HtmlString
     {
-        return new HtmlString(
-            $asignaciones
-                ->map(function (AsignacionTurno $asignacion) {
-                    $estado = $this->estadoAsignacion($asignacion);
-                    $nombre = e($asignacion->colaborador->nombre_completo);
-                    $detalle = $estado['hora']
-                        ? "{$estado['label']} ({$estado['hora']})"
-                        : $estado['label'];
-
-                    return "{$nombre} — " . e($detalle);
-                })
-                ->join('<br>')
-        );
+        return app(CalendarioTurnosEstadoService::class)->tooltip($asignaciones, $this->entradas);
     }
 
     /**
@@ -558,12 +484,7 @@ class CalendarioTurnos extends Page
      */
     public function peorEstado(\Illuminate\Support\Collection $asignaciones): string
     {
-        $prioridad = ['falta' => 4, 'turno_distinto' => 3, 'tardanza' => 2, 'pendiente' => 1, 'a_tiempo' => 0];
-
-        return $asignaciones
-            ->map(fn (AsignacionTurno $a) => $this->estadoAsignacion($a)['estado'])
-            ->sortByDesc(fn (string $estado) => $prioridad[$estado] ?? 0)
-            ->first() ?? 'pendiente';
+        return app(CalendarioTurnosEstadoService::class)->peorEstado($asignaciones, $this->entradas);
     }
 
 }
