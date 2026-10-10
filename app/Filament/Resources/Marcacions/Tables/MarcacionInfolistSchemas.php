@@ -131,20 +131,6 @@ final class MarcacionInfolistSchemas
         };
     }
 
-    private static function formatearMinutos(?int $minutos): string
-    {
-        return $minutos === null ? '—' : sprintf('%dh %02dm', intdiv($minutos, 60), $minutos % 60);
-    }
-
-    private static function formatearDiferencia(?int $minutos): string
-    {
-        if ($minutos === null) {
-            return 'En curso';
-        }
-
-        return ($minutos > 0 ? '+' : ($minutos < 0 ? '−' : '')).self::formatearMinutos(abs($minutos));
-    }
-
     private static function formatearSegundos(?int $segundos): string
     {
         if ($segundos === null) {
