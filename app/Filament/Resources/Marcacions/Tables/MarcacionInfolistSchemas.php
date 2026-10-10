@@ -1,18 +1,19 @@
 <?php
 
-namespace AppFilamentResourcesMarcacionsTables;
+namespace App\Filament\Resources\Marcacions\Tables;
 
-use AppModelsAsignacionTurno;
-use AppModelsCoberturaOperativa;
-use AppModelsIncidenciaMarcacion;
-use AppModelsMarcacion;
-use AppSupportJornadaMarcacion;
-use FilamentInfolistsComponentsTextEntry;
-use FilamentSchemasComponentsSection;
+use App\Models\AsignacionTurno;
+use App\Models\CoberturaOperativa;
+use App\Models\IncidenciaMarcacion;
+use App\Models\Marcacion;
+use App\Support\JornadaMarcacion;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 
 /** Esquemas de los modales administrativos de jornada y trazabilidad. */
 final class MarcacionInfolistSchemas
-{    /** @return array<Section> */
+{
+    /** @return array<Section> */
     public static function jornada(Marcacion $marcacion): array
     {
         $asignacion = self::asignacionDeMarcacion($marcacion);
