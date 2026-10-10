@@ -1,7 +1,12 @@
 <x-mobile-operacion :title="'Registrado correctamente'" section="Marcación" layout="operation">
-    <section class="mo-status">
-        <x-heroicon-s-check-circle class="mo-status__icon" style="color:var(--app-success)" />
-        <h1 class="mo-heading">Registrado correctamente</h1>
+    <section class="mo-status mo-status--{{ $confirmacion['color'] }}">
+        <x-dynamic-component :component="$confirmacion['icono']" class="mo-status__icon" />
+        <p class="mo-status__eyebrow">{{ $confirmacion['saludo'] }}</p>
+        <h1 class="mo-heading">{{ $confirmacion['nombre'] }}</h1>
+        <p class="mo-status__event">
+            <x-heroicon-s-check-circle />
+            <span>{{ $confirmacion['evento'] }}</span>
+        </p>
         <div class="mo-status__time">{{ $marcacion->fecha_hora->format('H:i:s') }}</div>
         <p class="mo-status__detail">{{ $marcacion->fecha_hora->translatedFormat('l d \d\e F') }}</p>
     </section>

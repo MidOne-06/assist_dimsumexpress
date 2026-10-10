@@ -56,9 +56,15 @@
         .mo-linkbar { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
         .mo-linkbar a, .mo-linkbar button { display: inline-flex; align-items: center; gap: .35rem; min-height: 2.25rem; border: 0; background: transparent; padding: 0; color: var(--app-muted); font: inherit; font-size: .8125rem; text-decoration: none; cursor: pointer; }
         .mo-linkbar svg { width: 1rem; height: 1rem; }
-        .mo-status { display: grid; justify-items: center; text-align: center; padding: .75rem 0 .25rem; }
-        .mo-status__icon { width: 3rem; height: 3rem; margin-bottom: .875rem; }
-        .mo-status__time { margin-top: .75rem; color: var(--app-success); font-size: 1.75rem; font-weight: 700; }
+        .mo-status { --mo-status-accent: var(--app-success); display: grid; justify-items: center; text-align: center; padding: .75rem 0 .25rem; }
+        .mo-status--warning { --mo-status-accent: var(--app-warning); }
+        .mo-status--info { --mo-status-accent: var(--app-info); }
+        .mo-status--danger { --mo-status-accent: var(--app-danger); }
+        .mo-status__icon { width: 3rem; height: 3rem; margin-bottom: .875rem; color: var(--mo-status-accent); }
+        .mo-status__eyebrow { margin: 0 0 .2rem; color: var(--mo-status-accent); font-size: .875rem; font-weight: 750; }
+        .mo-status__event { display: inline-flex; align-items: center; gap: .35rem; margin: .75rem 0 0; padding: .45rem .65rem; border: 1px solid color-mix(in srgb, var(--mo-status-accent) 42%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--mo-status-accent) 13%, transparent); color: var(--mo-status-accent); font-size: .8125rem; font-weight: 750; line-height: 1.2; }
+        .mo-status__event svg { width: 1rem; height: 1rem; flex: 0 0 auto; }
+        .mo-status__time { margin-top: .75rem; color: var(--mo-status-accent); font-size: 1.75rem; font-weight: 700; }
         .mo-status__detail { margin: .25rem 0 0; color: var(--app-muted); font-size: .875rem; line-height: 1.45; }
 
         /* Pantalla inicial de marcación: mantiene la operación sencilla, pero

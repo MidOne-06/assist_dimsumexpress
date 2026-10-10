@@ -10,6 +10,7 @@ use App\Models\QrToken;
 use App\Services\AparienciaSistemaService;
 use App\Services\ConsolidacionJornadaService;
 use App\Support\JornadaMarcacion;
+use App\Support\PresentacionConfirmacionMarcacion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
@@ -257,9 +258,16 @@ class MarcacionController extends Controller
     public function confirmacion(Request $request, Marcacion $marcacion): View
     {
         abort_unless($request->user()?->can('Registrar:Marcacion'), 403);
-        abort_unless($marcacion->colaborador->user_id === $request->user()->id, 403);
+        $marcacion->loadMissing('colaborador');
+        abort_unless($marcacion->colaborador?->user_id === $request->user()->id, 403);
 
-        return view('marcacion.confirmacion', compact('marcacion'));
+        return view('marcacion.confirmacion', [
+            'marcacion' => $marcacion,
+            // El tipo se persiste dentro de la transacción de store(). Por
+            // ello la pantalla confirma el evento real, sin inferirlo por la
+            // hora ni exponer el turno interno del local al colaborador.
+            'confirmacion' => PresentacionConfirmacionMarcacion::para($marcacion),
+        ]);
     }
 
     /** @return array<int, string> */

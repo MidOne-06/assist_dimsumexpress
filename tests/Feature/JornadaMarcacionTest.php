@@ -102,7 +102,8 @@ class JornadaMarcacionTest extends TestCase
         $this->actingAs($colaborador->user)
             ->get(route('marcacion.confirmacion', $salida))
             ->assertOk()
-            ->assertSee('Registrado correctamente')
+            ->assertSee('¡Nos vemos!')
+            ->assertSee('Salida de turno registrada')
             ->assertDontSee('Tu asistencia fue registrada correctamente.')
             ->assertDontSee('Horas efectivas trabajadas')
             ->assertDontSee('Meta 7 h')
@@ -898,6 +899,40 @@ class JornadaMarcacionTest extends TestCase
         $this->assertStringContainsString('198.51.100.24', $traza);
         $this->assertStringContainsString('QR #' . $qr->id, $traza);
         $this->assertStringContainsString('Agente de prueba', $traza);
+    }
+
+    public function test_confirmation_names_the_exact_event_persisted_for_the_collaborator(): void
+    {
+        Carbon::setTestNow('2026-09-21 10:30:45');
+        [$colaborador, $asignacion] = $this->crearJornada('08:00:00', '17:00:00');
+        $operador = $colaborador->user;
+        $operador->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+
+        $escenarios = [
+            Marcacion::TIPO_ENTRADA => ['¡Bienvenido!', 'Ingreso de turno registrado', 'success'],
+            Marcacion::TIPO_SALIDA_REFRIGERIO => ['¡Buen provecho!', 'Salida a refrigerio registrada', 'warning'],
+            Marcacion::TIPO_REGRESO_REFRIGERIO => ['¡Bienvenido de vuelta!', 'Ingreso de refrigerio registrado', 'info'],
+            Marcacion::TIPO_SALIDA => ['¡Nos vemos!', 'Salida de turno registrada', 'danger'],
+        ];
+
+        foreach ($escenarios as $tipo => [$saludo, $evento, $color]) {
+            $marcacion = Marcacion::create([
+                'colaborador_id' => $colaborador->id,
+                'turno_id' => $asignacion->turno_id,
+                'sucursal_id' => $colaborador->sucursal_id,
+                'tipo' => $tipo,
+                'fecha_hora' => now(),
+            ]);
+
+            $this->actingAs($operador)
+                ->get(route('marcacion.confirmacion', $marcacion))
+                ->assertOk()
+                ->assertSee($saludo)
+                ->assertSee($colaborador->nombre_completo)
+                ->assertSee($evento)
+                ->assertSee('mo-status--' . $color, false)
+                ->assertDontSee($asignacion->turno->nombre);
+        }
     }
 
     /** @return array{Colaborador, AsignacionTurno} */
