@@ -7,6 +7,7 @@ use App\Models\Sucursal;
 use App\Models\VisitaSupervisor;
 use App\Models\VisitaSupervisorMarcacion;
 use App\Services\VisitaSupervisorSpreadsheetService;
+use App\Services\RegularizacionVisitaSupervisorService;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -181,57 +182,9 @@ class ControlVisitasSupervisor extends Page implements HasTable
     /** @param array<string, mixed> $data */
     private function regularizar(VisitaSupervisor $visita, array $data): null
     {
-        DB::transaction(function () use ($visita, $data): void {
-            $visita = VisitaSupervisor::query()->lockForUpdate()->findOrFail($visita->id);
-            abort_unless($this->puedeRegularizar($visita), 403);
-            $salida = Carbon::parse($data['salida_en']);
-
-            if ($visita->ingreso_en && $salida->lt($visita->ingreso_en)) {
-                throw ValidationException::withMessages(['salida_en' => 'La salida no puede ser anterior al ingreso.']);
-            }
-
-            if ($salida->isFuture()) {
-                throw ValidationException::withMessages(['salida_en' => 'La salida no puede estar en el futuro.']);
-            }
-
-            if ($visita->fecha && $salida->toDateString() < $visita->fecha->toDateString()) {
-                throw ValidationException::withMessages(['salida_en' => 'La salida debe corresponder a la fecha de la visita.']);
-            }
-
-            $puntoSalidaId = filled($data['punto_venta_salida_id'] ?? null)
-                ? (int) $data['punto_venta_salida_id']
-                : null;
-
-            if ($puntoSalidaId !== null && ! PuntoVenta::query()
-                ->whereKey($puntoSalidaId)
-                ->where('sucursal_id', $visita->sucursal_id)
-                ->where('activo', true)
-                ->exists()) {
-                throw ValidationException::withMessages([
-                    'punto_venta_salida_id' => 'Seleccione un punto de venta activo del mismo local de la visita.',
-                ]);
-            }
-
-            $visita->update([
-                'estado' => VisitaSupervisor::REGULARIZADA,
-                'salida_en' => $salida,
-                'punto_venta_salida_id' => $puntoSalidaId,
-                'regularizada_por_id' => auth()->id(),
-                'regularizada_en' => now(),
-                'regularizacion_motivo' => $data['regularizacion_motivo'],
-            ]);
-            VisitaSupervisorMarcacion::create([
-                'visita_supervisor_id' => $visita->id,
-                'supervisor_id' => $visita->supervisor_id,
-                'sucursal_id' => $visita->sucursal_id,
-                'punto_venta_id' => $puntoSalidaId,
-                'tipo' => VisitaSupervisorMarcacion::REGULARIZACION,
-                'fecha_hora' => $salida,
-                'ip_origen' => request()->ip(),
-                'user_agent' => substr((string) request()->userAgent(), 0, 1000),
-                'metadata' => ['motivo' => $data['regularizacion_motivo'], 'regularizada_por_id' => auth()->id()],
-            ]);
-        });
+        $usuario = auth()->user();
+        abort_unless($usuario !== null, 403);
+        app(RegularizacionVisitaSupervisorService::class)->regularizar($visita, $data, $usuario, request()->ip(), request()->userAgent());
 
         Notification::make()->title('Salida regularizada')->success()->send();
 
