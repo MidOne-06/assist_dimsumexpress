@@ -7,6 +7,7 @@ use App\Models\CoberturaOperativa;
 use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\QrToken;
+use App\Support\JornadaAcciones;
 use App\Support\JornadaMarcacion;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
@@ -22,11 +23,11 @@ final class MarcacionFlowService
     public function tiposDisponibles(Colaborador $colaborador, ?AsignacionTurno $asignacion, Carbon $momento): array
     {
         if ($asignacion) {
-            return JornadaMarcacion::siguientesTipos($colaborador, $asignacion);
+            return JornadaAcciones::siguientesTipos($colaborador, $asignacion);
         }
 
         return array_values(array_filter([
-            JornadaMarcacion::siguienteTipoSinTurnoAutomatico($colaborador, $momento),
+            JornadaAcciones::siguienteTipoSinTurnoAutomatico($colaborador, $momento),
         ]));
     }
 
@@ -36,8 +37,8 @@ final class MarcacionFlowService
     public function accionesPresentables(Colaborador $colaborador, ?AsignacionTurno $asignacion, Carbon $momento): array
     {
         $acciones = $asignacion
-            ? JornadaMarcacion::acciones($colaborador, $asignacion)
-            : JornadaMarcacion::accionesSinTurno($colaborador, $momento);
+            ? JornadaAcciones::acciones($colaborador, $asignacion)
+            : JornadaAcciones::accionesSinTurno($colaborador, $momento);
 
         return collect($acciones)->map(function (array $accion): array {
             $presentacion = match ($accion['tipo']) {

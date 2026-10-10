@@ -20,13 +20,6 @@ final class JornadaMarcacion
     public const DURACION_REFRIGERIO_MINUTOS = 60;
     public const MAXIMO_JORNADA_MINUTOS = 18 * 60;
 
-    /** @var array<string, array{codigo: int, etiqueta: string}> */
-    private const ACCIONES = [
-        Marcacion::TIPO_ENTRADA => ['codigo' => 3, 'etiqueta' => 'Entrada'],
-        Marcacion::TIPO_SALIDA_REFRIGERIO => ['codigo' => 5, 'etiqueta' => 'Salida a refrigerio'],
-        Marcacion::TIPO_REGRESO_REFRIGERIO => ['codigo' => 7, 'etiqueta' => 'Ingreso de refrigerio'],
-        Marcacion::TIPO_SALIDA => ['codigo' => 9, 'etiqueta' => 'Salida de turno'],
-    ];
     /** @return array{inicio: Carbon, fin: Carbon, ventana_inicio: Carbon, ventana_fin: Carbon, jornada_fin_maximo: Carbon} */
     public static function limites(AsignacionTurno $asignacion): array
     {
@@ -503,222 +496,28 @@ final class JornadaMarcacion
     /** @return array<int, string> */
     public static function siguientesTipos(Colaborador $colaborador, AsignacionTurno $asignacion): array
     {
-        return match (static::ultimaMarcacion($colaborador, $asignacion)?->tipo) {
-            null => [Marcacion::TIPO_ENTRADA],
-            Marcacion::TIPO_ENTRADA => $asignacion->turno->solo_entrada ? [] : array_values(array_filter([
-                static::puedeIniciarRefrigerio($asignacion) ? Marcacion::TIPO_SALIDA_REFRIGERIO : null,
-                Marcacion::TIPO_SALIDA,
-            ])),
-            // El refrigerio es único por jornada. Tras registrar el retorno,
-            // la única marcación posible es el cierre del turno.
-            Marcacion::TIPO_REGRESO_REFRIGERIO => [Marcacion::TIPO_SALIDA],
-            Marcacion::TIPO_SALIDA_REFRIGERIO => [Marcacion::TIPO_REGRESO_REFRIGERIO],
-            Marcacion::TIPO_SALIDA => [],
-            default => [],
-        };
+        return JornadaAcciones::siguientesTipos($colaborador, $asignacion);
     }
 
-    /**
-     * Determina la siguiente marca sin pedir al colaborador que elija una
-     * acción. La secuencia ya registrada es la fuente de verdad; cuando aún
-     * no hay refrigerio, el punto medio de un turno cerrado separa una pausa
-     * probable de la salida final. Así 08:00–17:00 interpreta 12:00 como
-     * refrigerio y 16:00 como cierre, conservando la trazabilidad original.
-     */
     public static function siguienteTipoAutomatico(Colaborador $colaborador, AsignacionTurno $asignacion, ?Carbon $momento = null): ?string
     {
-        $momento ??= now();
-        $ultima = static::ultimaMarcacion($colaborador, $asignacion)?->tipo;
-
-        if ($ultima === null) {
-            return Marcacion::TIPO_ENTRADA;
-        }
-
-        if ($ultima === Marcacion::TIPO_SALIDA_REFRIGERIO) {
-            return Marcacion::TIPO_REGRESO_REFRIGERIO;
-        }
-
-        if ($ultima === Marcacion::TIPO_REGRESO_REFRIGERIO) {
-            return Marcacion::TIPO_SALIDA;
-        }
-
-        if ($ultima !== Marcacion::TIPO_ENTRADA || $asignacion->turno->solo_entrada) {
-            return null;
-        }
-
-        if (static::minutosRefrigerio($asignacion) < 1 || ! static::puedeIniciarRefrigerio($asignacion, $momento)) {
-            return Marcacion::TIPO_SALIDA;
-        }
-
-        // En jornadas abiertas no existe un final contractual con el cual
-        // comparar. Antes de cerrar, se conserva la oportunidad de registrar
-        // el refrigerio configurado; la siguiente lectura será el retorno.
-        if ($asignacion->turno->jornada_abierta || ! $asignacion->turno->hora_fin) {
-            return Marcacion::TIPO_SALIDA_REFRIGERIO;
-        }
-
-        $limites = static::limites($asignacion);
-        $puntoMedio = $limites['inicio']->copy()->addSeconds(
-            intdiv($limites['fin']->getTimestamp() - $limites['inicio']->getTimestamp(), 2),
-        );
-
-        return $momento->lt($puntoMedio)
-            ? Marcacion::TIPO_SALIDA_REFRIGERIO
-            : Marcacion::TIPO_SALIDA;
+        return JornadaAcciones::siguienteTipoAutomatico($colaborador, $asignacion, $momento);
     }
 
-    /**
-     * Un QR válido nunca bloquea al colaborador solo por carecer de turno.
-     * Conserva la marca cruda para revisión: ingreso y, después, salida.
-     */
     public static function siguienteTipoSinTurnoAutomatico(Colaborador $colaborador, ?Carbon $momento = null): ?string
     {
-        $momento ??= now();
-        $ultima = $colaborador->marcaciones()
-            ->whereNull('turno_id')
-            ->whereBetween('fecha_hora', [$momento->copy()->startOfDay(), $momento->copy()->endOfDay()])
-            ->orderByDesc('fecha_hora')
-            ->orderByDesc('id')
-            ->value('tipo');
-
-        return match ($ultima) {
-            null => Marcacion::TIPO_ENTRADA,
-            Marcacion::TIPO_ENTRADA => Marcacion::TIPO_SALIDA,
-            default => null,
-        };
+        return JornadaAcciones::siguienteTipoSinTurnoAutomatico($colaborador, $momento);
     }
 
-    /**
-     * Estado completo del panel de acciones de marcación.
-     *
-     * Se exponen siempre las cuatro acciones para que el colaborador vea el
-     * flujo completo tipo terminal. La autorización real continúa siendo
-     * validada en el controlador, dentro de la transacción de guardado.
-     *
-     * @return array<int, array{tipo: string, codigo: int, etiqueta: string, habilitada: bool, motivo: ?string}>
-     */
+    /** @return array<int, array{tipo: string, codigo: int, etiqueta: string, habilitada: bool, motivo: ?string}> */
     public static function acciones(Colaborador $colaborador, AsignacionTurno $asignacion): array
     {
-        $siguientes = static::siguientesTipos($colaborador, $asignacion);
-        $ultima = static::ultimaMarcacion($colaborador, $asignacion)?->tipo;
-
-        return collect(static::ACCIONES)
-            ->map(fn (array $accion, string $tipo): array => [
-                'tipo' => $tipo,
-                'codigo' => $accion['codigo'],
-                'etiqueta' => $accion['etiqueta'],
-                'habilitada' => in_array($tipo, $siguientes, true),
-                'motivo' => in_array($tipo, $siguientes, true)
-                    ? null
-                    : static::motivoAccionNoDisponible($tipo, $ultima, $asignacion),
-            ])
-            ->values()
-            ->all();
+        return JornadaAcciones::acciones($colaborador, $asignacion);
     }
 
-    /**
-     * Acciones para una marcación excepcional sin turno asignado.
-     *
-     * El registro queda con turno_id nulo para que RR. HH. pueda revisarlo,
-     * exactamente como un reloj que conserva la marca cruda antes de su
-     * regularización. No se calculan refrigerio ni horas efectivas hasta que
-     * exista un turno asociado.
-     *
-     * @return array<int, array{tipo: string, codigo: int, etiqueta: string, habilitada: bool, motivo: ?string}>
-     */
+    /** @return array<int, array{tipo: string, codigo: int, etiqueta: string, habilitada: bool, motivo: ?string}> */
     public static function accionesSinTurno(Colaborador $colaborador, ?Carbon $momento = null): array
     {
-        $momento ??= now();
-        $ultima = $colaborador->marcaciones()
-            ->whereNull('turno_id')
-            ->whereBetween('fecha_hora', [$momento->copy()->startOfDay(), $momento->copy()->endOfDay()])
-            ->orderByDesc('fecha_hora')
-            ->orderByDesc('id')
-            ->first();
-
-        $siguientes = match ($ultima?->tipo) {
-            null => [Marcacion::TIPO_ENTRADA],
-            Marcacion::TIPO_ENTRADA => [Marcacion::TIPO_SALIDA_REFRIGERIO, Marcacion::TIPO_SALIDA],
-            Marcacion::TIPO_SALIDA_REFRIGERIO => [Marcacion::TIPO_REGRESO_REFRIGERIO],
-            Marcacion::TIPO_REGRESO_REFRIGERIO => [Marcacion::TIPO_SALIDA],
-            default => [],
-        };
-
-        return collect(static::ACCIONES)
-            ->map(fn (array $accion, string $tipo): array => [
-                'tipo' => $tipo,
-                'codigo' => $accion['codigo'],
-                'etiqueta' => $accion['etiqueta'],
-                'habilitada' => in_array($tipo, $siguientes, true),
-                'motivo' => in_array($tipo, $siguientes, true)
-                    ? null
-                    : static::motivoAccionSinTurnoNoDisponible($tipo, $ultima?->tipo),
-            ])
-            ->values()
-            ->all();
-    }
-
-    private static function motivoAccionNoDisponible(string $tipo, ?string $ultima, AsignacionTurno $asignacion): string
-    {
-        return match ($tipo) {
-            Marcacion::TIPO_ENTRADA => $ultima === null
-                ? 'La entrada no está habilitada en este momento.'
-                : 'Ya registraste tu entrada.',
-            Marcacion::TIPO_SALIDA_REFRIGERIO => $asignacion->turno->solo_entrada
-                ? 'Esta acción no está disponible por ahora.'
-                : (! $asignacion->turno->incluye_refrigerio
-                    ? 'Esta acción no está disponible por ahora.'
-                    : match ($ultima) {
-                        null => 'Registra primero tu entrada.',
-                        Marcacion::TIPO_SALIDA_REFRIGERIO => 'Confirma primero tu ingreso de refrigerio.',
-                        Marcacion::TIPO_REGRESO_REFRIGERIO => 'El refrigerio ya fue registrado.',
-                        Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
-                        default => 'Esta acción no está disponible por ahora.',
-                    }),
-            Marcacion::TIPO_REGRESO_REFRIGERIO => match ($ultima) {
-                null => 'Registra primero tu entrada.',
-                Marcacion::TIPO_ENTRADA => 'Inicia primero tu refrigerio.',
-                Marcacion::TIPO_REGRESO_REFRIGERIO => 'Ya registraste tu ingreso de refrigerio.',
-                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
-                default => 'Esta acción no está disponible por ahora.',
-            },
-            Marcacion::TIPO_SALIDA => match ($ultima) {
-                null => 'Registra primero tu entrada.',
-                Marcacion::TIPO_SALIDA_REFRIGERIO => 'Registra primero tu ingreso de refrigerio.',
-                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
-                default => 'Esta acción no está disponible por ahora.',
-            },
-            default => 'Esta acción no está disponible por ahora.',
-        };
-    }
-
-    private static function motivoAccionSinTurnoNoDisponible(string $tipo, ?string $ultima): string
-    {
-        return match ($tipo) {
-            Marcacion::TIPO_ENTRADA => $ultima === null
-                ? 'La entrada no está habilitada en este momento.'
-                : 'Ya registraste tu entrada.',
-            Marcacion::TIPO_SALIDA_REFRIGERIO => match ($ultima) {
-                null => 'Registra primero tu entrada.',
-                Marcacion::TIPO_SALIDA_REFRIGERIO => 'Confirma primero tu ingreso de refrigerio.',
-                Marcacion::TIPO_REGRESO_REFRIGERIO => 'El refrigerio ya fue registrado.',
-                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
-                default => 'Esta acción no está disponible por ahora.',
-            },
-            Marcacion::TIPO_REGRESO_REFRIGERIO => match ($ultima) {
-                null => 'Registra primero tu entrada.',
-                Marcacion::TIPO_ENTRADA => 'Inicia primero tu refrigerio.',
-                Marcacion::TIPO_REGRESO_REFRIGERIO => 'Ya registraste tu ingreso de refrigerio.',
-                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
-                default => 'Esta acción no está disponible por ahora.',
-            },
-            Marcacion::TIPO_SALIDA => match ($ultima) {
-                null => 'Registra primero tu entrada.',
-                Marcacion::TIPO_SALIDA_REFRIGERIO => 'Registra primero tu ingreso de refrigerio.',
-                Marcacion::TIPO_SALIDA => 'Tu jornada ya finalizó.',
-                default => 'Esta acción no está disponible por ahora.',
-            },
-            default => 'Esta acción no está disponible por ahora.',
-        };
+        return JornadaAcciones::accionesSinTurno($colaborador, $momento);
     }
 }
