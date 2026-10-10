@@ -52,7 +52,8 @@ class MisMarcacionesHoyTest extends TestCase
             ->assertDontSee('06:30:00')
             ->assertDontSee('Sucursal móvil')
             ->assertDontSee('Turno aplicado')
-            ->assertSee('prefers-color-scheme', false);
+            ->assertSee('prefers-color-scheme', false)
+            ->assertSee('overflow-wrap: anywhere;', false);
     }
 
     public function test_it_uses_an_empty_state_when_the_collaborator_has_not_marked_today(): void

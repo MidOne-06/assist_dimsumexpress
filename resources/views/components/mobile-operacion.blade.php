@@ -262,12 +262,15 @@
         .mo-marking-quick-action__icon { display: inline-flex; width: 2.25rem; height: 2.25rem; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 999px; background: rgb(147 197 253 / .16); color: #dbeafe; }
         .mo-marking-quick-action__icon svg { width: 1.2rem; height: 1.2rem; }
         .mo-marking-quick-action > span:not(.mo-marking-quick-action__icon),
-        .mo-marking-quick-action--logout button > span:not(.mo-marking-quick-action__icon) { white-space: nowrap; }
-        .mo-marking-quick-action > svg { width: 1.15rem; height: 1.15rem; margin-left: auto; color: #bfdbfe; }
+        .mo-marking-quick-action--logout button > span:not(.mo-marking-quick-action__icon) {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+        .mo-marking-quick-action > svg { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; margin-left: auto; color: #bfdbfe; }
         .mo-marking-quick-action form { width: 100%; }
         .mo-marking-quick-action--logout { cursor: pointer; }
         .mo-marking-quick-action--logout button { display: flex; min-height: 3.4rem; align-items: center; gap: .5rem; }
-        .mo-marking-quick-action--logout button > svg { width: 1.15rem; height: 1.15rem; margin-left: auto; color: #bfdbfe; }
+        .mo-marking-quick-action--logout button > svg { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; margin-left: auto; color: #bfdbfe; }
         @media (prefers-color-scheme: dark) {
             :root {
                 --mo-marking-overlay: rgb(3 15 30 / .18);
