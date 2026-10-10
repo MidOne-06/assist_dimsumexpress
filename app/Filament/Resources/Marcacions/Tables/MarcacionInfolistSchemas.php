@@ -43,6 +43,7 @@ final class MarcacionInfolistSchemas
 
         $estado = self::estadoJornada($resumen['estado'], $ultima?->tipo);
         $cobertura = $marcacion->coberturaOperativa;
+        $estadoCobertura = self::estadoCobertura($cobertura);
 
         return [
             Section::make()
@@ -82,11 +83,7 @@ final class MarcacionInfolistSchemas
                 ->columns(['default' => 1, 'md' => 2])
                 ->schema([
                     TextEntry::make('local')->label('Local marcado')->state(collect([$marcacion->sucursal?->nombre, $marcacion->puntoVenta?->nombre])->filter()->join(' · ') ?: '—'),
-                    TextEntry::make('cobertura')->label('Cobertura')->state($cobertura ? self::etiquetaCobertura($cobertura->estado) : 'Local habitual')->badge()->color($cobertura ? match ($cobertura->estado) {
-                        CoberturaOperativa::ESTADO_REVISADA => 'success',
-                        CoberturaOperativa::ESTADO_OBSERVADA => 'danger',
-                        default => 'warning',
-                    } : 'gray'),
+                    TextEntry::make('cobertura')->label('Cobertura')->state($estadoCobertura['etiqueta'])->badge()->color($estadoCobertura['color']),
                 ]),
             Section::make('Incidencias')
                 ->compact()
@@ -213,12 +210,30 @@ final class MarcacionInfolistSchemas
         };
     }
 
+    /** @return array{etiqueta: string, color: string} */
+    private static function estadoCobertura(?CoberturaOperativa $cobertura): array
+    {
+        if ($cobertura === null) {
+            return ['etiqueta' => 'Local habitual', 'color' => 'gray'];
+        }
+
+        return [
+            'etiqueta' => self::etiquetaCobertura($cobertura->estado),
+            'color' => match ($cobertura->estado) {
+                CoberturaOperativa::ESTADO_REVISADA => 'success',
+                CoberturaOperativa::ESTADO_OBSERVADA => 'danger',
+                default => 'warning',
+            },
+        ];
+    }
+
     /**
      * @return array<Section>
      */
     public static function trazabilidad(Marcacion $marcacion): array
     {
         $retorno = $marcacion->resumenRetornoRefrigerio();
+        $estadoCobertura = self::estadoCobertura($marcacion->coberturaOperativa);
 
         return [
             Section::make()
@@ -319,13 +334,9 @@ final class MarcacionInfolistSchemas
                         ->columnSpanFull(),
                     TextEntry::make('cobertura')
                         ->label('Cobertura')
-                        ->state($marcacion->coberturaOperativa ? self::etiquetaCobertura($marcacion->coberturaOperativa->estado) : 'Local habitual')
+                        ->state($estadoCobertura['etiqueta'])
                         ->badge()
-                        ->color($marcacion->coberturaOperativa ? match ($marcacion->coberturaOperativa->estado) {
-                            CoberturaOperativa::ESTADO_REVISADA => 'success',
-                            CoberturaOperativa::ESTADO_OBSERVADA => 'danger',
-                            default => 'warning',
-                        } : 'gray'),
+                        ->color($estadoCobertura['color']),
                 ]),
         ];
     }
