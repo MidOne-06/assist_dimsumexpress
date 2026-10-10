@@ -6,7 +6,11 @@ namespace App\Services;
 
 use App\Actions\ActualizarColaborador;
 use App\Actions\CrearColaborador;
+use App\Models\Area;
 use App\Models\Colaborador;
+use App\Models\Empresa;
+use App\Models\PuntoVenta;
+use App\Models\Sucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
