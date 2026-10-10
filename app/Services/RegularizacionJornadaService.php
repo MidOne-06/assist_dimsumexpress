@@ -22,6 +22,30 @@ use Illuminate\Validation\ValidationException;
  */
 final class RegularizacionJornadaService
 {
+    public function puedeRegularizar(?User $usuario, ?Colaborador $colaborador, string $fecha): bool
+    {
+        if (! $colaborador
+            || ! $usuario?->can('Regularizar:Jornada')
+            || ! AlcanceSupervisor::puedeGestionarSucursal($usuario, (int) $colaborador->sucursal_id)) {
+            return false;
+        }
+
+        $dia = Carbon::parse($fecha, config('app.timezone'))->startOfDay();
+        if ($dia->isFuture()) {
+            return false;
+        }
+
+        return ! AsignacionTurno::query()
+            ->where('colaborador_id', $colaborador->id)
+            ->whereDate('fecha', $dia)
+            ->exists()
+            && Marcacion::query()
+                ->where('colaborador_id', $colaborador->id)
+                ->whereNull('turno_id')
+                ->whereBetween('fecha_hora', [$dia->copy()->startOfDay(), $dia->copy()->endOfDay()])
+                ->exists();
+    }
+
     /**
      * @param array{turno_id:mixed,motivo:mixed} $data
      */

@@ -229,29 +229,11 @@ class ControlJornadas extends Page
 
     public function puedeRegularizarJornada(string $fecha): bool
     {
-        $colaborador = $this->colaborador;
-        $usuario = auth()->user();
-
-        if (! $colaborador
-            || ! $usuario?->can('Regularizar:Jornada')
-            || ! AlcanceSupervisor::puedeGestionarSucursal($usuario, (int) $colaborador->sucursal_id)) {
-            return false;
-        }
-
-        $dia = Carbon::parse($fecha, config('app.timezone'))->startOfDay();
-        if ($dia->isFuture()) {
-            return false;
-        }
-
-        return ! AsignacionTurno::query()
-            ->where('colaborador_id', $colaborador->id)
-            ->whereDate('fecha', $dia)
-            ->exists()
-            && Marcacion::query()
-                ->where('colaborador_id', $colaborador->id)
-                ->whereNull('turno_id')
-                ->whereBetween('fecha_hora', [$dia->copy()->startOfDay(), $dia->copy()->endOfDay()])
-                ->exists();
+        return app(RegularizacionJornadaService::class)->puedeRegularizar(
+            auth()->user(),
+            $this->colaborador,
+            $fecha,
+        );
     }
 
     public function updatedSucursalId(): void
