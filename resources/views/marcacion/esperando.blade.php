@@ -17,9 +17,9 @@
     </section>
 
     <nav class="mo-marking-quick-actions" aria-label="Acciones de marcación">
-        <a class="mo-marking-quick-action" href="{{ route('horario.show') }}">
-            <span class="mo-marking-quick-action__icon"><x-heroicon-o-calendar-days /></span>
-            <span>Mi horario</span>
+        <a class="mo-marking-quick-action" href="{{ route('marcaciones-hoy.show') }}">
+            <span class="mo-marking-quick-action__icon"><x-heroicon-o-clock /></span>
+            <span>Mis marcaciones</span>
             <x-heroicon-o-chevron-right />
         </a>
         <form class="mo-marking-quick-action mo-marking-quick-action--logout" method="POST" action="{{ route('logout') }}">

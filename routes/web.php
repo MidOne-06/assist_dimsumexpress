@@ -6,6 +6,7 @@ use App\Http\Controllers\EnlaceAccesoColaboradorController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HorarioColaboradorController;
 use App\Http\Controllers\MarcacionController;
+use App\Http\Controllers\MisMarcacionesHoyController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\PortalAccesoController;
 use App\Http\Controllers\VisitaSupervisorController;
@@ -114,4 +115,5 @@ Route::middleware(['auth', 'throttle:30,1'])->group(function () {
     // masiva del panel admin -- de solo lectura, siempre derivado del usuario
     // autenticado (nunca de un id en la URL), igual que /marcar.
     Route::get('/mi-horario', [HorarioColaboradorController::class, 'show'])->name('horario.show');
+    Route::get('/mis-marcaciones', [MisMarcacionesHoyController::class, 'show'])->name('marcaciones-hoy.show');
 });

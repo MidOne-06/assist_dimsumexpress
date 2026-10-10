@@ -66,6 +66,36 @@
         .mo-status__event svg { width: 1rem; height: 1rem; flex: 0 0 auto; }
         .mo-status__time { margin-top: .75rem; color: var(--mo-status-accent); font-size: 1.75rem; font-weight: 700; }
         .mo-status__detail { margin: .25rem 0 0; color: var(--app-muted); font-size: .875rem; line-height: 1.45; }
+        /* Resumen personal de marcaciones: una lista compacta con la misma
+           jerarquía, separación y colores semánticos de las listas Filament.
+           Solo se muestran eventos que existen; no se inventan estados ni
+           huecos para acciones aún no realizadas. */
+        .mo-day-marks { display: grid; gap: 1rem; }
+        .mo-day-marks__header { padding-bottom: .875rem; border-bottom: 1px solid rgb(71 84 103 / .2); }
+        .mo-day-marks__timeline { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+        .mo-day-marks__item {
+            --mo-day-marks-color: var(--app-muted);
+            --mo-day-marks-bg: var(--app-subtle);
+            display: grid;
+            grid-template-columns: 2rem minmax(0, 1fr) auto;
+            gap: .625rem;
+            align-items: center;
+            min-height: 3.5rem;
+            padding: .625rem .75rem;
+            border: 1px solid color-mix(in srgb, var(--mo-day-marks-color) 38%, var(--app-border));
+            border-radius: .75rem;
+            background: color-mix(in srgb, var(--mo-day-marks-bg) 72%, transparent);
+        }
+        .mo-day-marks__item--success { --mo-day-marks-color: var(--app-success); --mo-day-marks-bg: var(--app-success-bg); }
+        .mo-day-marks__item--warning { --mo-day-marks-color: var(--app-warning); --mo-day-marks-bg: var(--app-warning-bg); }
+        .mo-day-marks__item--info { --mo-day-marks-color: var(--app-info); --mo-day-marks-bg: var(--app-info-bg); }
+        .mo-day-marks__item--danger { --mo-day-marks-color: var(--app-danger); --mo-day-marks-bg: var(--app-danger-bg); }
+        .mo-day-marks__icon { display: inline-flex; width: 2rem; height: 2rem; align-items: center; justify-content: center; border-radius: .5rem; background: color-mix(in srgb, var(--mo-day-marks-color) 13%, transparent); color: var(--mo-day-marks-color); }
+        .mo-day-marks__icon svg { width: 1.125rem; height: 1.125rem; }
+        .mo-day-marks__label { min-width: 0; color: var(--mo-marking-text); font-size: .9375rem; font-weight: 700; line-height: 1.3; }
+        .mo-day-marks__time { color: var(--mo-day-marks-color); font-variant-numeric: tabular-nums; font-size: .875rem; font-weight: 750; white-space: nowrap; }
+        .mo-day-marks__empty { display: flex; gap: .625rem; align-items: center; min-height: 4.5rem; padding: .875rem; border: 1px dashed var(--app-border); border-radius: .75rem; color: var(--mo-marking-muted); font-size: .875rem; line-height: 1.4; }
+        .mo-day-marks__empty svg { width: 1.25rem; height: 1.25rem; flex: 0 0 auto; color: var(--app-muted); }
 
         /* Pantalla inicial de marcación: mantiene la operación sencilla, pero
            da prioridad al escaneo y a la identidad de la marca en móvil. */
@@ -178,6 +208,7 @@
         .mo-operation-card .mo-action__hint,
         .mo-operation-card .mo-status__detail { color: var(--mo-marking-muted); }
         .mo-operation-card .mo-action { background: rgb(255 255 255 / .42); }
+        .mo-operation-card .mo-day-marks__header { border-color: rgb(71 84 103 / .2); }
         .mo-operation-card .mo-linkbar { margin-top: 1.125rem; padding-top: .75rem; border-top: 1px solid rgb(71 84 103 / .2); }
         .mo-operation-card .mo-linkbar a,
         .mo-operation-card .mo-linkbar button { color: var(--mo-marking-muted); }
