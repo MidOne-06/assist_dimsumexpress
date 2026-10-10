@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js', 'resources/js/qr-scanner.js'],
+            input: ['resources/css/app.css', 'resources/js/app.js', 'resources/js/qr-scanner.js', 'resources/js/marcacion-compartir.js'],
             refresh: true,
             fonts: [
                 bunny('Instrument Sans', {

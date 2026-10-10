@@ -66,6 +66,10 @@
         .mo-status__event svg { width: 1rem; height: 1rem; flex: 0 0 auto; }
         .mo-status__time { margin-top: .75rem; color: var(--mo-status-accent); font-size: 1.75rem; font-weight: 700; }
         .mo-status__detail { margin: .25rem 0 0; color: var(--app-muted); font-size: .875rem; line-height: 1.45; }
+        .mo-share-button { display: inline-flex; width: 100%; min-height: 2.875rem; align-items: center; justify-content: center; gap: .45rem; margin-top: 1rem; border: 1px solid color-mix(in srgb, var(--mo-status-accent) 45%, var(--app-border)); border-radius: .75rem; background: color-mix(in srgb, var(--mo-status-accent) 12%, transparent); color: var(--mo-status-accent); font: inherit; font-size: .9375rem; font-weight: 750; cursor: pointer; }
+        .mo-share-button svg { width: 1.15rem; height: 1.15rem; }
+        .mo-share-button:disabled { opacity: .65; cursor: wait; }
+        .mo-share-feedback { margin: .625rem 0 0; color: var(--mo-marking-muted); font-size: .8125rem; line-height: 1.4; text-align: center; }
         /* Resumen personal de marcaciones: una lista compacta con la misma
            jerarquía, separación y colores semánticos de las listas Filament.
            Solo se muestran eventos que existen; no se inventan estados ni
@@ -280,6 +284,7 @@
                 --mo-marking-muted: #dbeafe;
             }
             .mo-operation-card .mo-action { background: rgb(15 35 62 / .5); color: #f8fafc; }
+            .mo-share-button { border-color: color-mix(in srgb, var(--mo-status-accent) 58%, rgb(191 219 254 / .45)); }
             .mo-operation-card .mo-linkbar { border-color: rgb(191 219 254 / .22); }
         }
         @media (max-width: 640px) {

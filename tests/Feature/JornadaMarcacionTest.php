@@ -889,7 +889,9 @@ class JornadaMarcacionTest extends TestCase
             ->get(route('marcacion.confirmacion', $marcacion))
             ->assertOk()
             ->assertSee('mo-body--operation', false)
-            ->assertSee('10:30:45');
+            ->assertSee('10:30:45')
+            ->assertSee('data-marcacion-share', false)
+            ->assertSee('Compartir');
 
         $traza = view('filament.actions.trazabilidad-marcacion', [
             'marcacion' => $marcacion->fresh(['colaborador', 'turno', 'sucursal', 'puntoVenta', 'qrToken']),
