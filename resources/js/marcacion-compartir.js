@@ -188,6 +188,19 @@ const descargar = (blob) => {
     window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 };
 
+const puedeCompartirArchivo = (shareData) => {
+    if (! shareData || typeof navigator.share !== 'function') return false;
+    if (typeof navigator.canShare !== 'function') return true;
+
+    try {
+        return navigator.canShare({ files: shareData.files });
+    } catch (_) {
+        // Algunas versiones de Safari exponen canShare(), pero rechazan el
+        // formato de archivos. En ese caso se usa la descarga como respaldo.
+        return false;
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const button = document.querySelector('[data-marcacion-share]');
     const feedback = document.querySelector('[data-marcacion-share-feedback]');
@@ -220,8 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? new File([blob], 'marcacion-dim-sum.png', { type: 'image/png' })
                 : null;
             const shareData = file ? { files: [file], title: 'Dim Sum Express' } : null;
-            const canShareFile = shareData && typeof navigator.share === 'function'
-                && (typeof navigator.canShare !== 'function' || navigator.canShare(shareData));
+            const canShareFile = puedeCompartirArchivo(shareData);
 
             if (canShareFile) {
                 try {
