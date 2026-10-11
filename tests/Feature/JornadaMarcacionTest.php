@@ -362,6 +362,48 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame(4, $colaborador->marcaciones()->whereNull('turno_id')->count());
     }
 
+    public function test_an_open_exceptional_journey_keeps_its_sequence_after_midnight(): void
+    {
+        $this->withoutMiddleware();
+        Carbon::setTestNow('2026-09-21 22:30:00');
+        $sucursal = Sucursal::create(['nombre' => 'Sucursal nocturna excepcional', 'tipo' => 'tienda', 'activo' => true]);
+        $usuario = User::factory()->create();
+        $usuario->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $colaborador = Colaborador::create([
+            'user_id' => $usuario->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador nocturno sin turno',
+            'documento_identidad' => 'SIN-TURNO-NOCHE-' . uniqid(),
+            'activo' => true,
+        ]);
+        $flujo = app(MarcacionFlowService::class);
+        $qrEntrada = QrToken::generarPara($sucursal, null, 60);
+
+        $this->actingAs($usuario)
+            ->post(route('marcacion.store'), ['token' => $qrEntrada->token, 'accion' => Marcacion::TIPO_ENTRADA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        Carbon::setTestNow('2026-09-22 01:15:00');
+        $qrSiguiente = QrToken::generarPara($sucursal, null, 60);
+
+        $this->assertNull($flujo->resolverAsignacion($colaborador, $qrSiguiente, now()));
+        $this->assertSame([
+            Marcacion::TIPO_SALIDA_REFRIGERIO,
+            Marcacion::TIPO_SALIDA,
+        ], $flujo->tiposDisponibles($colaborador, null, now()));
+
+        $this->actingAs($usuario)
+            ->post(route('marcacion.store'), ['token' => $qrSiguiente->token, 'accion' => Marcacion::TIPO_SALIDA])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame([
+            Marcacion::TIPO_ENTRADA,
+            Marcacion::TIPO_SALIDA,
+        ], $colaborador->marcaciones()->orderBy('id')->pluck('tipo')->all());
+    }
+
     public function test_station_detects_the_closest_operational_shift_in_an_overlap(): void
     {
         Carbon::setTestNow('2026-09-21 14:30:00');

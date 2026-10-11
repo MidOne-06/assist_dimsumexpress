@@ -57,15 +57,19 @@ final class JornadaCalendarioService
             ->orderBy('id')
             ->get();
 
-        return collect($dias)->map(function (Carbon $fecha) use ($asignaciones, $marcaciones): array {
+        // Las excepciones no tienen turno_id para definir su ventana. Se
+        // agrupan desde su entrada hasta su salida, incluso si cruzan
+        // medianoche, para que el calendario y el icono de regularización
+        // permanezcan en el día real de inicio de la jornada.
+        $excepcionesPorFecha = $this->agruparExcepcionesPorFecha($marcaciones);
+
+        return collect($dias)->map(function (Carbon $fecha) use ($asignaciones, $marcaciones, $excepcionesPorFecha): array {
             /** @var ?AsignacionTurno $asignacion */
             $asignacion = $asignaciones->get($fecha->toDateString());
 
             if (! $asignacion) {
-                $eventosExcepcionales = $marcaciones
-                    ->filter(fn (Marcacion $marcacion): bool => $marcacion->turno_id === null
-                        && $marcacion->fecha_hora->isSameDay($fecha))
-                    ->values();
+                /** @var Collection<int, Marcacion> $eventosExcepcionales */
+                $eventosExcepcionales = $excepcionesPorFecha->get($fecha->toDateString(), collect());
 
                 return [
                     'fecha' => $fecha,
@@ -90,6 +94,33 @@ final class JornadaCalendarioService
                 'refrigerio' => $this->rangoRefrigerio($asignacion, $eventos),
             ];
         });
+    }
+
+    /**
+     * @param Collection<int, Marcacion> $marcaciones
+     * @return Collection<string, Collection<int, Marcacion>>
+     */
+    private function agruparExcepcionesPorFecha(Collection $marcaciones): Collection
+    {
+        $porFecha = collect();
+        $fechaJornada = null;
+
+        foreach ($marcaciones->whereNull('turno_id') as $marcacion) {
+            if ($marcacion->tipo === Marcacion::TIPO_ENTRADA || $fechaJornada === null) {
+                $fechaJornada = $marcacion->fecha_hora->toDateString();
+            }
+
+            $porFecha->put(
+                $fechaJornada,
+                $porFecha->get($fechaJornada, collect())->push($marcacion),
+            );
+
+            if ($marcacion->tipo === Marcacion::TIPO_SALIDA) {
+                $fechaJornada = null;
+            }
+        }
+
+        return $porFecha;
     }
 
     public static function iniciales(string $nombre): string

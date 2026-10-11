@@ -8,6 +8,7 @@ use App\Models\Marcacion;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Models\User;
+use App\Services\JornadaCalendarioService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -81,6 +82,41 @@ class ControlJornadasTest extends TestCase
         $pagina = Livewire::actingAs($supervisor)->test(ControlJornadas::class);
 
         $this->assertStringContainsString('display: none !important', $pagina->html());
+    }
+
+    public function test_exceptional_night_marks_remain_on_the_day_the_journey_started(): void
+    {
+        $sucursal = Sucursal::create(['nombre' => 'Local nocturno excepcional', 'tipo' => 'tienda', 'activo' => true]);
+        $colaborador = Colaborador::create([
+            'user_id' => User::factory()->create()->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador nocturno excepcional',
+            'documento_identidad' => 'CJ-NOCHE-' . uniqid(),
+            'activo' => true,
+        ]);
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => '2026-10-05 22:30:00',
+        ]);
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_SALIDA,
+            'fecha_hora' => '2026-10-06 01:15:00',
+        ]);
+
+        $jornadas = app(JornadaCalendarioService::class)->construir($colaborador, '2026-10', [
+            Carbon::parse('2026-10-05'),
+            Carbon::parse('2026-10-06'),
+        ])->values();
+
+        $this->assertSame([
+            Marcacion::TIPO_ENTRADA,
+            Marcacion::TIPO_SALIDA,
+        ], $jornadas[0]['marcaciones']->pluck('tipo')->all());
+        $this->assertTrue($jornadas[1]['marcaciones']->isEmpty());
     }
 
     public function test_supervisor_regularizes_an_exceptional_journey_through_the_native_modal(): void

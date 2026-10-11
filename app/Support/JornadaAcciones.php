@@ -78,12 +78,7 @@ final class JornadaAcciones
     public static function siguienteTipoSinTurnoAutomatico(Colaborador $colaborador, ?Carbon $momento = null): ?string
     {
         $momento ??= now();
-        $ultima = $colaborador->marcaciones()
-            ->whereNull('turno_id')
-            ->whereBetween('fecha_hora', [$momento->copy()->startOfDay(), $momento->copy()->endOfDay()])
-            ->orderByDesc('fecha_hora')
-            ->orderByDesc('id')
-            ->value('tipo');
+        $ultima = self::ultimaMarcacionSinTurnoVigente($colaborador, $momento)?->tipo;
 
         return match ($ultima) {
             null => Marcacion::TIPO_ENTRADA,
@@ -116,12 +111,7 @@ final class JornadaAcciones
     public static function accionesSinTurno(Colaborador $colaborador, ?Carbon $momento = null): array
     {
         $momento ??= now();
-        $ultima = $colaborador->marcaciones()
-            ->whereNull('turno_id')
-            ->whereBetween('fecha_hora', [$momento->copy()->startOfDay(), $momento->copy()->endOfDay()])
-            ->orderByDesc('fecha_hora')
-            ->orderByDesc('id')
-            ->first();
+        $ultima = self::ultimaMarcacionSinTurnoVigente($colaborador, $momento);
 
         $siguientes = match ($ultima?->tipo) {
             null => [Marcacion::TIPO_ENTRADA],
@@ -143,6 +133,46 @@ final class JornadaAcciones
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Recupera la última lectura excepcional que aún pertenece a la jornada
+     * abierta. Si el día ya tiene una lectura, esta siempre prevalece. Si la
+     * jornada empezó antes de medianoche, conserva su secuencia durante la
+     * ventana máxima técnica sin convertir una jornada cerrada de ayer en la
+     * de hoy.
+     */
+    private static function ultimaMarcacionSinTurnoVigente(Colaborador $colaborador, Carbon $momento): ?Marcacion
+    {
+        $inicioDia = $momento->copy()->startOfDay();
+        $ultimaHoy = $colaborador->marcaciones()
+            ->whereNull('turno_id')
+            ->whereBetween('fecha_hora', [$inicioDia, $momento->copy()->endOfDay()])
+            ->orderByDesc('fecha_hora')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($ultimaHoy) {
+            return $ultimaHoy;
+        }
+
+        $ultimaAnterior = $colaborador->marcaciones()
+            ->whereNull('turno_id')
+            ->whereBetween('fecha_hora', [
+                $momento->copy()->subMinutes(JornadaMarcacion::MAXIMO_JORNADA_MINUTOS),
+                $inicioDia->copy()->subSecond(),
+            ])
+            ->orderByDesc('fecha_hora')
+            ->orderByDesc('id')
+            ->first();
+
+        return in_array($ultimaAnterior?->tipo, [
+            Marcacion::TIPO_ENTRADA,
+            Marcacion::TIPO_SALIDA_REFRIGERIO,
+            Marcacion::TIPO_REGRESO_REFRIGERIO,
+        ], true)
+            ? $ultimaAnterior
+            : null;
     }
 
     private static function motivoAccionNoDisponible(string $tipo, ?string $ultima, AsignacionTurno $asignacion): string
