@@ -30,6 +30,5 @@
         <a href="{{ route('marcacion.show') }}"><x-heroicon-o-camera />Volver a escanear</a>
         <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-heroicon-o-arrow-left-on-rectangle />Cerrar sesión</button></form>
     </div>
+    @vite('resources/js/marcacion-compartir.js')
 </x-mobile-operacion>
-
-@vite('resources/js/marcacion-compartir.js')
