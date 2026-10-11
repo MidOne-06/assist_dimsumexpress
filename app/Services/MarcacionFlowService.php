@@ -26,9 +26,17 @@ final class MarcacionFlowService
             return JornadaAcciones::siguientesTipos($colaborador, $asignacion);
         }
 
-        return array_values(array_filter([
-            JornadaAcciones::siguienteTipoSinTurnoAutomatico($colaborador, $momento),
-        ]));
+        // Una jornada excepcional no tiene aún un turno que limite sus
+        // acciones. La pantalla ofrece la secuencia completa para que la
+        // lectura real quede trazada y después pueda regularizarse. La
+        // validación del servidor debe partir exactamente de la misma fuente
+        // que la interfaz: antes solo aceptaba entrada/salida y rechazaba
+        // erróneamente las acciones de refrigerio que sí estaban habilitadas.
+        return collect(JornadaAcciones::accionesSinTurno($colaborador, $momento))
+            ->filter(fn (array $accion): bool => $accion['habilitada'])
+            ->pluck('tipo')
+            ->values()
+            ->all();
     }
 
     /**

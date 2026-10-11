@@ -11,6 +11,7 @@ use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Models\TurnoOperativo;
 use App\Models\User;
+use App\Services\MarcacionFlowService;
 use App\Support\JornadaMarcacion;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -311,6 +312,54 @@ class JornadaMarcacionTest extends TestCase
             'qr_token_id' => $qr->id,
             'sucursal_id' => $sucursal->id,
         ]);
+    }
+
+    public function test_no_shift_actions_shown_to_the_collaborator_are_all_accepted_by_the_server(): void
+    {
+        $this->withoutMiddleware();
+        Carbon::setTestNow('2026-09-21 10:00:00');
+        $sucursal = Sucursal::create(['nombre' => 'Sucursal de secuencia excepcional', 'tipo' => 'tienda', 'activo' => true]);
+        $usuario = User::factory()->create();
+        $usuario->givePermissionTo(Permission::findOrCreate('Registrar:Marcacion', 'web'));
+        $colaborador = Colaborador::create([
+            'user_id' => $usuario->id,
+            'sucursal_id' => $sucursal->id,
+            'nombre_completo' => 'Colaborador sin turno con refrigerio',
+            'documento_identidad' => 'SIN-TURNO-SECUENCIA-' . uniqid(),
+            'activo' => true,
+        ]);
+        $flujo = app(MarcacionFlowService::class);
+
+        foreach ([
+            Marcacion::TIPO_ENTRADA,
+            Marcacion::TIPO_SALIDA_REFRIGERIO,
+            Marcacion::TIPO_REGRESO_REFRIGERIO,
+            Marcacion::TIPO_SALIDA,
+        ] as $indice => $tipo) {
+            $qr = QrToken::create([
+                'sucursal_id' => $sucursal->id,
+                'token' => 'qr-sin-turno-secuencia-' . $indice . '-' . uniqid(),
+                'proposito' => QrToken::PROPOSITO_ASISTENCIA,
+                'expira_en' => now()->addHour(),
+            ]);
+            $asignacion = $flujo->resolverAsignacion($colaborador, $qr, now());
+
+            $this->assertNull($asignacion);
+            $this->assertContains($tipo, $flujo->tiposDisponibles($colaborador, $asignacion, now()));
+
+            $this->actingAs($usuario)
+                ->post(route('marcacion.store'), ['token' => $qr->token, 'accion' => $tipo])
+                ->assertRedirect()
+                ->assertSessionHasNoErrors();
+        }
+
+        $this->assertSame([
+            Marcacion::TIPO_ENTRADA,
+            Marcacion::TIPO_SALIDA_REFRIGERIO,
+            Marcacion::TIPO_REGRESO_REFRIGERIO,
+            Marcacion::TIPO_SALIDA,
+        ], $colaborador->marcaciones()->orderBy('id')->pluck('tipo')->all());
+        $this->assertSame(4, $colaborador->marcaciones()->whereNull('turno_id')->count());
     }
 
     public function test_station_detects_the_closest_operational_shift_in_an_overlap(): void
