@@ -52,8 +52,19 @@ const drawCenteredLines = (context, value, centerX, startY, maxWidth, lineHeight
 };
 
 const roundedRectangle = (context, x, y, width, height, radius) => {
+    const safeRadius = Math.min(radius, width / 2, height / 2);
+
     context.beginPath();
-    context.roundRect(x, y, width, height, radius);
+    context.moveTo(x + safeRadius, y);
+    context.lineTo(x + width - safeRadius, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+    context.lineTo(x + width, y + height - safeRadius);
+    context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+    context.lineTo(x + safeRadius, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+    context.lineTo(x, y + safeRadius);
+    context.quadraticCurveTo(x, y, x + safeRadius, y);
+    context.closePath();
 };
 
 const renderShareImage = async (data) => {
