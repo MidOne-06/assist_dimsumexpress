@@ -436,7 +436,10 @@ class SupervisionTurnosTest extends TestCase
     {
         $sucursal = $this->sucursal('Local propio');
         $supervisor = User::factory()->create();
-        $supervisor->givePermissionTo(Permission::findOrCreate('ViewAny:AsignacionTurno', 'web'));
+        $supervisor->givePermissionTo(
+            Permission::findOrCreate('ViewAny:AsignacionTurno', 'web'),
+            Permission::findOrCreate('Create:AsignacionTurno', 'web'),
+        );
         $supervisor->sucursalesSupervisadas()->attach($sucursal);
 
         Livewire::actingAs($supervisor)
