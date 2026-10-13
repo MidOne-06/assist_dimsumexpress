@@ -6,12 +6,10 @@ use App\Models\AsignacionTurno;
 use App\Models\Colaborador;
 use App\Models\Turno;
 use App\Services\AsignacionMasivaTurnosService;
-use App\Services\AsignacionTurnoIndividualService;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Actions\Action;
-use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -47,9 +45,9 @@ class AsignarTurnos extends Page implements HasTable
 
     protected static ?int $navigationSort = 3;
 
-    protected static ?string $navigationLabel = 'Asignación masiva';
+    protected static ?string $navigationLabel = 'Programación de turnos';
 
-    protected static ?string $title = 'Asignación masiva de turnos';
+    protected static ?string $title = 'Programación masiva de turnos';
 
     protected string $view = 'filament.pages.asignar-turnos';
 
@@ -57,7 +55,7 @@ class AsignarTurnos extends Page implements HasTable
     {
         return $table
             ->query($this->proximasAsignacionesQuery())
-            ->heading('Próximas asignaciones')
+            ->heading('Programaciones próximas')
             ->columns([
                 TextColumn::make('fecha')
                     ->label('Fecha')
@@ -120,14 +118,7 @@ class AsignarTurnos extends Page implements HasTable
             ->paginated([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->defaultSort('fecha')
-            ->emptyStateHeading('Sin asignaciones próximas')
-            ->recordActions([
-                $this->editarAsignacionAction(),
-                DeleteAction::make()
-                    ->label('Eliminar')
-                    ->modalHeading('Eliminar asignación')
-                    ->visible(fn (AsignacionTurno $record): bool => auth()->user()?->can('delete', $record) ?? false),
-            ]);
+            ->emptyStateHeading('Sin programaciones próximas');
     }
 
     private function proximasAsignacionesQuery(): Builder
@@ -146,12 +137,12 @@ class AsignarTurnos extends Page implements HasTable
     {
         return [
             Action::make('asignarPorRango')
-                ->label('Asignar turnos')
+                ->label('Programar turnos')
                 ->icon(Heroicon::OutlinedCalendarDays)
                 ->visible(fn (): bool => auth()->user()?->can('AsignarMasivo:AsignarTurnos') ?? false)
-                ->modalHeading('Asignar turnos por rango')
+                ->modalHeading('Programar turnos por rango')
                 ->modalWidth(Width::TwoExtraLarge)
-                ->modalSubmitActionLabel('Guardar asignaciones')
+                ->modalSubmitActionLabel('Programar turnos')
                 ->closeModalByClickingAway(false)
                 ->schema($this->schemaAsignacionMasiva())
                 ->action(function (array $data): void {
@@ -246,59 +237,10 @@ class AsignarTurnos extends Page implements HasTable
         $resultado = app(AsignacionMasivaTurnosService::class)->asignar(auth()->user(), $data);
 
         Notification::make()
-            ->title('Asignación completada')
+            ->title('Programación completada')
             ->body("{$resultado['creadas']} asignaciones creadas y {$resultado['actualizadas']} actualizadas.")
             ->success()
             ->send();
     }
 
-    private function editarAsignacionAction(): Action
-    {
-        return Action::make('editar')
-            ->label('Editar')
-            ->icon(Heroicon::OutlinedPencilSquare)
-            ->modalHeading('Actualizar asignación')
-            ->modalWidth(Width::Large)
-            ->modalSubmitActionLabel('Guardar cambios')
-            ->visible(fn (AsignacionTurno $record): bool => auth()->user()?->can('update', $record) ?? false)
-            ->fillForm(fn (AsignacionTurno $record): array => [
-                'turno_id' => $record->turno_id,
-                'fecha' => $record->fecha->toDateString(),
-                'observacion' => $record->observacion,
-            ])
-            ->schema([
-                Section::make()
-                    ->compact()
-                    ->columns(['default' => 1, 'md' => 2])
-                    ->schema([
-                        Select::make('turno_id')
-                            ->label('Turno')
-                            ->options(fn (): array => Turno::query()
-                                ->where('activo', true)
-                                ->orderBy('hora_inicio')
-                                ->pluck('nombre', 'id')
-                                ->all())
-                            ->required(),
-                        DatePicker::make('fecha')
-                            ->label('Fecha')
-                            ->native(false)
-                            ->minDate(today()->addDay())
-                            ->required(),
-                        Textarea::make('observacion')
-                            ->label('Observación')
-                            ->rows(2)
-                            ->maxLength(255)
-                            ->columnSpanFull(),
-                    ]),
-            ])
-            ->action(function (array $data): void {
-                $contexto = $this->mountedActions[array_key_last($this->mountedActions)]['context'] ?? [];
-                $clave = $contexto['recordKey'] ?? null;
-                $asignacionId = $clave instanceof AsignacionTurno ? $clave->getKey() : $clave;
-                $asignacion = AsignacionTurno::query()->findOrFail($asignacionId);
-
-                app(AsignacionTurnoIndividualService::class)
-                    ->actualizar(auth()->user(), $asignacion, $data);
-            });
-    }
 }

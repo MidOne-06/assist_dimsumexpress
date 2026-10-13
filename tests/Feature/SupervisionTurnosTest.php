@@ -55,6 +55,7 @@ class SupervisionTurnosTest extends TestCase
             ->where('colaborador_id', $colaboradorPropio->id)
             ->where('turno_id', $turno->id)
             ->whereDate('fecha', $fecha)
+            ->where('origen', AsignacionTurno::ORIGEN_PROGRAMACION_MASIVA)
             ->exists());
     }
 
@@ -93,7 +94,7 @@ class SupervisionTurnosTest extends TestCase
 
         Livewire::actingAs($supervisor)
             ->test(AsignarTurnos::class)
-            ->assertSee('Próximas asignaciones')
+            ->assertSee('Programaciones próximas')
             ->assertCanSeeTableRecords([$propiaAsignacion])
             ->assertCanNotSeeTableRecords([$ajenaAsignacion]);
     }
@@ -179,47 +180,25 @@ class SupervisionTurnosTest extends TestCase
         $this->assertSame($anterior->id, $asignacion->fresh()->turno_id);
     }
 
-    public function test_mass_assignment_page_edits_a_future_assignment_in_a_native_table_modal(): void
+    public function test_mass_assignment_page_is_read_only_for_existing_assignments(): void
     {
         $sucursal = $this->sucursal('Local propio');
         $supervisor = User::factory()->create();
-        $supervisor->givePermissionTo(
-            Permission::findOrCreate('View:AsignarTurnos', 'web'),
-            Permission::findOrCreate('Update:AsignacionTurno', 'web'),
-        );
+        $supervisor->givePermissionTo(Permission::findOrCreate('View:AsignarTurnos', 'web'));
         $supervisor->sucursalesSupervisadas()->attach($sucursal);
         $colaborador = $this->colaborador($sucursal);
         $apertura = Turno::create(['nombre' => 'Apertura', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'activo' => true]);
-        $cierre = Turno::create(['nombre' => 'Cierre', 'hora_inicio' => '14:00', 'hora_fin' => '22:00', 'activo' => true]);
         $asignacion = AsignacionTurno::create([
             'colaborador_id' => $colaborador->id,
             'turno_id' => $apertura->id,
             'fecha' => now()->addDay()->toDateString(),
         ]);
-        $nuevaFecha = now()->addDays(2)->toDateString();
-
-        $this->assertTrue($supervisor->can('update', $asignacion));
 
         Livewire::actingAs($supervisor)
             ->test(AsignarTurnos::class)
-            ->assertTableActionExists('editar', null, $asignacion)
-            ->assertTableActionVisible('editar', $asignacion);
-
-        // Filament renderiza la acción nativa en la tabla. La mutación queda
-        // centralizada en el mismo servicio que invoca el modal para que sus
-        // reglas de alcance, fecha y trazabilidad se prueben sin depender del
-        // helper de Livewire para acciones de tabla en una Page personalizada.
-        app(AsignacionTurnoIndividualService::class)->actualizar($supervisor, $asignacion, [
-            'colaborador_id' => $colaborador->id,
-            'turno_id' => $cierre->id,
-            'fecha' => $nuevaFecha,
-            'observacion' => 'Cambio validado',
-        ]);
-
-        $asignacion->refresh();
-        $this->assertSame($cierre->id, $asignacion->turno_id);
-        $this->assertSame($nuevaFecha, $asignacion->fecha->toDateString());
-        $this->assertSame('Cambio validado', $asignacion->observacion);
+            ->assertCanSeeTableRecords([$asignacion])
+            ->assertTableActionDoesNotExist('editar')
+            ->assertTableActionDoesNotExist('delete');
     }
 
     public function test_calendar_navigation_and_today_button_restore_the_current_period(): void
@@ -453,44 +432,17 @@ class SupervisionTurnosTest extends TestCase
         }
     }
 
-    public function test_supervisor_assigns_a_date_range_from_the_assignments_list(): void
+    public function test_assignments_list_reserves_range_programming_for_the_mass_assignment_module(): void
     {
         $sucursal = $this->sucursal('Local propio');
         $supervisor = User::factory()->create();
-        $supervisor->givePermissionTo(
-            Permission::findOrCreate('ViewAny:AsignacionTurno', 'web'),
-            Permission::findOrCreate('AsignarMasivo:AsignarTurnos', 'web'),
-        );
+        $supervisor->givePermissionTo(Permission::findOrCreate('ViewAny:AsignacionTurno', 'web'));
         $supervisor->sucursalesSupervisadas()->attach($sucursal);
-        $colaborador = $this->colaborador($sucursal);
-        $turno = Turno::create(['nombre' => 'Turno por rango', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'activo' => true]);
-        $desde = now()->addDay()->toDateString();
-        $hasta = now()->addDays(3)->toDateString();
-        $dias = collect(range(1, 3))
-            ->map(fn (int $diasDesdeManana): string => (string) now()->addDays($diasDesdeManana)->isoWeekday())
-            ->unique()
-            ->values()
-            ->all();
 
         Livewire::actingAs($supervisor)
             ->test(ListAsignacionTurnos::class)
-            ->mountAction('asignarPorRango')
-            ->set('mountedActions.0.data.sucursal_id', $sucursal->id)
-            ->set('mountedActions.0.data.colaborador_ids', [$colaborador->id])
-            ->set('mountedActions.0.data.turno_id', $turno->id)
-            ->set('mountedActions.0.data.fecha_inicio', $desde)
-            ->set('mountedActions.0.data.fecha_fin', $hasta)
-            ->set('mountedActions.0.data.dias_semana', $dias)
-            ->callMountedAction()
-            ->assertHasNoErrors();
-
-        foreach (range(1, 3) as $diasDesdeManana) {
-            $this->assertTrue(AsignacionTurno::query()
-                ->where('colaborador_id', $colaborador->id)
-                ->where('turno_id', $turno->id)
-                ->whereDate('fecha', now()->addDays($diasDesdeManana)->toDateString())
-                ->exists());
-        }
+            ->assertActionDoesNotExist('asignarPorRango')
+            ->assertSee('Asignar a un colaborador');
     }
 
     public function test_assignment_detail_uses_modal_only_routes_and_validates_individual_creation_scope(): void
@@ -522,6 +474,7 @@ class SupervisionTurnosTest extends TestCase
             ->where('colaborador_id', $colaboradorPropio->id)
             ->where('turno_id', $turno->id)
             ->whereDate('fecha', now()->addDay())
+            ->where('origen', AsignacionTurno::ORIGEN_MANUAL)
             ->exists());
         $this->assertFalse(AsignacionTurno::query()
             ->where('colaborador_id', $colaboradorAjeno->id)

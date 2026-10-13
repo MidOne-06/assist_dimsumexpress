@@ -25,7 +25,7 @@ class DashboardActionsTest extends TestCase
         Livewire::actingAs($user)
             ->test(Dashboard::class)
             ->assertSee('Crear colaborador')
-            ->assertSee('Asignar turnos')
+            ->assertSee('Programar turnos')
             ->assertSee('Marcaciones');
     }
 }

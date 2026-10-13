@@ -26,6 +26,7 @@ class AsignacionTurnoIndividualService
             'colaborador_id' => $colaborador->id,
             'turno_id' => $turnoId,
             'fecha' => $fecha->toDateString(),
+            'origen' => AsignacionTurno::ORIGEN_MANUAL,
             'observacion' => $this->observacion($data),
             'asignado_por' => $usuario->id,
         ]);
@@ -42,6 +43,7 @@ class AsignacionTurnoIndividualService
             'colaborador_id' => $colaborador->id,
             'turno_id' => $turnoId,
             'fecha' => $fecha->toDateString(),
+            'origen' => AsignacionTurno::ORIGEN_MANUAL,
             'observacion' => $this->observacion($data),
             'asignado_por' => $usuario->id,
         ]);

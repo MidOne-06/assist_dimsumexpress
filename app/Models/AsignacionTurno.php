@@ -10,6 +10,14 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Fillable(['colaborador_id', 'turno_id', 'turno_operativo_id', 'fecha', 'origen', 'detectado_en', 'observacion', 'asignado_por'])]
 class AsignacionTurno extends Model
 {
+    public const ORIGEN_MANUAL = 'manual';
+
+    public const ORIGEN_PROGRAMACION_MASIVA = 'programacion_masiva';
+
+    public const ORIGEN_DETECTADO_AUTOMATICAMENTE = 'detectado_automaticamente';
+
+    public const ORIGEN_REGULARIZADO_MANUAL = 'regularizado_manual';
+
     protected $table = 'asignaciones_turno';
 
     protected function casts(): array

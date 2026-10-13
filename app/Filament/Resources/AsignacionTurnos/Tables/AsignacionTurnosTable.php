@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AsignacionTurnos\Tables;
 
+use App\Models\AsignacionTurno;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Services\AsignacionTurnoIndividualService;
@@ -45,6 +46,33 @@ class AsignacionTurnosTable
                     ->formatStateUsing(fn (?string $state, $record): string => $record->turno?->solo_entrada
                         ? '—'
                         : ($record->turno?->jornada_abierta ? 'Sin horario' : ($state ? \Carbon\Carbon::parse($state)->format('H:i') : '—'))),
+                TextColumn::make('origen')
+                    ->label('Origen')
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        AsignacionTurno::ORIGEN_PROGRAMACION_MASIVA => 'Programación masiva',
+                        AsignacionTurno::ORIGEN_DETECTADO_AUTOMATICAMENTE => 'Detección automática',
+                        AsignacionTurno::ORIGEN_REGULARIZADO_MANUAL => 'Regularización',
+                        default => 'Asignación individual',
+                    })
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        AsignacionTurno::ORIGEN_PROGRAMACION_MASIVA => 'primary',
+                        AsignacionTurno::ORIGEN_DETECTADO_AUTOMATICAMENTE => 'info',
+                        AsignacionTurno::ORIGEN_REGULARIZADO_MANUAL => 'warning',
+                        default => 'gray',
+                    }),
+                TextColumn::make('situacion')
+                    ->label('Estado')
+                    ->state(fn (AsignacionTurno $record): string => $record->fecha->isFuture()
+                        ? 'Programada'
+                        : ($record->resumenJornada ? 'Cerrada' : ($record->fecha->isToday() ? 'En curso' : 'Histórica')))
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Programada' => 'info',
+                        'Cerrada' => 'success',
+                        'En curso' => 'warning',
+                        default => 'gray',
+                    }),
                 TextColumn::make('observacion')
                     ->label('Observación')
                     ->limit(30)
@@ -68,6 +96,27 @@ class AsignacionTurnosTable
                 SelectFilter::make('turno_id')
                     ->label('Turno')
                     ->options(fn () => Turno::query()->orderBy('nombre')->pluck('nombre', 'id')),
+                SelectFilter::make('origen')
+                    ->label('Origen')
+                    ->options([
+                        AsignacionTurno::ORIGEN_MANUAL => 'Asignación individual',
+                        AsignacionTurno::ORIGEN_PROGRAMACION_MASIVA => 'Programación masiva',
+                        AsignacionTurno::ORIGEN_DETECTADO_AUTOMATICAMENTE => 'Detección automática',
+                        AsignacionTurno::ORIGEN_REGULARIZADO_MANUAL => 'Regularización',
+                    ]),
+                SelectFilter::make('periodo')
+                    ->label('Periodo')
+                    ->options([
+                        'futuras' => 'Próximas',
+                        'hoy' => 'Hoy',
+                        'historicas' => 'Históricas',
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
+                        'futuras' => $query->whereDate('fecha', '>', today()),
+                        'hoy' => $query->whereDate('fecha', today()),
+                        'historicas' => $query->whereDate('fecha', '<', today()),
+                        default => $query,
+                    }),
                 SelectFilter::make('sucursal')
                     ->label('Sucursal')
                     ->options(fn () => Sucursal::query()

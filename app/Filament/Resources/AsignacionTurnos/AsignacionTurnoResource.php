@@ -45,7 +45,7 @@ class AsignacionTurnoResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['colaborador.sucursal', 'colaborador.puntoVenta', 'turno', 'asignadoPor'])
+            ->with(['colaborador.sucursal', 'colaborador.puntoVenta', 'turno', 'asignadoPor', 'resumenJornada'])
             ->whereHas('colaborador', fn (Builder $query): Builder => $query->whereIn(
                 'sucursal_id',
                 AlcanceSupervisor::sucursalIds(auth()->user()),

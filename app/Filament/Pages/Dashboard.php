@@ -21,7 +21,7 @@ class Dashboard extends BaseDashboard
                 ->url(ColaboradorResource::getUrl('index', ['action' => 'create']))
                 ->visible(fn (): bool => auth()->user()?->can('Create:Colaborador') ?? false),
             Action::make('asignarTurnos')
-                ->label('Asignar turnos')
+                ->label('Programar turnos')
                 ->icon(Heroicon::OutlinedCalendarDays)
                 ->color('gray')
                 ->url(AsignarTurnos::getUrl())

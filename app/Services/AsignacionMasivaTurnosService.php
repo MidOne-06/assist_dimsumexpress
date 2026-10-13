@@ -118,6 +118,7 @@ class AsignacionMasivaTurnosService
                     'colaborador_id' => $colaboradorId,
                     'turno_id' => $turnoId,
                     'fecha' => $fecha,
+                    'origen' => AsignacionTurno::ORIGEN_PROGRAMACION_MASIVA,
                     'observacion' => filled($data['observacion'] ?? null) ? trim((string) $data['observacion']) : null,
                     'asignado_por' => $usuario->id,
                     'created_at' => $ahora,
@@ -139,6 +140,7 @@ class AsignacionMasivaTurnosService
                 if ($asignacion) {
                     $asignacion->update([
                         'turno_id' => $fila['turno_id'],
+                        'origen' => $fila['origen'],
                         'observacion' => $fila['observacion'],
                         'asignado_por' => $fila['asignado_por'],
                     ]);
@@ -151,6 +153,7 @@ class AsignacionMasivaTurnosService
                     'colaborador_id' => $fila['colaborador_id'],
                     'turno_id' => $fila['turno_id'],
                     'fecha' => $fila['fecha'],
+                    'origen' => $fila['origen'],
                     'observacion' => $fila['observacion'],
                     'asignado_por' => $fila['asignado_por'],
                 ]);
