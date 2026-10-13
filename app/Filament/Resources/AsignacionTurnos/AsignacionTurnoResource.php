@@ -26,7 +26,7 @@ class AsignacionTurnoResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
-    protected static ?string $navigationLabel = 'Asignaciones (detalle)';
+    protected static ?string $navigationLabel = 'Asignaciones de turno';
 
     protected static ?string $modelLabel = 'asignación de turno';
 
