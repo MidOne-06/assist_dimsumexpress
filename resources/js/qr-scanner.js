@@ -1,8 +1,9 @@
 import { BrowserQRCodeReader } from '@zxing/browser';
 
-const reader = new BrowserQRCodeReader();
-
 document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
+    // Cada pantalla mantiene su propio lector. Así una vista restaurada por
+    // la PWA no comparte una sesión de cámara anterior con otra pantalla.
+    const reader = new BrowserQRCodeReader();
     const validarAntes = root.dataset.validarAntes === '1';
     const iniciarBoton = root.querySelector('[data-qr-iniciar]');
     const cancelar = root.querySelector('[data-qr-cancelar]');
@@ -15,6 +16,7 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
     const vista = root.querySelector('[data-qr-vista]');
     const foto = root.querySelector('[data-qr-foto]');
     const archivo = root.querySelector('[data-qr-archivo]');
+    const reintentarCamara = root.querySelector('[data-qr-reintentar-camara]');
     const resultado = root.querySelector('[data-qr-resultado]');
     const titulo = root.querySelector('[data-qr-titulo]');
     const detalle = root.querySelector('[data-qr-detalle]');
@@ -31,6 +33,33 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
     let destino = null;
     let token = null;
 
+    const mensajeErrorCamara = (error) => {
+        if (!window.isSecureContext) {
+            return 'La cámara solo funciona desde la aplicación abierta con conexión segura. Abre nuevamente el enlace oficial.';
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia) {
+            return 'Este navegador no permite abrir la cámara aquí. Abre la aplicación en Safari o Chrome, o usa una foto del QR.';
+        }
+
+        switch (error?.name) {
+            case 'NotAllowedError':
+            case 'PermissionDeniedError':
+            case 'SecurityError':
+                return 'El permiso de cámara está bloqueado. Actívalo para esta aplicación desde los ajustes del dispositivo y vuelve a intentar.';
+            case 'NotFoundError':
+            case 'DevicesNotFoundError':
+                return 'No se detectó una cámara disponible en este dispositivo. Usa una foto del QR.';
+            case 'NotReadableError':
+            case 'TrackStartError':
+                return 'La cámara está siendo usada por otra aplicación. Ciérrala e inténtalo nuevamente.';
+            case 'OverconstrainedError':
+                return 'No se pudo seleccionar la cámara del dispositivo. Inténtalo nuevamente o usa una foto del QR.';
+            default:
+                return 'No se pudo abrir la cámara. Inténtalo nuevamente o usa una foto clara del QR.';
+        }
+    };
+
     const detener = () => {
         controles?.stop();
         controles = null;
@@ -44,7 +73,23 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
         estado.style.display = 'block';
         foto.style.display = 'inline-flex';
         cancelar.style.display = 'inline-block';
+        reintentarCamara.style.display = 'none';
         estado.textContent = 'Apunta la cámara al QR actual de la estación';
+    };
+
+    const mostrarProblemaCamara = (error) => {
+        detener();
+        procesando = false;
+        vista.style.display = 'none';
+        estado.style.display = 'block';
+        foto.style.display = 'inline-flex';
+        cancelar.style.display = 'inline-block';
+        reintentarCamara.style.display = 'inline-flex';
+        estado.textContent = mensajeErrorCamara(error);
+
+        // Antes se cerraba el overlay y se ocultaba la alternativa de foto.
+        // Mantenerlo abierto permite resolver la incidencia desde el celular.
+        avisoPermiso.style.display = 'none';
     };
 
     const cerrar = () => {
@@ -135,6 +180,11 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
         document.documentElement.classList.add('mp-escaner-activo');
 
         try {
+            if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+                mostrarProblemaCamara();
+                return;
+            }
+
             controles = await reader.decodeFromConstraints(
                 { video: { facingMode: { ideal: 'environment' } }, audio: false },
                 video,
@@ -142,10 +192,8 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
                     if (lectura) procesarLectura(lectura.getText());
                 },
             );
-        } catch (_) {
-            overlay.classList.remove('activo');
-            document.documentElement.classList.remove('mp-escaner-activo');
-            avisoPermiso.style.display = 'block';
+        } catch (error) {
+            mostrarProblemaCamara(error);
         }
     };
 
@@ -175,6 +223,7 @@ document.querySelectorAll('[data-qr-scanner]').forEach((root) => {
     iniciarBoton?.addEventListener('click', iniciar);
     cancelar?.addEventListener('click', cerrar);
     reintentar?.addEventListener('click', iniciar);
+    reintentarCamara?.addEventListener('click', iniciar);
     archivo?.addEventListener('change', leerArchivo);
     continuar?.addEventListener('click', () => {
         if (destino) window.location.assign(destino);

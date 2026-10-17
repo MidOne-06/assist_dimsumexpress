@@ -14,6 +14,7 @@
     .mp-estado { max-width:23rem; margin:.9rem 0 0; color:#dbeafe; font-size:.875rem; line-height:1.45; text-align:center; }
     .mp-overlay button { font:inherit; cursor:pointer; }
     .mp-cancelar { min-height:2.75rem; margin-top:1rem; padding:.6rem 1rem; border:1px solid rgb(255 255 255 / .45); border-radius:.75rem; background:rgb(255 255 255 / .08); color:#fff; }
+    .mp-reintentar-camara { display:none; align-items:center; justify-content:center; min-height:2.75rem; margin-top:1rem; padding:.6rem 1rem; border:0; border-radius:.75rem; background:#1677ff; color:#fff; font-weight:700; }
     .mp-foto { display:inline-flex; align-items:center; justify-content:center; min-height:2.5rem; margin-top:.7rem; color:#dbeafe; font-size:.8125rem; text-decoration:underline; cursor:pointer; }
     .mp-foto input { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; }
     .mp-result { display:none; width:min(100%, 26rem); padding:1.5rem; border:1px solid rgb(191 219 254 / .4); border-radius:1.25rem; background:#0f2746; color:#f8fafc; text-align:center; box-shadow:0 1.5rem 3rem rgb(0 0 0 / .25); }
@@ -37,6 +38,7 @@
     <div class="mp-camara" data-qr-vista><video data-qr-video playsinline muted></video><div class="mp-marco"></div></div>
     <div class="mp-estado" data-qr-estado>Apunta la cámara al QR actual de la estación</div>
     <label class="mp-foto" data-qr-foto>Usar foto del QR<input data-qr-archivo type="file" accept="image/*" capture="environment"></label>
+    <button type="button" class="mp-reintentar-camara" data-qr-reintentar-camara>Intentar con cámara</button>
     <button type="button" class="mp-cancelar" data-qr-cancelar>Cancelar</button>
     <section class="mp-result" data-qr-resultado><x-heroicon-s-check-circle class="mp-result-icono" data-qr-icono /><h2 data-qr-titulo>QR validado</h2><p data-qr-detalle></p><div class="mp-result-botones"><button type="button" class="mp-reintentar" data-qr-reintentar>Escanear nuevamente</button><button type="button" class="mp-continuar" data-qr-continuar>{{ $textoContinuar ?? 'Continuar' }}</button></div></section>
 </div>
