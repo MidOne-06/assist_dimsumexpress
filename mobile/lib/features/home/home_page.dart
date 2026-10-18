@@ -404,16 +404,13 @@ class _BrandHeader extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: [
       Container(
-        height: 34,
-        width: 34,
+        height: 38,
+        width: 58,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: const Color(0xffe4253d),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Text(
-          'D',
-          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+        child: Image.asset(
+          'assets/branding/dim_sum_express_logo.png',
+          fit: BoxFit.contain,
+          semanticLabel: 'DIM SUM EXPRESS',
         ),
       ),
       const SizedBox(width: 10),

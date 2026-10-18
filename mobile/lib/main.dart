@@ -6,6 +6,7 @@ import 'core/auth/mobile_session.dart';
 import 'core/auth/session_store.dart';
 import 'features/auth/login_page.dart';
 import 'features/home/home_page.dart';
+import 'features/splash/splash_page.dart';
 
 void main() => runApp(const DimSumAttendanceApp());
 
@@ -22,6 +23,7 @@ class _DimSumAttendanceAppState extends State<DimSumAttendanceApp> {
   MobileSession? _session;
   String? _deviceId;
   bool _restoring = true;
+  bool _splashFinished = false;
 
   @override
   void initState() {
@@ -84,8 +86,8 @@ class _DimSumAttendanceAppState extends State<DimSumAttendanceApp> {
         ),
       ),
     ),
-    home: _restoring
-        ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+    home: _restoring || !_splashFinished
+        ? SplashPage(onFinished: () => setState(() => _splashFinished = true))
         : _session == null
         ? LoginPage(client: _client, deviceId: _deviceId!, onLoggedIn: _login)
         : HomePage(client: _client, session: _session!, onLogout: _logout),

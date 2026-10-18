@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/mobile_api_client.dart';
 import '../../core/auth/mobile_session.dart';
-import '../../core/ui/brand_glyph.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({
@@ -65,11 +64,10 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const BrandGlyph(
-                  BrandGlyphKind.scan,
-                  size: 72,
-                  color: Color(0xffe21b2d),
-                  strokeWidth: 1.6,
+                Image.asset(
+                  'assets/branding/dim_sum_express_logo.png',
+                  height: 112,
+                  semanticLabel: 'DIM SUM EXPRESS',
                 ),
                 const SizedBox(height: 16),
                 Text(
