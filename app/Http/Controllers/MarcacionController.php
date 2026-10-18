@@ -2,17 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AsignacionTurno;
-use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\QrToken;
 use App\Services\AparienciaSistemaService;
-use App\Services\ConsolidacionJornadaService;
 use App\Services\MarcacionFlowService;
-use App\Support\JornadaMarcacion;
+use App\Services\RegistrarMarcacionService;
 use App\Support\PresentacionConfirmacionMarcacion;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +16,10 @@ use Illuminate\View\View;
 
 class MarcacionController extends Controller
 {
-    public function __construct(private readonly MarcacionFlowService $flujo)
+    public function __construct(
+        private readonly MarcacionFlowService $flujo,
+        private readonly RegistrarMarcacionService $registro,
+    )
     {
     }
 
@@ -158,102 +157,13 @@ class MarcacionController extends Controller
         $colaborador = $request->user()->colaborador;
         abort_unless($colaborador, 403, 'Tu usuario no está vinculado a ningún colaborador.');
 
-        $qrToken = QrToken::with(['sucursal', 'puntoVenta'])->where('token', $data['token'])->first();
-
-        if (! $qrToken || ! $qrToken->vigentePara(QrToken::PROPOSITO_ASISTENCIA)) {
-            return back()->withErrors(['token' => 'El código QR expiró. Vuelve a escanearlo desde la pantalla.']);
-        }
-
-        $marcacion = DB::transaction(function () use ($colaborador, $data, $qrToken, $request): Marcacion {
-            // El bloqueo evita doble marcación por doble toque en el celular.
-            $colaboradorBloqueado = Colaborador::query()->lockForUpdate()->findOrFail($colaborador->id);
-
-            if (! $colaboradorBloqueado->activo) {
-                throw ValidationException::withMessages(['token' => 'Tu cuenta no está disponible para marcar. Consulta con tu supervisor.']);
-            }
-
-            $fechaHora = now();
-            $asignacion = $this->flujo->resolverAsignacion($colaboradorBloqueado, $qrToken, $fechaHora);
-
-            if (! $this->flujo->estacionPermitida($colaboradorBloqueado, $qrToken, $asignacion)) {
-                throw ValidationException::withMessages(['token' => 'Este código no está disponible para tu marcación. Usa el QR mostrado en tu local.']);
-            }
-
-            // Se repite dentro de la transacción, después de bloquear al
-            // colaborador, para impedir que dos pestañas reutilicen el mismo
-            // QR antes de que una de ellas termine de registrar la acción.
-            if ($this->flujo->qrYaUsadoPorColaborador($colaboradorBloqueado, $qrToken)) {
-                throw ValidationException::withMessages(['token' => 'Este código QR ya fue usado para una marcación. Escanea el nuevo QR de la pantalla para continuar.']);
-            }
-
-            $tiposDisponibles = $this->flujo->tiposDisponibles($colaboradorBloqueado, $asignacion, $fechaHora);
-            $tipo = (string) $data['accion'];
-            if (! in_array($tipo, $tiposDisponibles, true)) {
-                throw ValidationException::withMessages(['accion' => 'Esta acción ya no está disponible. Escanea un nuevo QR y selecciona una acción válida.']);
-            }
-
-            if ($asignacion && ! $asignacion->exists) {
-                if ($tipo !== Marcacion::TIPO_ENTRADA) {
-                    throw ValidationException::withMessages(['token' => 'Registra primero tu ingreso.']);
-                }
-
-                $asignacion = AsignacionTurno::query()->firstOrCreate(
-                    ['colaborador_id' => $colaboradorBloqueado->id, 'fecha' => $fechaHora->toDateString()],
-                    $asignacion->getAttributes(),
-                );
-                $asignacion->load('turno');
-            }
-
-            // La primera entrada puede detectar que la operación cambió el
-            // turno del día. El ajuste se guarda aquí, después de validar el
-            // flujo y dentro del mismo bloqueo transaccional; abrir un QR no
-            // modifica por sí solo la programación semanal.
-            if ($asignacion && $tipo === Marcacion::TIPO_ENTRADA) {
-                JornadaMarcacion::confirmarAjusteAutomatico($colaboradorBloqueado, $asignacion, $fechaHora);
-            }
-
-            $controlRefrigerio = null;
-            $cobertura = $asignacion
-                ? $this->flujo->registrarCoberturaAutomatica($colaboradorBloqueado, $asignacion, $qrToken, $fechaHora)
-                : null;
-
-            if ($asignacion && $tipo === Marcacion::TIPO_REGRESO_REFRIGERIO) {
-                $salidaRefrigerio = JornadaMarcacion::ultimaMarcacion($colaboradorBloqueado, $asignacion);
-
-                if ($salidaRefrigerio?->tipo !== Marcacion::TIPO_SALIDA_REFRIGERIO) {
-                    throw ValidationException::withMessages(['token' => 'No se pudo continuar con la marcación. Actualiza la página e inténtalo nuevamente.']);
-                }
-
-                $controlRefrigerio = JornadaMarcacion::controlRetornoRefrigerio(
-                    $salidaRefrigerio,
-                    $fechaHora,
-                    JornadaMarcacion::minutosRefrigerio($asignacion),
-                );
-            }
-
-            $marcacion = Marcacion::create([
-                'colaborador_id' => $colaboradorBloqueado->id,
-                'empresa_id' => $colaboradorBloqueado->empresa_id,
-                'area_id' => $colaboradorBloqueado->area_id,
-                'tipo' => $tipo,
-                'fecha_hora' => $fechaHora,
-                'refrigerio_retorno_esperado_en' => $controlRefrigerio['esperado'] ?? null,
-                'refrigerio_diferencia_segundos' => $controlRefrigerio['diferencia_segundos'] ?? null,
-                'turno_id' => $asignacion?->turno_id,
-                'qr_token_id' => $qrToken->id,
-                'sucursal_id' => $qrToken->sucursal_id,
-                'punto_venta_id' => $qrToken->punto_venta_id,
-                'cobertura_operativa_id' => $cobertura?->id,
-                'ip_origen' => $request->ip(),
-                'user_agent' => (string) $request->userAgent(),
-            ]);
-
-            if ($asignacion && $marcacion->tipo === Marcacion::TIPO_SALIDA) {
-                app(ConsolidacionJornadaService::class)->consolidar($colaboradorBloqueado, $asignacion);
-            }
-
-            return $marcacion;
-        });
+        $marcacion = $this->registro->registrar(
+            $colaborador,
+            (string) $data['token'],
+            (string) $data['accion'],
+            $request->ip(),
+            $request->userAgent(),
+        );
 
         return redirect()->route('marcacion.confirmacion', $marcacion);
     }

@@ -6,15 +6,20 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use App\Support\PortalAccesos;
+use App\Http\Middleware\EnsureMobileAccess;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+        $middleware->alias([
+            'mobile.access' => EnsureMobileAccess::class,
+        ]);
         // Una sesión con una sola operación va directo a ella. Las cuentas
         // mixtas regresan al portal para elegir, sin obedecer una URL previa.
         $middleware->redirectUsersTo(function (Request $request): string {
