@@ -35,6 +35,23 @@ class MobileApiTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 1);
     }
 
+    public function test_mobile_login_accepts_an_email_with_different_letter_case(): void
+    {
+        [$user] = $this->crearColaborador();
+        $user->forceFill([
+            'email' => 'Colaborador.Movil@dimsum.com.pe',
+            'password' => Hash::make('ClaveMovil123!'),
+        ])->save();
+
+        $this->postJson('/api/mobile/v1/sesion', [
+            'email' => 'colaborador.movil@DIMSUM.COM.PE',
+            'password' => 'ClaveMovil123!',
+            'dispositivo' => 'Android con correo mixto',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('usuario.accesos.marcacion', true);
+    }
+
     public function test_mobile_flow_validates_and_records_the_action_permitted_by_the_dynamic_qr(): void
     {
         [$user, $colaborador, $sucursal] = $this->crearColaborador();

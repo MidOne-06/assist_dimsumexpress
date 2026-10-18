@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class MobileSessionController extends Controller
@@ -21,15 +21,20 @@ class MobileSessionController extends Controller
             'dispositivo' => ['required', 'string', 'max:80'],
         ]);
 
-        $credentials = ['email' => mb_strtolower((string) $data['email']), 'password' => $data['password']];
-        if (! Auth::validate($credentials)) {
+        $email = mb_strtolower(trim((string) $data['email']));
+        /**
+         * El origen de datos histórico conserva algunos correos con mayúsculas.
+         * La app móvil debe tratarlos igual que el acceso web: sin distinguir
+         * entre mayúsculas y minúsculas.
+         */
+        $usuario = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
+
+        if (! $usuario || ! Hash::check((string) $data['password'], $usuario->password)) {
             throw ValidationException::withMessages([
                 'email' => 'Ese correo y contraseña no coinciden con nuestros registros.',
             ]);
         }
 
-        /** @var User $usuario */
-        $usuario = User::query()->where('email', $credentials['email'])->firstOrFail();
         $usuario->load('colaborador');
 
         if (! $usuario->estaActivoParaAcceso()) {
