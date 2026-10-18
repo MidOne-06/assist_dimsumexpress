@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/mobile_api_client.dart';
 import '../../core/auth/mobile_session.dart';
+import '../../core/ui/brand_glyph.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({
@@ -64,10 +65,11 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  Icons.qr_code_2_rounded,
+                const BrandGlyph(
+                  BrandGlyphKind.scan,
                   size: 72,
                   color: Color(0xffe21b2d),
+                  strokeWidth: 1.6,
                 ),
                 const SizedBox(height: 16),
                 Text(

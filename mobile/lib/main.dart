@@ -69,13 +69,19 @@ class _DimSumAttendanceAppState extends State<DimSumAttendanceApp> {
     title: 'DIM SUM Asistencia',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
+      useMaterial3: true,
       brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xff07172e),
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xff1677ff),
         brightness: Brightness.dark,
       ),
       inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
+        filled: true,
+        fillColor: Color(0xff0b1c37),
+        border: OutlineInputBorder(
+          borderSide: BorderSide(color: Color(0xff5480af)),
+        ),
       ),
     ),
     home: _restoring

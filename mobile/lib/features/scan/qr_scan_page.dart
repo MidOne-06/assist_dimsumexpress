@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/api/mobile_api_client.dart';
+import '../../core/ui/brand_glyph.dart';
 
 enum ScanMode { marcacion, visita }
 
@@ -124,7 +125,11 @@ class _QrScanPageState extends State<QrScanPage> {
                   subtitle: item['motivo'] == null
                       ? null
                       : Text(item['motivo'] as String),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const BrandGlyph(
+                    BrandGlyphKind.arrow,
+                    color: Color(0xff8fb9e9),
+                    size: 20,
+                  ),
                   onTap: () => Navigator.pop(context, item['tipo'] as String),
                 ),
               ),
@@ -159,7 +164,7 @@ class _QrScanPageState extends State<QrScanPage> {
           ? response['marcacion'] as Map<String, dynamic>
           : response['visita'] as Map<String, dynamic>;
       await _showConfirmation(data);
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -182,7 +187,12 @@ class _QrScanPageState extends State<QrScanPage> {
       builder: (context) => RepaintBoundary(
         key: captureKey,
         child: AlertDialog(
-          icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+          icon: const BrandGlyph(
+            BrandGlyphKind.check,
+            color: Color(0xff7ef0ae),
+            size: 48,
+            strokeWidth: 2.2,
+          ),
           title: Text(title),
           content: Text(
             'Registrado a las ${data['hora']}.\nLa operación fue guardada correctamente.',
@@ -190,7 +200,11 @@ class _QrScanPageState extends State<QrScanPage> {
           actions: [
             TextButton.icon(
               onPressed: () => _shareCapture(captureKey, title),
-              icon: const Icon(Icons.share_outlined),
+              icon: const BrandGlyph(
+                BrandGlyphKind.share,
+                color: Color(0xff91c3ff),
+                size: 19,
+              ),
               label: const Text('Compartir'),
             ),
             TextButton(
@@ -249,10 +263,11 @@ class _QrScanPageState extends State<QrScanPage> {
       children: [
         MobileScanner(controller: _controller, onDetect: _onDetect),
         const Center(
-          child: Icon(
-            Icons.qr_code_scanner_rounded,
+          child: BrandGlyph(
+            BrandGlyphKind.scan,
             color: Colors.white70,
             size: 220,
+            strokeWidth: .35,
           ),
         ),
         if (_processing)
