@@ -4,9 +4,15 @@ import '../../core/api/mobile_api_client.dart';
 import '../../core/auth/mobile_session.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, required this.client, required this.onLoggedIn});
+  const LoginPage({
+    super.key,
+    required this.client,
+    required this.deviceId,
+    required this.onLoggedIn,
+  });
 
   final MobileApiClient client;
+  final String deviceId;
   final ValueChanged<MobileSession> onLoggedIn;
 
   @override
@@ -33,7 +39,7 @@ class _LoginPageState extends State<LoginPage> {
       final session = await widget.client.login(
         email: _email.text.trim(),
         password: _password.text,
-        device: 'DIM SUM móvil',
+        device: widget.deviceId,
       );
       widget.onLoggedIn(session);
     } catch (error) {

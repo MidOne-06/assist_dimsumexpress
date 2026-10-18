@@ -20,6 +20,7 @@ class _DimSumAttendanceAppState extends State<DimSumAttendanceApp> {
   final _client = MobileApiClient();
   final _store = const SessionStore(FlutterSecureStorage());
   MobileSession? _session;
+  String? _deviceId;
   bool _restoring = true;
 
   @override
@@ -29,11 +30,14 @@ class _DimSumAttendanceAppState extends State<DimSumAttendanceApp> {
   }
 
   Future<void> _restore() async {
-    final session = await _store.read();
+    final values = await Future.wait([_store.read(), _store.installationId()]);
+    final session = values[0] as MobileSession?;
+    final deviceId = values[1] as String;
     _client.authenticate(session?.token);
     if (mounted) {
       setState(() {
         _session = session;
+        _deviceId = deviceId;
         _restoring = false;
       });
     }
@@ -77,7 +81,7 @@ class _DimSumAttendanceAppState extends State<DimSumAttendanceApp> {
     home: _restoring
         ? const Scaffold(body: Center(child: CircularProgressIndicator()))
         : _session == null
-        ? LoginPage(client: _client, onLoggedIn: _login)
+        ? LoginPage(client: _client, deviceId: _deviceId!, onLoggedIn: _login)
         : HomePage(client: _client, session: _session!, onLogout: _logout),
   );
 }
