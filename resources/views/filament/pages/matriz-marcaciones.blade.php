@@ -52,14 +52,14 @@
         <div class="attendance-matrix-filters">
             <div class="attendance-matrix-filter">
                 <label for="matriz-mes">Mes</label>
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper prefix-icon="heroicon-m-calendar-days">
                     <x-filament::input id="matriz-mes" type="month" wire:model.live="mes" />
                 </x-filament::input.wrapper>
             </div>
 
             <div class="attendance-matrix-filter">
                 <label for="matriz-empresa">Empresa</label>
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper prefix-icon="heroicon-m-building-office-2">
                     <x-filament::input.select id="matriz-empresa" wire:model.live="empresaId">
                         <option value="">Todas</option>
                         @foreach ($this->empresas as $empresa)
@@ -71,7 +71,7 @@
 
             <div class="attendance-matrix-filter">
                 <label for="matriz-area">Área</label>
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper prefix-icon="heroicon-m-squares-2x2">
                     <x-filament::input.select id="matriz-area" wire:model.live="areaId">
                         <option value="">Todas</option>
                         @foreach ($this->areas as $area)
@@ -83,7 +83,7 @@
 
             <div class="attendance-matrix-filter">
                 <label for="matriz-sucursal">Local base</label>
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper prefix-icon="heroicon-m-map-pin">
                     <x-filament::input.select id="matriz-sucursal" wire:model.live="sucursalId">
                         <option value="">Todos</option>
                         @foreach ($this->sucursales as $sucursal)
@@ -95,7 +95,7 @@
 
             <div class="attendance-matrix-filter">
                 <label for="matriz-punto-venta">Punto de venta base</label>
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper prefix-icon="heroicon-m-building-storefront">
                     <x-filament::input.select id="matriz-punto-venta" wire:model.live="puntoVentaId">
                         <option value="">Todos</option>
                         @foreach ($this->puntosVenta as $puntoVenta)
@@ -107,7 +107,7 @@
 
             <div class="attendance-matrix-filter">
                 <label for="matriz-cargo">Cargo</label>
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper prefix-icon="heroicon-m-briefcase">
                     <x-filament::input.select id="matriz-cargo" wire:model.live="cargo">
                         <option value="">Todos</option>
                         @foreach ($this->cargos as $opcionCargo)
@@ -119,7 +119,7 @@
 
             <div class="attendance-matrix-filter">
                 <label for="matriz-colaborador">Colaborador</label>
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper prefix-icon="heroicon-m-user">
                     <x-filament::input.select id="matriz-colaborador" wire:model.live="colaboradorId">
                         <option value="">Todos</option>
                         @foreach ($this->opcionesColaboradores as $colaborador)
@@ -131,7 +131,7 @@
 
             <div class="attendance-matrix-filter">
                 <label for="matriz-estado-colaborador">Estado del colaborador</label>
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper prefix-icon="heroicon-m-check-circle">
                     <x-filament::input.select id="matriz-estado-colaborador" wire:model.live="estadoColaborador">
                         <option value="todos">Todos</option>
                         <option value="activo">Activos</option>
@@ -142,7 +142,7 @@
 
             <div class="attendance-matrix-filter">
                 <label for="matriz-estado-marcacion">Marcación del mes</label>
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper prefix-icon="heroicon-m-clock">
                     <x-filament::input.select id="matriz-estado-marcacion" wire:model.live="estadoMarcacion">
                         @foreach ($this->estadosMarcacion() as $valor => $etiqueta)
                             <option value="{{ $valor }}">{{ $etiqueta }}</option>
