@@ -3,8 +3,9 @@
         .attendance-matrix-filters { display:grid; gap:.75rem; grid-template-columns:repeat(1, minmax(0, 1fr)); }
         .attendance-matrix-filter { min-width:0; }
         .attendance-matrix-filter label { display:block; margin-bottom:.35rem; color:var(--gray-700, #374151); font-size:.75rem; font-weight:600; }
-        .attendance-matrix-actions { display:flex; align-items:end; }
-        .attendance-matrix-actions .fi-btn { width:100%; }
+        .attendance-matrix-toolbar { display:flex; justify-content:flex-end; margin-bottom:1rem; }
+        .attendance-matrix-filter-panel { min-width:min(80rem, calc(100vw - 2rem)); }
+        .attendance-matrix-filter-actions { display:flex; justify-content:flex-end; gap:.75rem; margin-top:1rem; }
         .attendance-matrix-scroll { margin-top:1.25rem; overflow-x:auto; border:1px solid var(--gray-200, #e5e7eb); border-radius:.875rem; background:var(--gray-50, #f9fafb); }
         .attendance-matrix-grid { display:grid; width:max-content; min-width:100%; }
         .attendance-matrix-head, .attendance-matrix-person, .attendance-matrix-day { border-bottom:1px solid var(--gray-200, #e5e7eb); }
@@ -48,19 +49,37 @@
         $columnas = '18rem repeat(' . $dias->count() . ', 8.25rem)';
     @endphp
 
-    <x-filament::section>
-        <div class="attendance-matrix-filters">
+    <div class="attendance-matrix-toolbar">
+        <x-filament::dropdown placement="bottom-end" shift width="7xl">
+            <x-slot name="trigger">
+                <x-filament::button color="gray" icon="heroicon-m-funnel">
+                    Filtros
+                </x-filament::button>
+            </x-slot>
+
+            <x-filament::section
+                class="attendance-matrix-filter-panel"
+                heading="Filtros"
+                icon="heroicon-m-adjustments-horizontal"
+            >
+                <x-slot name="afterHeader">
+                    <x-filament::button color="danger" size="sm" wire:click="limpiarFiltros" icon="heroicon-m-arrow-path">
+                        Restablecer filtros
+                    </x-filament::button>
+                </x-slot>
+
+                <div class="attendance-matrix-filters">
             <div class="attendance-matrix-filter">
                 <label for="matriz-mes">Mes</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-calendar-days">
-                    <x-filament::input id="matriz-mes" type="month" wire:model.live="mes" />
+                    <x-filament::input id="matriz-mes" type="month" wire:model="mes" />
                 </x-filament::input.wrapper>
             </div>
 
             <div class="attendance-matrix-filter">
                 <label for="matriz-empresa">Empresa</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-building-office-2">
-                    <x-filament::input.select id="matriz-empresa" wire:model.live="empresaId">
+                    <x-filament::input.select id="matriz-empresa" wire:model="empresaId">
                         <option value="">Todas</option>
                         @foreach ($this->empresas as $empresa)
                             <option value="{{ $empresa->id }}">{{ $empresa->nombre }}</option>
@@ -72,7 +91,7 @@
             <div class="attendance-matrix-filter">
                 <label for="matriz-area">Área</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-squares-2x2">
-                    <x-filament::input.select id="matriz-area" wire:model.live="areaId">
+                    <x-filament::input.select id="matriz-area" wire:model="areaId">
                         <option value="">Todas</option>
                         @foreach ($this->areas as $area)
                             <option value="{{ $area->id }}">{{ $area->nombre }}</option>
@@ -84,7 +103,7 @@
             <div class="attendance-matrix-filter">
                 <label for="matriz-sucursal">Local base</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-map-pin">
-                    <x-filament::input.select id="matriz-sucursal" wire:model.live="sucursalId">
+                    <x-filament::input.select id="matriz-sucursal" wire:model="sucursalId">
                         <option value="">Todos</option>
                         @foreach ($this->sucursales as $sucursal)
                             <option value="{{ $sucursal->id }}">{{ $sucursal->nombre }}{{ $sucursal->activo ? '' : ' · Histórico' }}</option>
@@ -96,7 +115,7 @@
             <div class="attendance-matrix-filter">
                 <label for="matriz-punto-venta">Punto de venta base</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-building-storefront">
-                    <x-filament::input.select id="matriz-punto-venta" wire:model.live="puntoVentaId">
+                    <x-filament::input.select id="matriz-punto-venta" wire:model="puntoVentaId">
                         <option value="">Todos</option>
                         @foreach ($this->puntosVenta as $puntoVenta)
                             <option value="{{ $puntoVenta->id }}">{{ $puntoVenta->sucursal?->nombre }} · {{ $puntoVenta->nombre }}{{ $puntoVenta->activo ? '' : ' · Histórico' }}</option>
@@ -108,7 +127,7 @@
             <div class="attendance-matrix-filter">
                 <label for="matriz-cargo">Cargo</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-briefcase">
-                    <x-filament::input.select id="matriz-cargo" wire:model.live="cargo">
+                    <x-filament::input.select id="matriz-cargo" wire:model="cargo">
                         <option value="">Todos</option>
                         @foreach ($this->cargos as $opcionCargo)
                             <option value="{{ $opcionCargo }}">{{ $opcionCargo }}</option>
@@ -120,7 +139,7 @@
             <div class="attendance-matrix-filter">
                 <label for="matriz-colaborador">Colaborador</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-user">
-                    <x-filament::input.select id="matriz-colaborador" wire:model.live="colaboradorId">
+                    <x-filament::input.select id="matriz-colaborador" wire:model="colaboradorId">
                         <option value="">Todos</option>
                         @foreach ($this->opcionesColaboradores as $colaborador)
                             <option value="{{ $colaborador->id }}">{{ $colaborador->nombre_completo }}{{ $colaborador->activo ? '' : ' · Histórico' }}</option>
@@ -132,7 +151,7 @@
             <div class="attendance-matrix-filter">
                 <label for="matriz-estado-colaborador">Estado del colaborador</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-check-circle">
-                    <x-filament::input.select id="matriz-estado-colaborador" wire:model.live="estadoColaborador">
+                    <x-filament::input.select id="matriz-estado-colaborador" wire:model="estadoColaborador">
                         <option value="todos">Todos</option>
                         <option value="activo">Activos</option>
                         <option value="inactivo">Históricos</option>
@@ -143,7 +162,7 @@
             <div class="attendance-matrix-filter">
                 <label for="matriz-estado-marcacion">Marcación del mes</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-clock">
-                    <x-filament::input.select id="matriz-estado-marcacion" wire:model.live="estadoMarcacion">
+                    <x-filament::input.select id="matriz-estado-marcacion" wire:model="estadoMarcacion">
                         @foreach ($this->estadosMarcacion() as $valor => $etiqueta)
                             <option value="{{ $valor }}">{{ $etiqueta }}</option>
                         @endforeach
@@ -154,17 +173,20 @@
             <div class="attendance-matrix-filter">
                 <label for="matriz-busqueda">Buscar</label>
                 <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
-                    <x-filament::input id="matriz-busqueda" type="search" wire:model.live.debounce.400ms="busqueda" placeholder="Nombre, documento o código" />
+                    <x-filament::input id="matriz-busqueda" type="search" wire:model="busqueda" placeholder="Nombre, documento o código" />
                 </x-filament::input.wrapper>
             </div>
 
-            <div class="attendance-matrix-actions">
-                <x-filament::button color="gray" wire:click="limpiarFiltros" icon="heroicon-o-x-mark">
-                    Limpiar filtros
-                </x-filament::button>
-            </div>
-        </div>
-    </x-filament::section>
+                </div>
+
+                <div class="attendance-matrix-filter-actions">
+                    <x-filament::button wire:click="aplicarFiltros" icon="heroicon-m-funnel">
+                        Aplicar filtros
+                    </x-filament::button>
+                </div>
+            </x-filament::section>
+        </x-filament::dropdown>
+    </div>
 
     @if ($filas->isEmpty())
         <x-filament::section class="mt-4">

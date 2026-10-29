@@ -127,6 +127,11 @@ class MatrizMarcaciones extends Page
         $this->resetPagina();
     }
 
+    public function aplicarFiltros(): void
+    {
+        $this->resetPagina();
+    }
+
     public function updatedSucursalId(): void
     {
         $this->puntoVentaId = null;
