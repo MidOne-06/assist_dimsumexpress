@@ -61,8 +61,11 @@ class MatrizMarcacionesTest extends TestCase
             ->assertSee('Salida')
             ->assertSee('08:01')
             ->assertSee('17:35')
-            ->assertDontSee('Bruno Fuera de Alcance')
-            ->set('mes', now()->subMonthNoOverflow()->format('Y-m'))
+            ->assertDontSee('Bruno Fuera de Alcance');
+
+        Livewire::withQueryParams(['mes' => now()->subMonthNoOverflow()->format('Y-m')])
+            ->actingAs($supervisor)
+            ->test(MatrizMarcaciones::class)
             ->assertSee('07:45')
             ->assertDontSee('08:01');
     }
@@ -93,9 +96,12 @@ class MatrizMarcacionesTest extends TestCase
 
         Livewire::actingAs($supervisor)
             ->test(MatrizMarcaciones::class)
-            ->set('estadoMarcacion', 'sin_entrada')
+            ->set('tableDeferredFilters', ['estado_marcacion' => ['value' => 'sin_entrada']])
+            ->call('applyTableFilters')
+            ->assertSet('tableFilters.estado_marcacion.value', 'sin_entrada')
             ->assertSee('María sin entrada')
-            ->assertDontSee('Carlos con registro');
+            ->assertSee('12:00')
+            ->assertDontSee('08:00');
     }
 
     private function sucursal(string $nombre): Sucursal
