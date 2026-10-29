@@ -34,6 +34,7 @@ class CatalogoPermisos
                 'Regularizar:VisitaSupervisor' => 'Regularizar salidas de visitas de supervisión',
                 'Exportar:VisitaSupervisor' => 'Exportar visitas de supervisión',
                 'Exportar:Marcacion' => 'Exportar marcaciones',
+                'View:MatrizMarcaciones' => 'Consultar matriz mensual de marcaciones',
             ],
             'Turnos y cobertura' => [
                 'AsignarMasivo:AsignarTurnos' => 'Asignar turnos en bloque',
