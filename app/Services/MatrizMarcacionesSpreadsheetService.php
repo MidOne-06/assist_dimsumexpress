@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Colaborador;
 use App\Models\Marcacion;
+use App\Models\Sucursal;
 use App\Models\User;
 use App\Support\AlcanceSupervisor;
 use Illuminate\Support\Carbon;
@@ -43,6 +44,16 @@ final class MatrizMarcacionesSpreadsheetService
         'Cargo',
         'Local',
         'Punto de venta',
+        'Estado',
+        'Última marcación registrada',
+    ];
+
+    /** @var list<string> */
+    private const COLUMNAS_TIENDAS_SIN_MARCACION = [
+        'Local',
+        'Tipo',
+        'Dirección',
+        'Colaboradores asignados',
         'Estado',
         'Última marcación registrada',
     ];
@@ -220,7 +231,54 @@ final class MatrizMarcacionesSpreadsheetService
 
                 $hojaSinMarcas->setAutoFilter(new AutoFilter(0, 1, count(self::COLUMNAS_SIN_MARCACION) - 1, $hojaSinMarcas->getWrittenRowCount()));
 
-                // 3. Hoja terciaria: Detalle cronológico de marcaciones
+                // 3. Hoja: Tiendas / locales sin marcaciones en el período
+                $hojaTiendasSinMarcas = $writer->addNewSheetAndMakeItCurrent();
+                $hojaTiendasSinMarcas->setName('Tiendas sin marcaciones');
+                $hojaTiendasSinMarcas->setColumnWidth(28, 1);
+                $hojaTiendasSinMarcas->setColumnWidth(16, 2);
+                $hojaTiendasSinMarcas->setColumnWidth(34, 3);
+                $hojaTiendasSinMarcas->setColumnWidth(22, 4);
+                $hojaTiendasSinMarcas->setColumnWidth(14, 5);
+                $hojaTiendasSinMarcas->setColumnWidth(26, 6);
+                $hojaTiendasSinMarcas->setSheetView((new SheetView())->setFreezeRow(2));
+                $writer->addRow(Row::fromValues(self::COLUMNAS_TIENDAS_SIN_MARCACION, $this->estiloCabecera()));
+
+                $tiendasSinMarcas = Sucursal::query()
+                    ->withCount('colaboradores')
+                    ->withMax('marcaciones', 'fecha_hora')
+                    ->whereIn('id', $sucursalesFiltro)
+                    ->whereDoesntHave('marcaciones', function ($q) use ($inicio, $fin) {
+                        $q->where('fecha_hora', '>=', $inicio)
+                          ->where('fecha_hora', '<=', $fin);
+                    })
+                    ->orderByDesc('activo')
+                    ->orderBy('nombre')
+                    ->get();
+
+                foreach ($tiendasSinMarcas as $tienda) {
+                    $ultimaMarca = $tienda->marcaciones_max_fecha_hora;
+                    $ultimaMarcaTexto = $ultimaMarca
+                        ? Carbon::parse($ultimaMarca)->format('d/m/Y H:i')
+                        : 'Sin registros históricos';
+
+                    $writer->addRow(Row::fromValuesWithStyles([
+                        $tienda->nombre,
+                        ucfirst((string) $tienda->tipo),
+                        $tienda->direccion ?? '-',
+                        $tienda->colaboradores_count,
+                        $tienda->activo ? 'Activo' : 'Inactivo',
+                        $ultimaMarcaTexto,
+                    ], null, [
+                        1 => $this->estiloCentro(),
+                        3 => $this->estiloCentro(),
+                        4 => $this->estiloCentro(),
+                        5 => $this->estiloCentro(),
+                    ]));
+                }
+
+                $hojaTiendasSinMarcas->setAutoFilter(new AutoFilter(0, 1, count(self::COLUMNAS_TIENDAS_SIN_MARCACION) - 1, $hojaTiendasSinMarcas->getWrittenRowCount()));
+
+                // 4. Hoja cuaternaria: Detalle cronológico de marcaciones
                 $hojaDetalle = $writer->addNewSheetAndMakeItCurrent();
                 $hojaDetalle->setName('Detalle marcaciones');
                 $hojaDetalle->setColumnWidth(13, 1);

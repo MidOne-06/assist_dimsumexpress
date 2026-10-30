@@ -142,6 +142,18 @@ class MatrizMarcacionesTest extends TestCase
                 'sucursal_ids' => [],
             ])
             ->assertSuccessful();
+
+        $sucursalVacia = $this->sucursal('Local sin marcas');
+        $supervisor->sucursalesSupervisadas()->attach($sucursalVacia);
+
+        Livewire::actingAs($supervisor)
+            ->test(MatrizMarcaciones::class)
+            ->callAction('exportar', [
+                'fecha_inicio' => now()->startOfMonth()->toDateString(),
+                'fecha_fin' => now()->endOfMonth()->toDateString(),
+                'sucursal_ids' => [$sucursal->id, $sucursalVacia->id],
+            ])
+            ->assertSuccessful();
     }
 
     public function test_it_hides_export_action_when_user_lacks_export_permission(): void
