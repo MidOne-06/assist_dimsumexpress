@@ -104,6 +104,49 @@ class MatrizMarcacionesTest extends TestCase
             ->assertDontSee('08:00');
     }
 
+    public function test_it_allows_exporting_marks_to_excel_with_date_range_and_store_filter(): void
+    {
+        $sucursal = $this->sucursal('Local exportable');
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(
+            Permission::findOrCreate('View:MatrizMarcaciones', 'web'),
+            Permission::findOrCreate('Exportar:Marcacion', 'web')
+        );
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+
+        $colaborador = $this->colaborador($sucursal, 'Roberto Exportación');
+        $fecha = now()->startOfMonth()->addDays(3)->toDateString();
+
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => "{$fecha} 08:30:00",
+        ]);
+
+        Livewire::actingAs($supervisor)
+            ->test(MatrizMarcaciones::class)
+            ->assertActionVisible('exportar')
+            ->callAction('exportar', [
+                'fecha_inicio' => now()->startOfMonth()->toDateString(),
+                'fecha_fin' => now()->endOfMonth()->toDateString(),
+                'sucursal_id' => $sucursal->id,
+            ])
+            ->assertSuccessful();
+    }
+
+    public function test_it_hides_export_action_when_user_lacks_export_permission(): void
+    {
+        $sucursal = $this->sucursal('Local sin export');
+        $supervisor = User::factory()->create();
+        $supervisor->givePermissionTo(Permission::findOrCreate('View:MatrizMarcaciones', 'web'));
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+
+        Livewire::actingAs($supervisor)
+            ->test(MatrizMarcaciones::class)
+            ->assertActionHidden('exportar');
+    }
+
     private function sucursal(string $nombre): Sucursal
     {
         return Sucursal::create(['nombre' => $nombre, 'tipo' => 'tienda', 'activo' => true]);

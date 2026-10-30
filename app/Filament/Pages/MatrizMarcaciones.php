@@ -11,10 +11,13 @@ use App\Models\Marcacion;
 use App\Models\PuntoVenta;
 use App\Models\Sucursal;
 use App\Services\MatrizMarcacionesService;
+use App\Services\MatrizMarcacionesSpreadsheetService;
 use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
@@ -61,6 +64,54 @@ class MatrizMarcaciones extends Page implements HasTable
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('exportar')
+                ->label('Exportar a Excel')
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->color('gray')
+                ->visible(fn (): bool => auth()->user()?->can('Exportar:Marcacion') ?? false)
+                ->authorize(fn (): bool => auth()->user()?->can('Exportar:Marcacion') ?? false)
+                ->modalHeading('Exportar marcaciones a Excel')
+                ->modalWidth(Width::Medium)
+                ->modalSubmitActionLabel('Descargar XLSX')
+                ->schema([
+                    DatePicker::make('fecha_inicio')
+                        ->label('Fecha inicial')
+                        ->default(fn (): string => $this->inicioMes()->startOfMonth()->toDateString())
+                        ->required()
+                        ->native(false),
+                    DatePicker::make('fecha_fin')
+                        ->label('Fecha final')
+                        ->default(fn (): string => $this->inicioMes()->endOfMonth()->toDateString())
+                        ->required()
+                        ->native(false),
+                    Select::make('sucursal_id')
+                        ->label('Local')
+                        ->placeholder('Todos los locales autorizados')
+                        ->options(fn (): array => $this->sucursalesPermitidas()->pluck('nombre', 'id')->all())
+                        ->searchable(),
+                ])
+                ->action(function (array $data) {
+                    $fechaInicio = filled($data['fecha_inicio'] ?? null)
+                        ? Carbon::parse($data['fecha_inicio'])
+                        : $this->inicioMes()->startOfMonth();
+
+                    $fechaFin = filled($data['fecha_fin'] ?? null)
+                        ? Carbon::parse($data['fecha_fin'])
+                        : $this->inicioMes()->endOfMonth();
+
+                    if ($fechaInicio->gt($fechaFin)) {
+                        [$fechaInicio, $fechaFin] = [$fechaFin, $fechaInicio];
+                    }
+
+                    $sucursalId = filled($data['sucursal_id'] ?? null) ? (int) $data['sucursal_id'] : null;
+
+                    return app(MatrizMarcacionesSpreadsheetService::class)->exportar(
+                        fechaInicio: $fechaInicio,
+                        fechaFin: $fechaFin,
+                        sucursalId: $sucursalId,
+                        user: auth()->user(),
+                    );
+                }),
             Action::make('mesAnterior')->label('Mes anterior')->icon(Heroicon::OutlinedChevronLeft)->iconButton()->tooltip('Mes anterior')->action(function (): void {
                 $this->cambiarMes(-1);
             }),

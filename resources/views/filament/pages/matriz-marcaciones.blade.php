@@ -1,7 +1,30 @@
 <x-filament-panels::page>
     <style>
         .fi-ta-table thead th:not(:first-child), .fi-ta-table tbody td:not(:first-child) { min-width: 9rem; }
-        .fi-ta-table thead th:first-child, .fi-ta-table tbody td:first-child { min-width: 17rem; }
+        .fi-ta-table thead th:first-child, .fi-ta-table tbody td:first-child {
+            min-width: 17rem;
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            background-color: var(--fi-ta-record-bg, #ffffff);
+            box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.08);
+        }
+        .fi-ta-table thead th:first-child {
+            z-index: 20;
+            background-color: var(--fi-ta-header-bg, #f9fafb);
+        }
+        .dark .fi-ta-table thead th:first-child {
+            background-color: #111827;
+        }
+        .dark .fi-ta-table tbody td:first-child {
+            background-color: #111827;
+        }
+        .fi-ta-record:hover td:first-child {
+            background-color: var(--fi-ta-record-hover-bg, #f3f4f6);
+        }
+        .dark .fi-ta-record:hover td:first-child {
+            background-color: #1f2937;
+        }
         .attendance-matrix-empty { color: var(--gray-400, #9ca3af); font-size: .75rem; }
         .attendance-matrix-mark { display: flex; align-items: center; justify-content: space-between; gap: .4rem; min-width: 7.5rem; padding: .2rem .35rem; border-radius: .375rem; font-size: .7rem; line-height: 1.15; }
         .attendance-matrix-mark + .attendance-matrix-mark { margin-top: .25rem; }
