@@ -14,7 +14,7 @@ la API `mobile/v1`: no expone vistas, reportes ni permisos administrativos.
 ## Requisitos de compilación
 
 - Flutter 3.47.7 / Dart 3.13.5.
-- Android SDK con API 23 o posterior para APK/AAB.
+- Android SDK con API 24 o posterior para APK/AAB (Android 7.0+).
 - macOS con Xcode para compilar y firmar iOS (mínimo iOS 15).
 
 ```powershell

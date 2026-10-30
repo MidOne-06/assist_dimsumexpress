@@ -1028,6 +1028,31 @@ class JornadaMarcacionTest extends TestCase
         }
     }
 
+    public function test_early_entry_before_tolerance_window_is_recognized_and_prevents_duplicate_entry(): void
+    {
+        Carbon::setTestNow('2026-10-30 05:50:16');
+        [$colaborador, $asignacion] = $this->crearJornada('07:00:00', '16:00:00', false, '2026-10-30');
+        $asignacion->turno->update(['tolerancia_entrada_minutos' => 60]);
+
+        // Collaborator arrives 70 minutes early (before the 60-min tolerance threshold)
+        $marca = Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'turno_id' => $asignacion->turno_id,
+            'sucursal_id' => $colaborador->sucursal_id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now(),
+        ]);
+
+        $this->assertTrue(JornadaMarcacion::jornadaAbierta($colaborador, $asignacion));
+        $this->assertCount(1, JornadaMarcacion::marcaciones($colaborador, $asignacion));
+
+        // At midday, next action must be lunch or exit, never entry again
+        Carbon::setTestNow('2026-10-30 12:28:47');
+        $siguientes = JornadaAcciones::siguientesTipos($colaborador, $asignacion);
+        $this->assertNotContains(Marcacion::TIPO_ENTRADA, $siguientes);
+        $this->assertContains(Marcacion::TIPO_SALIDA_REFRIGERIO, $siguientes);
+    }
+
     /** @return array{Colaborador, AsignacionTurno} */
     private function crearJornada(string $inicio, string $fin, bool $nocturno = false, ?string $fecha = null): array
     {

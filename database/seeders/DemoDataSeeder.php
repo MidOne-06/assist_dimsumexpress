@@ -118,6 +118,11 @@ class DemoDataSeeder extends Seeder
                 ['name' => $def['nombre'], 'password' => self::PASSWORD_DEMO]
             );
 
+            if ($user->roles()->doesntExist()) {
+                $role = str_contains(mb_strtolower($def['cargo']), 'supervisor') ? 'supervisor' : 'operador';
+                $user->assignRole($role);
+            }
+
             return Colaborador::firstOrCreate(
                 ['documento_identidad' => $def['doc']],
                 [

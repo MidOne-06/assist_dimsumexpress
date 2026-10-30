@@ -80,6 +80,86 @@ class MobileApiTest extends TestCase
         ]);
     }
 
+    public function test_mobile_login_rejects_account_without_mobile_operation_enabled(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $user = User::factory()->create([
+            'email' => 'sin.acceso@dimsum.com.pe',
+            'password' => Hash::make('Clave123!'),
+            'activo' => true,
+        ]);
+
+        $this->postJson('/api/mobile/v1/sesion', [
+            'email' => 'sin.acceso@dimsum.com.pe',
+            'password' => 'Clave123!',
+            'dispositivo' => 'Android sin permisos',
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('message', 'Esta cuenta no tiene una operación móvil habilitada.');
+    }
+
+    public function test_mobile_can_retrieve_today_attendance_summary(): void
+    {
+        [$user, $colaborador, $sucursal] = $this->crearColaborador();
+        $token = $user->createToken('mobile:prueba', ['mobile:access'], now()->addDay())->plainTextToken;
+
+        Marcacion::create([
+            'colaborador_id' => $colaborador->id,
+            'sucursal_id' => $sucursal->id,
+            'tipo' => Marcacion::TIPO_ENTRADA,
+            'fecha_hora' => now()->startOfDay()->addHours(8),
+        ]);
+
+        $this->withToken($token)
+            ->getJson('/api/mobile/v1/marcaciones/hoy')
+            ->assertOk()
+            ->assertJsonPath('fecha', now()->toDateString())
+            ->assertJsonPath('marcaciones.0.tipo', Marcacion::TIPO_ENTRADA)
+            ->assertJsonPath('marcaciones.0.etiqueta', 'Ingreso de turno');
+    }
+
+    public function test_mobile_logout_deletes_current_access_token(): void
+    {
+        [$user] = $this->crearColaborador();
+        $token = $user->createToken('mobile:dispositivo', ['mobile:access'], now()->addDay())->plainTextToken;
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+
+        $this->withToken($token)
+            ->deleteJson('/api/mobile/v1/sesion')
+            ->assertNoContent();
+
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_supervisor_mobile_flow_records_store_visit(): void
+    {
+        $this->seed(RolesYPermisosSeeder::class);
+        $supervisor = User::factory()->create(['activo' => true]);
+        $supervisor->assignRole('supervisor');
+        $sucursal = Sucursal::create(['nombre' => 'Local supervisado', 'tipo' => 'tienda', 'activo' => true]);
+        $supervisor->sucursalesSupervisadas()->attach($sucursal);
+
+        $token = $supervisor->createToken('mobile:supervisor', ['mobile:access'], now()->addDay())->plainTextToken;
+        $qr = QrToken::generarPara($sucursal, null, 60, QrToken::PROPOSITO_VISITA_SUPERVISOR);
+
+        $this->withToken($token)
+            ->postJson('/api/mobile/v1/visitas/validar-qr', ['token' => $qr->token])
+            ->assertOk()
+            ->assertJsonPath('confirmado', true)
+            ->assertJsonPath('accion', 'ingreso')
+            ->assertJsonPath('local', 'Local supervisado');
+
+        $this->withToken($token)
+            ->postJson('/api/mobile/v1/visitas', [
+                'token' => $qr->token,
+                'accion' => 'ingreso',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('visita.accion', 'ingreso')
+            ->assertJsonPath('visita.mensaje', 'Ingreso de visita registrado');
+    }
+
     /** @return array{User, Colaborador, Sucursal} */
     private function crearColaborador(): array
     {

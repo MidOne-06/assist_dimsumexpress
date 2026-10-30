@@ -26,10 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>UIApplicationSceneManifest</key>
-	<dict>
 	<key>NSCameraUsageDescription</key>
 	<string>La cámara se utiliza únicamente para escanear los códigos QR dinámicos de asistencia y visita.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 		<key>UISceneConfigurations</key>

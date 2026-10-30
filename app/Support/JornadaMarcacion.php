@@ -16,6 +16,7 @@ final class JornadaMarcacion
 {
     public const DURACION_REFRIGERIO_MINUTOS = 60;
     public const MAXIMO_JORNADA_MINUTOS = 18 * 60;
+    public const ANTICIPACION_ENTRADA_MINUTOS = 240;
 
     /** @return array{inicio: Carbon, fin: Carbon, ventana_inicio: Carbon, ventana_fin: Carbon, jornada_fin_maximo: Carbon} */
     public static function limites(AsignacionTurno $asignacion): array
@@ -38,7 +39,7 @@ final class JornadaMarcacion
         return [
             'inicio' => $inicio,
             'fin' => $fin,
-            'ventana_inicio' => $inicio->copy()->subMinutes($turno->tolerancia_entrada_minutos),
+            'ventana_inicio' => $inicio->copy()->subMinutes(max(static::ANTICIPACION_ENTRADA_MINUTOS, (int) $turno->tolerancia_entrada_minutos)),
             // Una jornada abierta no tiene hora de salida programada. Su
             // entrada debe poder confirmarse durante toda la jornada técnica;
             // la tardanza se calcula igualmente desde la hora de inicio y su
