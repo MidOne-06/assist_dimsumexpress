@@ -130,7 +130,16 @@ class MatrizMarcacionesTest extends TestCase
             ->callAction('exportar', [
                 'fecha_inicio' => now()->startOfMonth()->toDateString(),
                 'fecha_fin' => now()->endOfMonth()->toDateString(),
-                'sucursal_id' => $sucursal->id,
+                'sucursal_ids' => [$sucursal->id],
+            ])
+            ->assertSuccessful();
+
+        Livewire::actingAs($supervisor)
+            ->test(MatrizMarcaciones::class)
+            ->callAction('exportar', [
+                'fecha_inicio' => now()->startOfMonth()->toDateString(),
+                'fecha_fin' => now()->endOfMonth()->toDateString(),
+                'sucursal_ids' => [],
             ])
             ->assertSuccessful();
     }

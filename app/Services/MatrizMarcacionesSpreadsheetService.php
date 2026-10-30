@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Colaborador;
 use App\Models\Marcacion;
 use App\Models\User;
 use App\Support\AlcanceSupervisor;
@@ -26,7 +27,6 @@ final class MatrizMarcacionesSpreadsheetService
     private const COLUMNAS_DIARIAS = [
         'Fecha',
         'Colaborador',
-        'Documento',
         'Cargo',
         'Local',
         'Punto de venta',
@@ -38,21 +38,33 @@ final class MatrizMarcacionesSpreadsheetService
     ];
 
     /** @var list<string> */
+    private const COLUMNAS_SIN_MARCACION = [
+        'Colaborador',
+        'Cargo',
+        'Local',
+        'Punto de venta',
+        'Estado',
+        'Última marcación registrada',
+    ];
+
+    /** @var list<string> */
     private const COLUMNAS_DETALLE = [
         'Fecha',
         'Hora',
         'Colaborador',
-        'Documento',
         'Cargo',
         'Local',
         'Punto de venta',
         'Tipo de marcación',
     ];
 
+    /**
+     * @param  array<int, int>|int|null  $sucursalIds
+     */
     public function exportar(
         Carbon $fechaInicio,
         Carbon $fechaFin,
-        ?int $sucursalId = null,
+        array|int|null $sucursalIds = null,
         ?User $user = null
     ): StreamedResponse {
         $archivo = tempnam(sys_get_temp_dir(), 'matriz-marcaciones-');
@@ -63,18 +75,30 @@ final class MatrizMarcacionesSpreadsheetService
 
         $sucursalesPermitidas = AlcanceSupervisor::sucursalIdsHistoricos($user);
 
-        if ($sucursalId !== null && ! in_array($sucursalId, $sucursalesPermitidas, true)) {
-            abort(403, 'No tiene autorización para exportar información de este local.');
-        }
+        if ($sucursalIds !== null) {
+            $idsSolicitados = is_array($sucursalIds)
+                ? array_values(array_filter(array_map('intval', $sucursalIds)))
+                : [(int) $sucursalIds];
 
-        $sucursalesFiltro = $sucursalId !== null ? [$sucursalId] : $sucursalesPermitidas;
+            if (! empty($idsSolicitados)) {
+                $noPermitidos = array_diff($idsSolicitados, $sucursalesPermitidas);
+                if (! empty($noPermitidos)) {
+                    abort(403, 'No tiene autorización para exportar información de uno o más locales seleccionados.');
+                }
+                $sucursalesFiltro = $idsSolicitados;
+            } else {
+                $sucursalesFiltro = $sucursalesPermitidas;
+            }
+        } else {
+            $sucursalesFiltro = $sucursalesPermitidas;
+        }
 
         $inicio = $fechaInicio->copy()->startOfDay();
         $fin = $fechaFin->copy()->endOfDay();
 
         $query = Marcacion::query()
             ->with([
-                'colaborador:id,nombre_completo,documento_identidad,cargo',
+                'colaborador:id,nombre_completo,cargo',
                 'sucursal:id,nombre',
                 'puntoVenta:id,nombre',
             ])
@@ -96,12 +120,11 @@ final class MatrizMarcacionesSpreadsheetService
                 $hojaDiaria->setName('Asistencia diaria');
                 $hojaDiaria->setColumnWidth(13, 1);
                 $hojaDiaria->setColumnWidth(28, 2);
-                $hojaDiaria->setColumnWidth(15, 3);
+                $hojaDiaria->setColumnWidth(22, 3);
                 $hojaDiaria->setColumnWidth(22, 4);
-                $hojaDiaria->setColumnWidth(22, 5);
-                $hojaDiaria->setColumnWidth(18, 6);
-                $hojaDiaria->setColumnWidth(12, 7, 8, 9, 10);
-                $hojaDiaria->setColumnWidth(16, 11);
+                $hojaDiaria->setColumnWidth(18, 5);
+                $hojaDiaria->setColumnWidth(12, 6, 7, 8, 9);
+                $hojaDiaria->setColumnWidth(16, 10);
                 $hojaDiaria->setSheetView((new SheetView())->setFreezeRow(2));
                 $writer->addRow(Row::fromValues(self::COLUMNAS_DIARIAS, $this->estiloCabecera()));
 
@@ -129,7 +152,6 @@ final class MatrizMarcacionesSpreadsheetService
                     $writer->addRow(Row::fromValuesWithStyles([
                         $fecha,
                         $colaborador?->nombre_completo ?? '-',
-                        $colaborador?->documento_identidad ?? '-',
                         $colaborador?->cargo ?? '-',
                         $sucursal?->nombre ?? '-',
                         $puntoVenta?->nombre ?? '-',
@@ -140,27 +162,74 @@ final class MatrizMarcacionesSpreadsheetService
                         $grupo->count(),
                     ], null, [
                         0 => $this->estiloFecha(),
+                        5 => $this->estiloCentro(),
                         6 => $this->estiloCentro(),
                         7 => $this->estiloCentro(),
                         8 => $this->estiloCentro(),
                         9 => $this->estiloCentro(),
-                        10 => $this->estiloCentro(),
                     ]));
                 }
 
                 $hojaDiaria->setAutoFilter(new AutoFilter(0, 1, count(self::COLUMNAS_DIARIAS) - 1, $hojaDiaria->getWrittenRowCount()));
 
-                // 2. Hoja secundaria: Detalle cronológico de marcaciones
+                // 2. Hoja secundaria: Colaboradores sin marcaciones en el período
+                $hojaSinMarcas = $writer->addNewSheetAndMakeItCurrent();
+                $hojaSinMarcas->setName('Sin marcaciones');
+                $hojaSinMarcas->setColumnWidth(28, 1);
+                $hojaSinMarcas->setColumnWidth(22, 2);
+                $hojaSinMarcas->setColumnWidth(22, 3);
+                $hojaSinMarcas->setColumnWidth(18, 4);
+                $hojaSinMarcas->setColumnWidth(12, 5);
+                $hojaSinMarcas->setColumnWidth(26, 6);
+                $hojaSinMarcas->setSheetView((new SheetView())->setFreezeRow(2));
+                $writer->addRow(Row::fromValues(self::COLUMNAS_SIN_MARCACION, $this->estiloCabecera()));
+
+                $colaboradoresSinMarcas = Colaborador::query()
+                    ->with([
+                        'sucursal:id,nombre',
+                        'puntoVenta:id,nombre',
+                    ])
+                    ->withMax('marcaciones', 'fecha_hora')
+                    ->whereIn('sucursal_id', $sucursalesFiltro)
+                    ->whereDoesntHave('marcaciones', function ($q) use ($inicio, $fin) {
+                        $q->where('fecha_hora', '>=', $inicio)
+                          ->where('fecha_hora', '<=', $fin);
+                    })
+                    ->orderByDesc('activo')
+                    ->orderBy('nombre_completo')
+                    ->get();
+
+                foreach ($colaboradoresSinMarcas as $colab) {
+                    $ultimaMarca = $colab->marcaciones_max_fecha_hora;
+                    $ultimaMarcaTexto = $ultimaMarca
+                        ? Carbon::parse($ultimaMarca)->format('d/m/Y H:i')
+                        : 'Sin registros históricos';
+
+                    $writer->addRow(Row::fromValuesWithStyles([
+                        $colab->nombre_completo,
+                        $colab->cargo ?? '-',
+                        $colab->sucursal?->nombre ?? '-',
+                        $colab->puntoVenta?->nombre ?? '-',
+                        $colab->activo ? 'Activo' : 'Inactivo',
+                        $ultimaMarcaTexto,
+                    ], null, [
+                        4 => $this->estiloCentro(),
+                        5 => $this->estiloCentro(),
+                    ]));
+                }
+
+                $hojaSinMarcas->setAutoFilter(new AutoFilter(0, 1, count(self::COLUMNAS_SIN_MARCACION) - 1, $hojaSinMarcas->getWrittenRowCount()));
+
+                // 3. Hoja terciaria: Detalle cronológico de marcaciones
                 $hojaDetalle = $writer->addNewSheetAndMakeItCurrent();
                 $hojaDetalle->setName('Detalle marcaciones');
                 $hojaDetalle->setColumnWidth(13, 1);
                 $hojaDetalle->setColumnWidth(10, 2);
                 $hojaDetalle->setColumnWidth(28, 3);
-                $hojaDetalle->setColumnWidth(15, 4);
+                $hojaDetalle->setColumnWidth(22, 4);
                 $hojaDetalle->setColumnWidth(22, 5);
-                $hojaDetalle->setColumnWidth(22, 6);
-                $hojaDetalle->setColumnWidth(18, 7);
-                $hojaDetalle->setColumnWidth(22, 8);
+                $hojaDetalle->setColumnWidth(18, 6);
+                $hojaDetalle->setColumnWidth(22, 7);
                 $hojaDetalle->setSheetView((new SheetView())->setFreezeRow(2));
                 $writer->addRow(Row::fromValues(self::COLUMNAS_DETALLE, $this->estiloCabecera()));
 
@@ -169,7 +238,6 @@ final class MatrizMarcacionesSpreadsheetService
                         Carbon::parse($marcacion->fecha_hora->toDateString()),
                         $marcacion->fecha_hora->format('H:i'),
                         $marcacion->colaborador?->nombre_completo ?? '-',
-                        $marcacion->colaborador?->documento_identidad ?? '-',
                         $marcacion->colaborador?->cargo ?? '-',
                         $marcacion->sucursal?->nombre ?? '-',
                         $marcacion->puntoVenta?->nombre ?? '-',

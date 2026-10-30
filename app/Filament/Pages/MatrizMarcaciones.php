@@ -84,10 +84,11 @@ class MatrizMarcaciones extends Page implements HasTable
                         ->default(fn (): string => $this->inicioMes()->endOfMonth()->toDateString())
                         ->required()
                         ->native(false),
-                    Select::make('sucursal_id')
-                        ->label('Local')
+                    Select::make('sucursal_ids')
+                        ->label('Locales')
                         ->placeholder('Todos los locales autorizados')
                         ->options(fn (): array => $this->sucursalesPermitidas()->pluck('nombre', 'id')->all())
+                        ->multiple()
                         ->searchable(),
                 ])
                 ->action(function (array $data) {
@@ -103,12 +104,14 @@ class MatrizMarcaciones extends Page implements HasTable
                         [$fechaInicio, $fechaFin] = [$fechaFin, $fechaInicio];
                     }
 
-                    $sucursalId = filled($data['sucursal_id'] ?? null) ? (int) $data['sucursal_id'] : null;
+                    $sucursalIds = ! empty($data['sucursal_ids'])
+                        ? array_values(array_filter(array_map('intval', (array) $data['sucursal_ids'])))
+                        : null;
 
                     return app(MatrizMarcacionesSpreadsheetService::class)->exportar(
                         fechaInicio: $fechaInicio,
                         fechaFin: $fechaFin,
-                        sucursalId: $sucursalId,
+                        sucursalIds: $sucursalIds,
                         user: auth()->user(),
                     );
                 }),
