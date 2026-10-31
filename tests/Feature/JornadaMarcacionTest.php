@@ -113,10 +113,14 @@ class JornadaMarcacionTest extends TestCase
 
     public function test_assigned_shift_records_a_late_entry_until_its_technical_end(): void
     {
-        Carbon::setTestNow('2026-09-21 07:49:00');
+        Carbon::setTestNow('2026-09-21 03:59:00');
         [$colaborador] = $this->crearJornada('08:00:00', '17:00:00');
 
+        // La ventana de entrada se abre 4 h antes del inicio (ANTICIPACION_ENTRADA_MINUTOS).
         $this->assertNull(JornadaMarcacion::asignacionVigente($colaborador));
+
+        Carbon::setTestNow('2026-09-21 07:49:00');
+        $this->assertNotNull(JornadaMarcacion::asignacionVigente($colaborador));
 
         Carbon::setTestNow('2026-09-21 08:10:00');
         $this->assertNotNull(JornadaMarcacion::asignacionVigente($colaborador));
@@ -1054,6 +1058,31 @@ class JornadaMarcacionTest extends TestCase
     }
 
     /** @return array{Colaborador, AsignacionTurno} */
+    public function test_forgotten_exit_does_not_stay_open_until_the_next_morning(): void
+    {
+        [$colaborador, $asignacion] = $this->crearJornada('14:00:00', '22:00:00', false, '2026-10-30');
+        Carbon::setTestNow('2026-10-30 14:06:00');
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+
+        // Dentro de salida + tolerancia + gracia (8 h) todavía puede cerrar su jornada.
+        Carbon::setTestNow('2026-10-31 05:00:00');
+        $this->assertSame($asignacion->id, JornadaMarcacion::asignacionVigente($colaborador)?->id);
+
+        // A las 07:51 ya no: ese escaneo no debe interpretarse como salida de ayer.
+        Carbon::setTestNow('2026-10-31 07:51:00');
+        $this->assertNull(JornadaMarcacion::asignacionVigente($colaborador));
+    }
+
+    public function test_open_jornada_without_scheduled_exit_keeps_the_technical_limit(): void
+    {
+        [$colaborador, $asignacion] = $this->crearJornada('07:00:00', '17:00:00', false, '2026-10-30');
+        $asignacion->turno->update(['jornada_abierta' => true]);
+        Carbon::setTestNow('2026-10-30 07:05:00');
+        $this->marcar($colaborador, $asignacion, Marcacion::TIPO_ENTRADA);
+
+        Carbon::setTestNow('2026-10-31 00:30:00');
+        $this->assertSame($asignacion->id, JornadaMarcacion::asignacionVigente($colaborador)?->id);
+    }
     private function crearJornada(string $inicio, string $fin, bool $nocturno = false, ?string $fecha = null): array
     {
         $sucursal = Sucursal::create(['nombre' => 'Sucursal de prueba', 'tipo' => 'tienda', 'activo' => true]);

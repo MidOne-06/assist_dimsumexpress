@@ -17,3 +17,5 @@ yarn-error.log
 /.idea
 /.vscode
 /backups
+
+/debug_*.php

@@ -17,6 +17,8 @@ final class JornadaMarcacion
     public const DURACION_REFRIGERIO_MINUTOS = 60;
     public const MAXIMO_JORNADA_MINUTOS = 18 * 60;
     public const ANTICIPACION_ENTRADA_MINUTOS = 240;
+    /** Margen tras la salida programada (+ tolerancia) para cerrar una jornada olvidada. */
+    public const GRACIA_CIERRE_JORNADA_MINUTOS = 480;
 
     /** @return array{inicio: Carbon, fin: Carbon, ventana_inicio: Carbon, ventana_fin: Carbon, jornada_fin_maximo: Carbon} */
     public static function limites(AsignacionTurno $asignacion): array
@@ -73,8 +75,8 @@ final class JornadaMarcacion
         // vuelve a inferir otro turno durante refrigerio o salida final.
         $jornadaAbierta = $asignaciones
             ->filter(function (AsignacionTurno $asignacion) use ($momento, $colaborador): bool {
-                return static::jornadaAbierta($colaborador, $asignacion)
-                    && $momento->lte(static::limites($asignacion)['jornada_fin_maximo']);
+                return $momento->lte(static::finVigencia($asignacion))
+                    && static::jornadaAbierta($colaborador, $asignacion);
             })
             ->sortByDesc(fn (AsignacionTurno $asignacion) => static::limites($asignacion)['inicio']->getTimestamp())
             ->first();
@@ -118,10 +120,33 @@ final class JornadaMarcacion
                 // jornada asignada siga en curso técnicamente. La tardanza y
                 // las demás incidencias se calculan después; no se bloquea al
                 // colaborador por llegar fuera de la tolerancia configurada.
-                return $momento->betweenIncluded($limites['ventana_inicio'], $limites['jornada_fin_maximo']);
+                return $momento->betweenIncluded($limites['ventana_inicio'], static::finVigencia($asignacion));
             })
             ->sortByDesc(fn (AsignacionTurno $asignacion) => static::limites($asignacion)['inicio']->getTimestamp())
             ->first();
+    }
+
+    /**
+     * Último instante en que una asignación puede seguir recibiendo marcaciones.
+     *
+     * Con salida programada, una jornada olvidada deja de ser vigente poco
+     * después de terminar (salida + tolerancia + gracia); así el siguiente
+     * escaneo del colaborador inicia un nuevo ingreso en lugar de cerrar por
+     * error la jornada anterior. Sin salida programada rige el límite técnico.
+     */
+    public static function finVigencia(AsignacionTurno $asignacion): Carbon
+    {
+        $turno = $asignacion->turno;
+        $limites = static::limites($asignacion);
+
+        if ($turno->solo_entrada || $turno->jornada_abierta || ! $turno->hora_fin) {
+            return $limites['jornada_fin_maximo'];
+        }
+
+        return $limites['ventana_fin']
+            ->copy()
+            ->addMinutes(static::GRACIA_CIERRE_JORNADA_MINUTOS)
+            ->min($limites['jornada_fin_maximo']);
     }
 
     /**
