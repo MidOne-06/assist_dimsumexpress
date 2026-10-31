@@ -57,4 +57,29 @@ class AsignacionTurno extends Model
     {
         return $this->hasOne(ResumenJornada::class);
     }
+
+    public function regularizacionSalida(): HasOne
+    {
+        return $this->hasOne(RegularizacionSalida::class);
+    }
+
+    public function entradaMarcacion(): ?Marcacion
+    {
+        return \App\Support\JornadaMarcacion::marcaciones($this->colaborador, $this)->firstWhere('tipo', Marcacion::TIPO_ENTRADA);
+    }
+
+    public function ultimaMarcacion(): ?Marcacion
+    {
+        return \App\Support\JornadaMarcacion::ultimaMarcacion($this->colaborador, $this);
+    }
+
+    public function vencioEn(): \Carbon\Carbon
+    {
+        return \App\Support\JornadaMarcacion::finVigencia($this);
+    }
+
+    public function salidaSugerida(): \Carbon\Carbon
+    {
+        return \App\Support\JornadaMarcacion::limites($this)['fin'];
+    }
 }
