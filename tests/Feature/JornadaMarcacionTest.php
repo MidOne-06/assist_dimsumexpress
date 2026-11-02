@@ -426,6 +426,21 @@ class JornadaMarcacionTest extends TestCase
         $this->assertSame('detectado_automaticamente', $detectada->origen);
     }
 
+    public function test_station_detects_shift_when_collaborator_arrives_early(): void
+    {
+        Carbon::setTestNow('2026-09-21 06:55:00');
+        $sucursal = Sucursal::create(['nombre' => 'Tienda llegada temprana', 'tipo' => 'tienda', 'activo' => true]);
+        $usuario = User::factory()->create();
+        $colaborador = Colaborador::create(['user_id' => $usuario->id, 'sucursal_id' => $sucursal->id, 'nombre_completo' => 'Temprano', 'documento_identidad' => 'TEMP-1', 'activo' => true]);
+        $apertura = Turno::create(['nombre' => 'Apertura temprana', 'hora_inicio' => '08:00', 'hora_fin' => '17:00', 'tolerancia_entrada_minutos' => 60, 'activo' => true]);
+        TurnoOperativo::create(['turno_id' => $apertura->id, 'sucursal_id' => $sucursal->id, 'prioridad' => 100, 'activo' => true]);
+
+        $detectada = JornadaMarcacion::detectarTurnoOperativo($colaborador, $sucursal, null);
+
+        $this->assertNotNull($detectada);
+        $this->assertSame($apertura->id, $detectada->turno_id);
+    }
+
     public function test_duplicate_operational_rules_are_rejected_for_the_same_station_and_shift(): void
     {
         Carbon::setTestNow('2026-09-21 14:30:00');

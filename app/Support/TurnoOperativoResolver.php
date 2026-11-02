@@ -48,8 +48,9 @@ final class TurnoOperativoResolver
 
         $ganadora = $candidatas
             ->filter(function (TurnoOperativo $configuracion) use ($momento): bool {
+                $anticipacion = max(JornadaMarcacion::ANTICIPACION_ENTRADA_MINUTOS, (int) $configuracion->turno->tolerancia_entrada_minutos);
                 $inicio = Carbon::parse($momento->toDateString().' '.$configuracion->turno->hora_inicio, config('app.timezone'))
-                    ->subMinutes($configuracion->turno->tolerancia_entrada_minutos);
+                    ->subMinutes($anticipacion);
                 $fin = self::finOperativo($configuracion->turno, $momento);
 
                 return $momento->betweenIncluded($inicio, $fin);
