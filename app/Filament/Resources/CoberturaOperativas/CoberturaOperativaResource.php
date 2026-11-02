@@ -11,10 +11,12 @@ use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -25,6 +27,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 
 class CoberturaOperativaResource extends Resource implements HasShieldPermissions
 {
@@ -223,6 +226,37 @@ class CoberturaOperativaResource extends Resource implements HasShieldPermission
                         'revisada_en' => now(),
                         'revisada_por_id' => auth()->id(),
                     ])),
+            ])
+            ->bulkActions([
+                BulkAction::make('revisar_masivo')
+                    ->label('Marcar seleccionadas como conformes')
+                    ->icon(Heroicon::OutlinedCheckCircle)
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Revisión masiva de coberturas')
+                    ->modalDescription('¿Deseas marcar todas las coberturas seleccionadas como "Conforme"?')
+                    ->modalSubmitActionLabel('Aprobar coberturas')
+                    ->authorize(fn (): bool => auth()->user()?->can('Revisar:CoberturaOperativa') ?? false)
+                    ->action(function (Collection $records): void {
+                        $count = 0;
+                        $user = auth()->user();
+                        foreach ($records as $record) {
+                            if ($record->estado === CoberturaOperativa::ESTADO_PENDIENTE
+                                && $user
+                                && AlcanceSupervisor::puedeGestionarSucursal($user, (int) $record->sucursal_id)) {
+                                $record->update([
+                                    'estado' => CoberturaOperativa::ESTADO_REVISADA,
+                                    'revisada_en' => now(),
+                                    'revisada_por_id' => $user->id,
+                                ]);
+                                $count++;
+                            }
+                        }
+                        Notification::make()
+                            ->title("{$count} cobertura(s) marcada(s) como conformes.")
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->toolbarActions([]);
     }
