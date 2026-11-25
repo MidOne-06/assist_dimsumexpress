@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Turnos\Tables;
 
 use App\Models\Turno;
+use App\Filament\Resources\Turnos\TurnoResource;
 use App\Services\TurnoService;
 use Filament\Actions\EditAction;
 use Filament\Support\Enums\Width;
@@ -98,7 +99,7 @@ class TurnosTable
             ])
             ->recordActions([
                 EditAction::make()
-                    ->visible(fn (Turno $record): bool => $record->activo)
+                    ->visible(fn (Turno $record): bool => TurnoResource::canEdit($record))
                     ->using(fn (Turno $record, array $data): Turno => app(TurnoService::class)
                         ->actualizar(auth()->user(), $record, $data))
                     ->modal()

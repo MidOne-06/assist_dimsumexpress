@@ -28,6 +28,22 @@ class TurnoResource extends Resource
 
     protected static ?string $pluralModelLabel = 'turnos';
 
+    /** Los supervisores consultan la plantilla, pero no la administran. */
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->hasAnyRole(['super_admin', 'administrador', 'supervisor']) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasAnyRole(['super_admin', 'administrador']) ?? false;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return static::canCreate() && $record->activo;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return TurnoForm::configure($schema);

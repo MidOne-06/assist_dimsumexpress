@@ -16,6 +16,7 @@ class ListTurnos extends ListRecords
     {
         return [
             CreateAction::make()
+                ->visible(fn (): bool => TurnoResource::canCreate())
                 ->modal()
                 ->modalHeading('Crear turno')
                 ->modalWidth(Width::ExtraLarge)

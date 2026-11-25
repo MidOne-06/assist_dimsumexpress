@@ -7,6 +7,7 @@ use App\Models\PuntoVenta;
 use App\Models\Sucursal;
 use App\Models\Turno;
 use App\Models\TurnoOperativo;
+use App\Support\AlcanceSupervisor;
 use BackedEnum;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -19,6 +20,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class TurnoOperativoResource extends Resource
 {
@@ -31,11 +33,35 @@ class TurnoOperativoResource extends Resource
     protected static ?string $modelLabel = 'turno operativo';
     protected static ?string $pluralModelLabel = 'turnos operativos';
 
+    public static function canViewAny(): bool
+    {
+        $usuario = auth()->user();
+
+        return $usuario?->hasAnyRole(['super_admin', 'administrador', 'supervisor']) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasAnyRole(['super_admin', 'administrador']) ?? false;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return static::canCreate() && $record->activo;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereIn('sucursal_id', AlcanceSupervisor::sucursalIdsHistoricos(auth()->user()))
+            ->with(['sucursal', 'puntoVenta', 'turno']);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->columns(['default'=>1,'md'=>2])->components([
-            Select::make('sucursal_id')->label('Local')->options(Sucursal::query()->where('activo',true)->orderBy('nombre')->pluck('nombre','id')->all())->searchable()->live()->required(),
-            Select::make('punto_venta_id')->label('Caja / estación')->options(fn (Get $get): array => filled($get('sucursal_id')) ? PuntoVenta::query()->where('sucursal_id',$get('sucursal_id'))->where('activo',true)->orderBy('nombre')->pluck('nombre','id')->all() : [])->searchable()->placeholder('Hereda los turnos del local'),
+            Select::make('sucursal_id')->label('Local')->options(fn (): array => AlcanceSupervisor::sucursalesQuery(auth()->user())->pluck('nombre', 'id')->all())->searchable()->live()->required(),
+            Select::make('punto_venta_id')->label('Caja / estación')->options(fn (Get $get): array => filled($get('sucursal_id')) && AlcanceSupervisor::puedeGestionarSucursal(auth()->user(), (int) $get('sucursal_id')) ? PuntoVenta::query()->where('sucursal_id',$get('sucursal_id'))->where('activo',true)->orderBy('nombre')->pluck('nombre','id')->all() : [])->searchable()->placeholder('Hereda los turnos del local'),
             Select::make('turno_id')->label('Turno')->options(Turno::query()->where('activo',true)->orderBy('hora_inicio')->pluck('nombre','id')->all())->searchable()->required(),
             TextInput::make('prioridad')->numeric()->minValue(1)->maxValue(999)->default(100)->helperText('Menor número gana solo si dos rangos empatan.'),
             Toggle::make('activo')->label('Detección automática activa')->default(true)->helperText('Solo puede existir una regla activa por turno en cada local o caja.')->columnSpanFull(),
@@ -58,8 +84,8 @@ class TurnoOperativoResource extends Resource
                 ->falseLabel('Históricos')
                 ->default(true),
         ])->recordActions([
-            \Filament\Actions\EditAction::make()
-                ->visible(fn (TurnoOperativo $record): bool => $record->activo)
+                \Filament\Actions\EditAction::make()
+                ->visible(fn (TurnoOperativo $record): bool => static::canEdit($record))
                 ->modal(),
         ]);
     }
